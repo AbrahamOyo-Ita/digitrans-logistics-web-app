@@ -79,10 +79,12 @@ export function BookingForm() {
   return (
     <form onSubmit={submit} className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-start">
       <div className="relative space-y-5">
-        <fieldset className="rounded-2xl border border-line bg-white p-5 pt-6 shadow-[var(--shadow-card)] sm:p-6 sm:pt-7">
-          <legend className="px-1 text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-muted">
-            1 · Service
-          </legend>
+        <fieldset className="rounded-2xl border border-line bg-white p-5 shadow-[var(--shadow-card)] sm:p-6">
+          <legend className="sr-only">Service</legend>
+          <p className="flex items-center gap-2 text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-muted">
+            <span className="grid size-5 place-items-center rounded-full bg-cyan/10 text-[0.625rem] font-bold text-cyan-600">1</span>
+            Service
+          </p>
           <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {serviceOptions.map((option) => {
               const active = service === option;
@@ -116,12 +118,14 @@ export function BookingForm() {
           </div>
         </fieldset>
 
-        <fieldset className="rounded-2xl border border-line bg-white p-5 pt-6 shadow-[var(--shadow-card)] sm:p-6 sm:pt-7">
-          <legend className="px-1 text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-muted">
-            2 · Route &amp; details
-          </legend>
+        <fieldset className="rounded-2xl border border-line bg-white p-5 shadow-[var(--shadow-card)] sm:p-6">
+          <legend className="sr-only">Route &amp; details</legend>
+          <p className="flex items-center gap-2 text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-muted">
+            <span className="grid size-5 place-items-center rounded-full bg-cyan/10 text-[0.625rem] font-bold text-cyan-600">2</span>
+            Route &amp; details
+          </p>
 
-          <div className="mt-3 grid gap-4 sm:grid-cols-2">
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div>
               <label className="field-label" htmlFor="q-pickup">
                 Pickup zone
@@ -223,10 +227,12 @@ export function BookingForm() {
 
         {service === "market-run" && (
           <fieldset className="rounded-2xl border border-line bg-white p-5 shadow-[var(--shadow-card)] sm:p-6">
-            <legend className="px-1 text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-muted">
-              3 · Shopping list
-            </legend>
-            <div className="mt-3 space-y-2">
+            <legend className="sr-only">Shopping list</legend>
+            <p className="flex items-center gap-2 text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-muted">
+              <span className="grid size-5 place-items-center rounded-full bg-cyan/10 text-[0.625rem] font-bold text-cyan-600">3</span>
+              Shopping list
+            </p>
+            <div className="mt-4 space-y-2">
               {items.map((item, index) => (
                 <div key={index} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-2">
                   <input
