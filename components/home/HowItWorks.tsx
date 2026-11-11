@@ -34,7 +34,7 @@ export function HowItWorks() {
             <p className="body-sm mt-5 max-w-sm">
               No app download required to book. The rider app and customer portal handle the rest.
             </p>
-            <Link href="/quote" className="btn btn-primary mt-7">
+            <Link href="/quote" className="pill pill-navy mt-7">
               Start a booking
               <ArrowRight className="size-4" />
             </Link>

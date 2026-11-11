@@ -8,6 +8,7 @@ export function PageHead({
   trail,
   image,
   imageAlt,
+  eyebrow,
   children,
 }: {
   title: string;
@@ -15,6 +16,7 @@ export function PageHead({
   trail: { label: string; href?: string }[];
   image?: string;
   imageAlt?: string;
+  eyebrow?: string;
   children?: React.ReactNode;
 }) {
   return (
@@ -51,7 +53,8 @@ export function PageHead({
         </nav>
 
         <div className="mt-10 max-w-3xl">
-          <h1 className="display-1 text-white">{title}</h1>
+          {eyebrow && <p className="eyebrow eyebrow-light">{eyebrow}</p>}
+          <h1 className={"display-1 text-white" + (eyebrow ? " mt-4" : "")}>{title}</h1>
           {lead && <p className="mt-5 max-w-[52ch] text-[1.0625rem] leading-relaxed text-white/65">{lead}</p>}
           {children}
         </div>

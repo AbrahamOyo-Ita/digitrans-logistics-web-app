@@ -80,6 +80,7 @@ export default async function ServiceDetailPage({
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       <PageHead
+        eyebrow="Service"
         title={service.name}
         lead={service.blurb}
         trail={[{ label: "Services", href: "/services" }, { label: service.name }]}
@@ -96,10 +97,10 @@ export default async function ServiceDetailPage({
             <p className="mt-1 text-[0.9375rem] font-medium text-white">{service.turnaround}</p>
           </div>
           <div className="flex gap-3 pt-1">
-            <Link href="/quote" className="btn btn-on-dark btn-sm">
+            <Link href="/quote" className="pill pill-white pill-sm">
               Get a fare
             </Link>
-            <Link href="/track" className="btn btn-outline-dark btn-sm">
+            <Link href="/track" className="pill pill-ghost pill-sm">
               Track a parcel
             </Link>
           </div>
@@ -137,7 +138,7 @@ export default async function ServiceDetailPage({
             </ol>
 
             <figure className="mt-12">
-              <div className="relative aspect-[16/9] overflow-hidden bg-navy">
+              <div className="relative aspect-[16/9] overflow-hidden rounded-[18px] bg-navy">
                 <Image
                   src={service.image}
                   alt={service.name}
@@ -180,12 +181,12 @@ export default async function ServiceDetailPage({
                   Bulk order, awkward route or a recurring schedule? We will price it properly.
                 </p>
                 <div className="mt-4 flex flex-col gap-2">
-                  <a href="tel:+2348012345678" className="btn btn-primary btn-sm w-full">
+                  <a href="tel:+2348012345678" className="pill pill-navy pill-sm w-full">
                     Call +234 801 234 5678
                   </a>
                   <a
                     href="https://wa.me/2348012345678"
-                    className="btn btn-outline btn-sm w-full"
+                    className="pill pill-line pill-sm w-full"
                   >
                     Message on WhatsApp
                   </a>
@@ -212,7 +213,7 @@ export default async function ServiceDetailPage({
                 href={`/services/${item.slug}`}
                 className="group bg-white p-5 transition-colors hover:bg-paper"
               >
-                <div className="relative aspect-[16/10] overflow-hidden bg-navy">
+                <div className="relative aspect-[16/10] overflow-hidden rounded-[18px] bg-navy">
                   <Image
                     src={item.image}
                     alt={item.name}

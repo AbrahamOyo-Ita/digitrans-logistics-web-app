@@ -22,6 +22,7 @@ export function BookingForm() {
     { name: "Plantain (bunch)", qty: 2, price: 900 },
   ]);
   const [state, setState] = useState<"idle" | "submitting" | "done">("idle");
+  const [error, setError] = useState<string | null>(null);
 
   const budget = items.reduce((sum, item) => sum + item.price * item.qty, 0);
 
@@ -43,15 +44,57 @@ export function BookingForm() {
     setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
   };
 
-  const submit = (event: React.FormEvent<HTMLFormElement>) => {
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const form = new FormData(event.currentTarget);
     setState("submitting");
-    window.setTimeout(() => setState("done"), 900);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/enquiries", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind: "booking",
+          service,
+          name: String(form.get("name") ?? ""),
+          phone: String(form.get("phone") ?? ""),
+          email: String(form.get("email") ?? ""),
+          pickupZone,
+          dropoffZone,
+          pickupLandmark: String(form.get("pickupLandmark") ?? ""),
+          dropoffLandmark: String(form.get("dropoffLandmark") ?? ""),
+          notes: String(form.get("notes") ?? ""),
+          urgent,
+          fragile,
+          weightKg: weight,
+          basketBudget: budget,
+          items: service === "market-run" ? items : undefined,
+          estimate: {
+            total: result.total,
+            distanceKm: result.distanceKm,
+            etaMinutes: result.etaMinutes,
+            lines: result.fares,
+          },
+        }),
+      });
+
+      const body = (await response.json()) as { ok?: boolean; error?: string };
+      if (!response.ok || !body.ok) throw new Error(body.error ?? "Submission failed");
+      setState("done");
+    } catch (err) {
+      setState("idle");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "We could not reach dispatch. Please call +234 801 234 5678."
+      );
+    }
   };
 
   if (state === "done") {
     return (
-      <div className="border border-line bg-white p-8 sm:p-12">
+      <div className="rounded-[16px] border border-line bg-white p-8 sm:p-12">
         <CircleCheck className="size-8 text-cyan" strokeWidth={1.5} />
         <h2 className="display-3 mt-5">Booking request received</h2>
         <p className="body-sm mt-3 max-w-lg">
@@ -60,15 +103,15 @@ export function BookingForm() {
           matched within minutes and the tracking reference arrives by SMS.
         </p>
         <div className="mt-7 flex flex-wrap gap-3">
-          <Link href="/track" className="btn btn-primary">
+          <Link href="/track" className="pill pill-navy">
             Track this delivery
           </Link>
-          <button type="button" onClick={() => setState("idle")} className="btn btn-outline">
+          <button type="button" onClick={() => setState("idle")} className="pill pill-line">
             Book another
           </button>
         </div>
         <p className="mt-6 text-[0.75rem] text-muted">
-          Preview build — no payment is taken and no rider is dispatched.
+          No payment is taken now. Dispatch confirms the rider and final fare before pickup.
         </p>
       </div>
     );
@@ -91,7 +134,7 @@ export function BookingForm() {
                   onClick={() => setService(option)}
                   aria-pressed={active}
                   className={cn(
-                    "flex items-center justify-between gap-2 border px-3.5 py-3 text-left text-[0.8125rem] transition-colors",
+                    "flex items-center justify-between gap-2 rounded-[10px] border px-3.5 py-3 text-left text-[0.8125rem] transition-colors",
                     active ? "border-navy bg-navy text-white" : "border-line text-slate-ink hover:border-line-strong"
                   )}
                 >
@@ -136,20 +179,20 @@ export function BookingForm() {
               <label className="field-label" htmlFor="q-pickup-detail">
                 Pickup landmark
               </label>
-              <input id="q-pickup-detail" className="field" placeholder="14 Marian Road, by the bank" />
+              <input id="q-pickup-detail" name="pickupLandmark" className="field" placeholder="14 Marian Road, by the bank" />
             </div>
             <div>
               <label className="field-label" htmlFor="q-recipient">
                 Recipient phone
               </label>
-              <input id="q-recipient" className="field" placeholder="080…" inputMode="tel" />
+              <input id="q-recipient" name="recipientPhone" className="field" placeholder="080…" inputMode="tel" />
             </div>
             <div className="sm:col-span-2">
               <label className="field-label" htmlFor="q-notes">
                 What are we moving?
               </label>
               <textarea
-                id="q-notes"
+                id="q-notes" name="notes"
                 className="field min-h-24 resize-y"
                 placeholder="Describe the item, plus any handling notes for the rider."
               />
@@ -188,14 +231,14 @@ export function BookingForm() {
                 onClick={() => toggle.set(!toggle.value)}
                 aria-pressed={toggle.value}
                 className={cn(
-                  "flex items-center justify-between border px-3.5 py-3 text-[0.8125rem] transition-colors",
+                  "flex items-center justify-between rounded-[10px] border px-3.5 py-3 text-[0.8125rem] transition-colors",
                   toggle.value ? "border-navy bg-paper text-navy" : "border-line text-slate-ink hover:border-line-strong"
                 )}
               >
                 <span className="flex items-center gap-2.5">
                   <span
                     className={cn(
-                      "grid size-4 place-items-center border",
+                      "grid size-4 place-items-center rounded-[3px] border",
                       toggle.value ? "border-navy bg-navy text-white" : "border-line-strong text-transparent"
                     )}
                   >
@@ -278,13 +321,13 @@ export function BookingForm() {
               <label className="field-label" htmlFor="q-name">
                 Full name
               </label>
-              <input id="q-name" required className="field" placeholder="Ada Effiong" autoComplete="name" />
+              <input id="q-name" name="name" required className="field" placeholder="Ada Effiong" autoComplete="name" />
             </div>
             <div>
               <label className="field-label" htmlFor="q-phone">
                 Phone number
               </label>
-              <input id="q-phone" required className="field" placeholder="080…" inputMode="tel" autoComplete="tel" />
+              <input id="q-phone" name="phone" required className="field" placeholder="080…" inputMode="tel" autoComplete="tel" />
             </div>
           </div>
           <label className="mt-4 flex items-start gap-2.5 text-[0.75rem] leading-relaxed text-muted">
@@ -297,7 +340,7 @@ export function BookingForm() {
       {/* Summary */}
       <aside className="lg:col-span-5">
         <div className="lg:sticky lg:top-24">
-          <div className="border border-line bg-white">
+          <div className="rounded-[18px] border border-line bg-white shadow-[0_18px_50px_-38px_rgba(11,27,43,0.5)]">
             <div className="border-b border-line px-5 py-4">
               <p className="text-[0.6875rem] uppercase tracking-[0.14em] text-muted">{SERVICE_LABELS[service]}</p>
               <p className="mt-2 font-display text-[2rem] font-medium leading-none tracking-tight text-navy">
@@ -329,7 +372,7 @@ export function BookingForm() {
             </div>
 
             <div className="border-t border-line p-5">
-              <button type="submit" className="btn btn-primary w-full" disabled={state === "submitting"}>
+              <button type="submit" className="pill pill-navy w-full" disabled={state === "submitting"}>
                 {state === "submitting" ? (
                   <>
                     <Loader2 className="size-4 animate-spin" /> Reserving a rider
@@ -340,13 +383,18 @@ export function BookingForm() {
                   </>
                 )}
               </button>
+              {error && (
+                <p role="alert" className="mt-3 rounded-[8px] border-l-2 border-danger bg-danger/5 px-3 py-2 text-[0.75rem] leading-relaxed text-danger">
+                  {error}
+                </p>
+              )}
               <p className="mt-3 text-center text-[0.6875rem] leading-relaxed text-muted">
                 No payment now. You confirm the final fare before dispatch.
               </p>
             </div>
           </div>
 
-          <div className="mt-4 border border-line p-5">
+          <div className="mt-4 rounded-[16px] border border-line bg-paper p-5">
             <p className="text-[0.875rem] font-medium text-navy">Prefer to talk?</p>
             <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-slate-ink">
               Dispatch answers Mon–Sat, 7am–8pm, on{" "}

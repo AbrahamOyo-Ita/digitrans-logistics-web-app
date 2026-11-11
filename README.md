@@ -20,17 +20,19 @@ npm run typecheck
 
 | Route | Purpose |
 | --- | --- |
-| `/` | Home — hero, introduction, services, live fare widget, tracking, operations, tariffs, coverage, reviews, process, FAQ, closing CTA |
+| `/` | Home — hero, feature strip, services, why-us band, industries, tracking, numbers, reviews, insights, closing CTA |
 | `/services` | All six services with tariffs and windows |
 | `/services/[slug]` | Six service pages: standard, market runs, waybills, business/vendor, student, scheduled |
 | `/pricing` | Full tariff table, optional extras, live fare calculator |
 | `/coverage` | Zones by LGA with landmarks, plus inter-state waybill routes |
 | `/quote` | Four-step booking form with itemised fare summary |
-| `/track` | Reference lookup with status timeline (three demo references) |
+| `/track` | Reference lookup with status timeline (three sample references) |
 | `/about` | Company story, operating model, milestones, careers |
 | `/contact` | Support channels, vendor + rider onboarding, depot map, FAQs, privacy, terms |
+| `/insights` | Guides and notes from the dispatch desk |
+| `/insights/[slug]` | Three long-form articles (pricing, market runs, waybills) |
 
-`/sitemap.xml` and `/robots.txt` are generated from `lib/content.ts`.
+`/sitemap.xml` and `/robots.txt` are generated from `lib/content.ts` and `lib/articles.ts`.
 
 ## Design system
 
@@ -45,12 +47,12 @@ Tokens are defined once in `app/globals.css` under Tailwind's `@theme`.
 | `--color-slate-ink` | `#46566B` | Body copy |
 | `--color-muted` | `#6D7B89` | Secondary copy |
 
-Rules the site follows:
+Layout rules:
 
-- **Photography leads.** Every page opens with a full-bleed or half-bleed photograph that blends into the navy field through gradient and mask utilities (`photo-fade-*`), not through coloured glows.
-- **No glow effects.** No box-shadow coloured halos, no radial cyan washes, no pulsing dots. Shadows are neutral and low opacity.
-- **No eyebrow labels or pill badges.** Section headings carry the meaning; small text is reserved for captions and data.
-- **Squared geometry.** 4 px radii on controls, hairline borders, generous whitespace. Buttons are navy, white-on-navy or outlined — cyan is never a large fill.
+- **Photography leads.** Every page opens with a full-bleed or half-bleed photograph that blends into the navy field through gradient and mask utilities (`photo-fade-*`).
+- **Rounded geometry.** Cards at 14–18 px radii, pill buttons and pill inputs, hairline borders. Circular icon badges carry a light tint of their hue.
+- **Eyebrow + two-tone headings.** Each section opens with a small uppercase eyebrow in cyan, then a heading whose second line is cyan.
+- **No glow effects.** Shadows are neutral and low opacity — no coloured halos, no radial cyan washes, no pulsing dots.
 - Typography: `Inter Tight` for display, `Inter` for text, both self-hosted. Line-height 1.7 for body copy.
 - All interactive targets are at least 44 px; `prefers-reduced-motion` disables animation.
 
@@ -74,9 +76,23 @@ Every surface — the home widget, the pricing page calculator, the service page
 - `lib/tracking.ts` — demo tracking records; replace with API calls when the operations backend ships.
 - `public/images` — brand photography in `public/images` (AI-generated, no licensing dependencies).
 
+## Enquiries
+
+`app/api/enquiries/route.ts` accepts three payload kinds — `booking`, `contact` and
+`newsletter` — validates and normalises them, then forwards them to the transport
+configured in the environment:
+
+| Variable | Behaviour |
+| --- | --- |
+| `ENQUIRY_WEBHOOK_URL` | Every enquiry is POSTed as JSON (Slack, Zapier, a CRM, your own endpoint). |
+| unset | The enquiry is validated, logged server-side and acknowledged. |
+
+To deliver mail directly, replace the webhook branch with a Resend/SES/Postmark call —
+the validation and the response shape stay the same.
+
 ## Before launch
 
 - Replace placeholder contact details (phone, email, address) and confirm the RC number.
 - Replace headline figures (deliveries, riders, on-time rate) with audited numbers.
-- Wire `/quote` and `/contact` to the backend; both currently validate and simulate success in the browser.
-- Connect `/track` to the deliveries table instead of the demo records.
+- Set `ENQUIRY_WEBHOOK_URL` so bookings and messages reach the dispatch desk.
+- Connect `/track` to the deliveries table instead of the sample records.

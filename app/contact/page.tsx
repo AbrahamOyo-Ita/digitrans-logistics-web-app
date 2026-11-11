@@ -15,6 +15,7 @@ export default function ContactPage() {
   return (
     <>
       <PageHead
+        eyebrow="Contact"
         title="Contact the dispatch desk."
         lead="Deliveries, vendor onboarding or a complaint — pick the fastest route below. During operating hours, the phone is answered by someone in Calabar."
         trail={[{ label: "Contact" }]}
@@ -78,7 +79,7 @@ export default function ContactPage() {
                 and acceptance of the rider agreement. Riders keep 25% of every completed fare,
                 settled the next working day.
               </p>
-              <a href={site.whatsappHref} className="btn btn-primary btn-sm mt-5">
+              <a href={site.whatsappHref} className="pill pill-navy pill-sm mt-5">
                 Start rider onboarding
               </a>
             </div>

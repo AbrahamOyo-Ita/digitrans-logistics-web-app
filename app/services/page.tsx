@@ -17,6 +17,7 @@ export default function ServicesPage() {
   return (
     <>
       <PageHead
+        eyebrow="Our services"
         title="Six services, one dispatch desk."
         lead="Everything we do in Calabar, with the tariff for each shown up front. Pick the one that fits, or call dispatch and we will tell you which is cheaper."
         trail={[{ label: "Services" }]}
@@ -46,7 +47,7 @@ export default function ServicesPage() {
             >
               <div className={`lg:col-span-6 ${i % 2 === 1 ? "lg:order-2" : ""}`}>
                 <Link href={`/services/${service.slug}`} className="group block">
-                  <div className="relative aspect-[16/10] overflow-hidden bg-navy">
+                  <div className="relative aspect-[16/10] overflow-hidden rounded-[18px] bg-navy">
                     <Image
                       src={service.image}
                       alt={service.name}
@@ -102,10 +103,10 @@ export default function ServicesPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Link href="/quote" className="btn btn-on-dark btn-sm">
+            <Link href="/quote" className="pill pill-white pill-sm">
               Price it
             </Link>
-            <Link href="/contact" className="btn btn-outline-dark btn-sm">
+            <Link href="/contact" className="pill pill-ghost pill-sm">
               Talk to dispatch
             </Link>
           </div>

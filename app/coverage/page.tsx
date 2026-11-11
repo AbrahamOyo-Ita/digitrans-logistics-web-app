@@ -35,6 +35,7 @@ export default function CoveragePage() {
   return (
     <>
       <PageHead
+        eyebrow="Coverage"
         title="Calabar, mapped the way people give directions."
         lead="Twelve zones built around landmarks, junctions and markets — not postcodes. Every zone carries a fixed rate card, with GPS distance used wherever a landmark resolves cleanly."
         trail={[{ label: "Coverage" }]}
@@ -150,10 +151,10 @@ export default function CoveragePage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Link href="/quote" className="btn btn-primary btn-sm">
+            <Link href="/quote" className="pill pill-navy pill-sm">
               Price a route
             </Link>
-            <Link href="/contact" className="btn btn-outline btn-sm">
+            <Link href="/contact" className="pill pill-line pill-sm">
               Ask dispatch
             </Link>
           </div>

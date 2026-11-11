@@ -240,6 +240,11 @@
     padding-right: 2.4rem;
   }
 
+  .field-pill {
+    border-radius: 999px;
+    padding-inline: 1.25rem;
+  }
+
   .field-dark {
     background: rgba(255, 255, 255, 0.04);
     border-color: rgba(255, 255, 255, 0.22);
@@ -278,6 +283,133 @@
     font-size: 0.75rem;
     letter-spacing: 0.01em;
     color: var(--color-muted);
+  }
+
+  /* Section eyebrow — small caps label above a heading */
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-cyan);
+  }
+
+  .eyebrow-light { color: rgba(141, 195, 202, 0.95); }
+
+  /* Rounded surface used by the template's cards */
+  .surface {
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid var(--color-line);
+    box-shadow: 0 1px 2px rgba(11, 27, 43, 0.03), 0 20px 40px -32px rgba(11, 27, 43, 0.35);
+  }
+
+  .surface-flat {
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid var(--color-line);
+  }
+
+  .surface-dark {
+    background: var(--color-navy);
+    border-radius: 14px;
+    color: #fff;
+  }
+
+  .img-round {
+    border-radius: 18px;
+    overflow: hidden;
+  }
+
+  /* Pills — template's rounded controls */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 48px;
+    padding: 0.75rem 1.5rem;
+    border-radius: 999px;
+    font-weight: 500;
+    font-size: 0.9375rem;
+    line-height: 1;
+    letter-spacing: -0.005em;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+  }
+
+  .pill-sm { min-height: 42px; padding: 0.55rem 1.15rem; font-size: 0.875rem; }
+
+  .pill-navy { background: var(--color-navy); color: #fff; border: 1px solid var(--color-navy); }
+  .pill-navy:hover { background: var(--color-navy-600); border-color: var(--color-navy-600); }
+
+  .pill-cyan { background: var(--color-cyan); color: #fff; border: 1px solid var(--color-cyan); }
+  .pill-cyan:hover { background: var(--color-cyan-600); border-color: var(--color-cyan-600); }
+
+  .pill-ghost { background: rgba(255, 255, 255, 0.08); color: #fff; border: 1px solid rgba(255, 255, 255, 0.32); }
+  .pill-ghost:hover { background: rgba(255, 255, 255, 0.16); border-color: rgba(255, 255, 255, 0.6); }
+
+  .pill-white { background: #fff; color: var(--color-navy); border: 1px solid #fff; }
+  .pill-white:hover { background: rgba(255, 255, 255, 0.9); }
+
+  .pill-line { background: #fff; color: var(--color-navy); border: 1px solid var(--color-line-strong); }
+  .pill-line:hover { border-color: var(--color-navy); }
+
+  /* Icon badge — the template's coloured circular icon */
+  .icon-badge {
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 999px;
+    flex-shrink: 0;
+  }
+
+  .band {
+    background: var(--color-navy);
+    color: #fff;
+  }
+
+  .tab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.7rem 1.15rem;
+    border-radius: 999px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-slate-ink);
+    border: 1px solid var(--color-line);
+    background: #fff;
+    transition: all 0.16s ease;
+    white-space: nowrap;
+  }
+
+  .tab:hover { border-color: var(--color-line-strong); color: var(--color-navy); }
+
+  .tab[aria-selected="true"], .tab.is-active {
+    background: var(--color-navy);
+    border-color: var(--color-navy);
+    color: #fff;
+  }
+
+  .tab-dark {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.22);
+    color: rgba(255, 255, 255, 0.78);
+  }
+
+  .tab-dark:hover { border-color: rgba(255, 255, 255, 0.45); color: #fff; }
+
+  .tab-dark[aria-selected="true"], .tab-dark.is-active {
+    background: #fff;
+    border-color: #fff;
+    color: var(--color-navy);
   }
 
 }

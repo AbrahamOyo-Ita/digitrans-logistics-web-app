@@ -37,7 +37,7 @@ export function Coverage() {
 
         <div className="lg:col-span-7">
           <figure className="relative">
-            <div className="relative aspect-[4/3] overflow-hidden bg-navy">
+            <div className="relative aspect-[4/3] overflow-hidden rounded-[18px] bg-navy">
               <Image
                 src="/images/market-run.jpg"
                 alt="A DigiTrans market runner shopping in Calabar"

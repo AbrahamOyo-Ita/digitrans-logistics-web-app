@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowRight, Menu, Phone, X } from "lucide-react";
+import { ArrowRight, Menu, Phone, Search, X } from "lucide-react";
 import { Logo } from "./Logo";
 import { site } from "@/lib/content";
 import { cn } from "@/lib/cn";
@@ -53,8 +53,8 @@ export function Header() {
     <>
       <header
         className={cn(
-          "sticky top-0 z-50 border-b bg-white transition-colors duration-300",
-          scrolled ? "border-line" : "border-transparent"
+          "sticky top-0 z-50 bg-white transition-shadow duration-300",
+          scrolled ? "shadow-[0_1px_20px_-8px_rgba(11,27,43,0.28)]" : ""
         )}
       >
         <div className="container-x flex h-[4.5rem] items-center justify-between gap-6">
@@ -140,8 +140,11 @@ export function Header() {
               {site.phone}
             </a>
             <span aria-hidden className="hidden h-4 w-px bg-line xl:block" />
-            <Link href="/quote" className="btn btn-primary btn-sm hidden sm:inline-flex">
-              Book a delivery
+            <Link href="/track" className="hidden size-10 place-items-center text-slate-ink transition-colors hover:text-navy md:grid" aria-label="Track a parcel">
+              <Search className="size-[1.05rem]" />
+            </Link>
+            <Link href="/quote" className="pill pill-cyan pill-sm hidden sm:inline-flex">
+              Get a quote
             </Link>
             <button
               type="button"
@@ -224,8 +227,8 @@ export function Header() {
           </div>
 
           <div className="border-t border-line p-5">
-            <Link href="/quote" className="btn btn-primary w-full">
-              Book a delivery
+            <Link href="/quote" className="pill pill-cyan w-full">
+              Get a quote
             </Link>
             <a
               href={site.phoneHref}

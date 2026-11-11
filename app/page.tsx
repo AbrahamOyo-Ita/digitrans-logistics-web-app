@@ -1,16 +1,13 @@
 import type { Metadata } from "next";
-import { Hero } from "@/components/home/Hero";
-import { Intro } from "@/components/home/Intro";
-import { Services } from "@/components/home/Services";
-import { Quote } from "@/components/home/Quote";
+import { Hero, FeatureStrip } from "@/components/home/Hero";
+import { Intro, ServiceCards } from "@/components/home/Intro";
+import { WhyUs } from "@/components/home/WhyUs";
+import { Industries } from "@/components/home/Industries";
 import { Tracking } from "@/components/home/Tracking";
-import { Operations } from "@/components/home/Operations";
-import { Pricing } from "@/components/home/Pricing";
-import { Coverage } from "@/components/home/Coverage";
+import { Numbers } from "@/components/home/Numbers";
 import { Testimonials } from "@/components/home/Testimonials";
-import { HowItWorks } from "@/components/home/HowItWorks";
-import { Faq } from "@/components/home/Faq";
 import { ClosingCta } from "@/components/home/ClosingCta";
+import { Insights } from "@/components/home/Insights";
 
 export const metadata: Metadata = {
   title: "DigiTrans Logistics — Delivery, market runs & waybills in Calabar",
@@ -23,16 +20,15 @@ export default function HomePage() {
   return (
     <>
       <Hero />
+      <FeatureStrip />
       <Intro />
-      <Services />
-      <Quote />
+      <ServiceCards />
+      <WhyUs />
+      <Industries />
       <Tracking />
-      <Operations />
-      <Pricing />
-      <Coverage />
+      <Numbers />
       <Testimonials />
-      <HowItWorks />
-      <Faq />
+      <Insights />
       <ClosingCta />
     </>
   );

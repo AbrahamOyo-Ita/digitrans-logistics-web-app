@@ -44,6 +44,7 @@ export default function AboutPage() {
   return (
     <>
       <PageHead
+        eyebrow="About us"
         title="We started with one bicycle in Calabar."
         lead="DigiTrans Logistics is a delivery company built in Cross River State — our own riders, our own runners and a dispatch desk that answers. The platform is the upgrade, not the origin story."
         trail={[{ label: "About" }]}
@@ -97,7 +98,7 @@ export default function AboutPage() {
 
           <div className="lg:col-span-5">
             <figure>
-              <div className="relative aspect-[4/5] overflow-hidden bg-navy">
+              <div className="relative aspect-[4/5] overflow-hidden rounded-[18px] bg-navy">
                 <Image
                   src="/images/rider-portrait.jpg"
                   alt="A DigiTrans rider with his cargo bike"

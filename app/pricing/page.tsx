@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { PageHead } from "@/components/ui/PageHead";
+import { Eyebrow } from "@/components/ui/Bits";
 import { QuoteWidget } from "@/components/ui/QuoteWidget";
 import { PRICING, formatNaira } from "@/lib/pricing";
 
@@ -68,6 +69,7 @@ export default function PricingPage() {
   return (
     <>
       <PageHead
+        eyebrow="Pricing"
         title="Published tariffs, no enquiry form."
         lead="These are the rates we work to across Calabar. Every fare you see in the app is calculated from this table — plus only the extras you choose."
         trail={[{ label: "Pricing" }]}
@@ -78,7 +80,8 @@ export default function PricingPage() {
       <section className="section bg-white">
         <div className="container-x grid gap-12 lg:grid-cols-12 lg:gap-16">
           <div className="lg:col-span-7">
-            <h2 className="display-3">Core tariffs</h2>
+            <Eyebrow>Rate card</Eyebrow>
+            <h2 className="display-3 mt-2.5">Core tariffs</h2>
             <div className="mt-5 border-t border-line">
               {table.map((row) => (
                 <div key={row.service} className="grid gap-1 border-b border-line py-4 sm:grid-cols-[1.1fr_1.3fr_auto] sm:items-baseline sm:gap-6">
@@ -117,7 +120,8 @@ export default function PricingPage() {
 
           <aside className="lg:col-span-5">
             <div className="lg:sticky lg:top-24">
-              <h2 className="display-3">Work out a fare</h2>
+              <Eyebrow>Calculator</Eyebrow>
+              <h2 className="display-3 mt-2.5">Work out a fare</h2>
               <p className="body-sm mt-2">
                 Choose two zones to see the exact charge, distance and delivery window.
               </p>
@@ -143,10 +147,10 @@ export default function PricingPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Link href="/contact#vendors" className="btn btn-primary btn-sm">
+            <Link href="/contact#vendors" className="pill pill-navy pill-sm">
               Ask about vendor rates
             </Link>
-            <Link href="/quote" className="btn btn-outline btn-sm">
+            <Link href="/quote" className="pill pill-line pill-sm">
               Book a delivery <ArrowRight className="size-3.5" />
             </Link>
           </div>

@@ -11,10 +11,10 @@ export default function NotFound() {
           you came for.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
-          <Link href="/" className="btn btn-primary">
+          <Link href="/" className="pill pill-navy">
             Back to home
           </Link>
-          <Link href="/track" className="btn btn-outline">
+          <Link href="/track" className="pill pill-line">
             Track a delivery
           </Link>
         </div>

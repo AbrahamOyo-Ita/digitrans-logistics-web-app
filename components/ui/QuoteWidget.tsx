@@ -45,9 +45,9 @@ export function QuoteWidget({
   };
 
   return (
-    <div className={cn(variant === "panel" && "border border-line bg-white")}>
+    <div className={cn(variant === "panel" && "rounded-[18px] border border-line bg-white shadow-[0_18px_50px_-38px_rgba(11,27,43,0.5)]")}>
       {/* Service tabs */}
-      <div className="flex border-b border-line" role="tablist" aria-label="Delivery type">
+      <div className="flex flex-wrap gap-2 p-4 pb-0" role="tablist" aria-label="Delivery type">
         {tabs.map((tab) => {
           const active = service === tab.id;
           return (
@@ -56,24 +56,15 @@ export function QuoteWidget({
               role="tab"
               aria-selected={active}
               onClick={() => setService(tab.id)}
-              className={cn(
-                "relative flex-1 px-2 py-3.5 text-[0.8125rem] font-medium transition-colors",
-                active ? "text-navy" : "text-muted hover:text-slate-ink"
-              )}
+              className={cn("tab flex-1 justify-center", active && "is-active")}
             >
               {tab.label}
-              <span
-                className={cn(
-                  "absolute inset-x-0 -bottom-px h-[2px] bg-navy transition-opacity",
-                  active ? "opacity-100" : "opacity-0"
-                )}
-              />
             </button>
           );
         })}
       </div>
 
-      <div className="p-5">
+      <div className="p-4 sm:p-5">
         <div className="grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-end">
           <div>
             <label className="field-label" htmlFor="pickup-zone">
@@ -135,7 +126,7 @@ export function QuoteWidget({
                   type="button"
                   onClick={() => setWeight(w.value)}
                   className={cn(
-                    "border px-2 py-2 text-[0.75rem] transition-colors",
+                    "rounded-[10px] border px-2 py-2.5 text-[0.75rem] transition-colors",
                     weight === w.value
                       ? "border-navy bg-navy text-white"
                       : "border-line text-slate-ink hover:border-line-strong"
@@ -192,7 +183,7 @@ export function QuoteWidget({
       </div>
 
       {/* Fare */}
-      <div className="border-t border-line bg-paper p-5">
+      <div className="m-3 mt-4 rounded-[14px] bg-paper p-4 sm:m-4 sm:p-5">
         <div className="flex items-end justify-between gap-4">
           <div>
             <p className="text-[0.75rem] text-muted">
@@ -237,7 +228,7 @@ export function QuoteWidget({
           </div>
         )}
 
-        <Link href="/quote" className="btn btn-primary mt-5 w-full">
+        <Link href="/quote" className="pill pill-navy mt-5 w-full">
           Continue to booking
           <ArrowRight className="size-4" />
         </Link>

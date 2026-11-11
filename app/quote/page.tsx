@@ -14,9 +14,12 @@ export default function QuotePage() {
   return (
     <>
       <PageHead
+        eyebrow="Book a delivery"
         title="Book a delivery."
         lead="Pick a service and two zones. The fare, distance and delivery window update as you go — the same calculation dispatch uses."
         trail={[{ label: "Book a delivery" }]}
+        image="/images/handover.jpg"
+        imageAlt="A DigiTrans rider handing over a parcel"
       />
 
       <section className="section-tight bg-white">
@@ -31,10 +34,10 @@ export default function QuotePage() {
             Dispatch answers {site.hours}. Cash, transfer and online payment are all accepted.
           </p>
           <div className="flex flex-wrap gap-2">
-            <a href={site.phoneHref} className="btn btn-outline btn-sm">
+            <a href={site.phoneHref} className="pill pill-line pill-sm">
               Call {site.phone}
             </a>
-            <a href={site.whatsappHref} className="btn btn-primary btn-sm">
+            <a href={site.whatsappHref} className="pill pill-navy pill-sm">
               Message dispatch
             </a>
           </div>
