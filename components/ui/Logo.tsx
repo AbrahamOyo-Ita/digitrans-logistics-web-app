@@ -1,70 +1,39 @@
 import Link from "next/link";
-import { cn } from "@/lib/cn";
 
 export function Logo({
   variant = "dark",
-  compact = false,
   className,
 }: {
   variant?: "dark" | "light";
-  compact?: boolean;
   className?: string;
 }) {
   const isLight = variant === "light";
   return (
-    <Link
-      href="/"
-      aria-label="DigiTrans Logistics home"
-      className={cn("group inline-flex items-center gap-2.5", className)}
-    >
+    <Link href="/" aria-label="DigiTrans Logistics — home" className={`inline-flex items-baseline gap-2 ${className ?? ""}`}>
       <span
-        className={cn(
-          "relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-[0.7rem] transition-transform duration-300 group-hover:-rotate-3",
-          isLight ? "bg-white/10 ring-1 ring-white/25" : "bg-navy shadow-[0_8px_20px_-10px_rgba(10,27,53,0.8)]"
-        )}
+        className={`font-display text-[1.35rem] font-semibold leading-none tracking-[-0.045em] ${
+          isLight ? "text-white" : "text-navy"
+        }`}
       >
-        <svg viewBox="0 0 40 40" className="size-10" aria-hidden="true">
-          <defs>
-            <linearGradient id="dt-mark" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#12B8CC" />
-              <stop offset="100%" stopColor="#0797A8" />
-            </linearGradient>
-          </defs>
-          <rect width="40" height="40" rx="11" fill={isLight ? "transparent" : "url(#dt-mark)"} />
-          <path
-            d="M11 12.5h8.4c4.6 0 7.6 2.9 7.6 7.5s-3 7.5-7.6 7.5H11V12.5Zm4.4 3.7v7.6h3.8c2.3 0 3.7-1.5 3.7-3.8s-1.4-3.8-3.7-3.8h-3.8Z"
-            fill="#fff"
-          />
-          <path d="M11 27.5h13" stroke="#fff" strokeOpacity=".55" strokeWidth="1.6" strokeLinecap="round" />
-          <circle cx="29.5" cy="11.5" r="2.2" fill="#0A1B35" fillOpacity={isLight ? ".5" : ".35"} />
-        </svg>
+        Digi<span className="text-cyan">trans</span>
       </span>
-      {!compact && (
-        <span className="flex flex-col leading-none">
-          <span
-            className={cn(
-              "font-display text-[1.05rem] font-bold tracking-[-0.03em]",
-              isLight ? "text-white" : "text-navy"
-            )}
-          >
-            Digi<span className="text-cyan">Trans</span>
-          </span>
-          <span
-            className={cn(
-              "mt-1 text-[0.5625rem] font-medium uppercase tracking-[0.2em]",
-              isLight ? "text-white/55" : "text-muted"
-            )}
-          >
-            Logistics
-          </span>
-        </span>
-      )}
+      <span
+        aria-hidden
+        className={`hidden h-3 w-px self-center sm:block ${isLight ? "bg-white/25" : "bg-line-strong"}`}
+      />
+      <span
+        className={`hidden text-[0.625rem] font-medium uppercase leading-none tracking-[0.22em] sm:block ${
+          isLight ? "text-white/55" : "text-muted"
+        }`}
+      >
+        Logistics
+      </span>
     </Link>
   );
 }
 
 export function SocialIcon({ kind }: { kind: "instagram" | "facebook" | "linkedin" | "x" }) {
-  const common = { width: 16, height: 16, viewBox: "0 0 24 24", fill: "currentColor", "aria-hidden": true };
+  const common = { width: 15, height: 15, viewBox: "0 0 24 24", fill: "currentColor", "aria-hidden": true };
   if (kind === "instagram")
     return (
       <svg {...common}>

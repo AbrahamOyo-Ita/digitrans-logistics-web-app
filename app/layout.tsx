@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Header } from "@/components/ui/Header";
 import { Footer } from "@/components/ui/Footer";
-import { WhatsAppFab } from "@/components/ui/WhatsAppFab";
 import { site } from "@/lib/content";
 
 export const metadata: Metadata = {
@@ -28,19 +27,19 @@ export const metadata: Metadata = {
     title: "DigiTrans Logistics — Delivery, market runs & waybills in Calabar",
     description:
       "Same-day delivery, market runs, waybills and business dispatch across Calabar, Cross River State.",
-    images: [{ url: "/images/hero-courier.jpg", width: 1024, height: 1536, alt: "DigiTrans rider in Calabar" }],
+    images: [{ url: "/images/street-wide.jpg", width: 1536, height: 864, alt: "A DigiTrans rider crossing Calabar at dusk" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "DigiTrans Logistics — move Calabar, door to door",
+    title: "DigiTrans Logistics — delivery, market runs and waybills in Calabar",
     description: "Same-day delivery, market runs and waybills across Calabar.",
-    images: ["/images/hero-courier.jpg"],
+    images: ["/images/street-wide.jpg"],
   },
   alternates: { canonical: "/" },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0A1B35",
+  themeColor: "#0B1B2B",
   width: "device-width",
   initialScale: 1,
 };
@@ -58,7 +57,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Header />
         <main id="main">{children}</main>
         <Footer />
-        <WhatsAppFab />
       </body>
     </html>
   );

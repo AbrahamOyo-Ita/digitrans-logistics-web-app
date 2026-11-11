@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ArrowUpRight, Mail, MapPin, Phone } from "lucide-react";
 import { Logo, SocialIcon } from "./Logo";
 import { site } from "@/lib/content";
 
@@ -9,7 +8,7 @@ const columns = [
     links: [
       { label: "Standard delivery", href: "/services/standard-delivery" },
       { label: "Market runs", href: "/services/market-runs" },
-      { label: "Waybills & parcels", href: "/services/waybills" },
+      { label: "Waybills", href: "/services/waybills" },
       { label: "Business & vendor", href: "/services/business-logistics" },
       { label: "Student delivery", href: "/services/student-delivery" },
       { label: "Scheduled pickups", href: "/services/scheduled-pickups" },
@@ -18,9 +17,9 @@ const columns = [
   {
     title: "Company",
     links: [
-      { label: "About DigiTrans", href: "/about" },
-      { label: "Coverage", href: "/#coverage" },
-      { label: "How pricing works", href: "/#pricing" },
+      { label: "About", href: "/about" },
+      { label: "Coverage", href: "/coverage" },
+      { label: "Pricing", href: "/pricing" },
       { label: "Track a delivery", href: "/track" },
       { label: "Contact", href: "/contact" },
     ],
@@ -28,9 +27,9 @@ const columns = [
   {
     title: "Get started",
     links: [
-      { label: "Request a quote", href: "/quote" },
-      { label: "Become a vendor", href: "/contact#vendors" },
-      { label: "Ride with DigiTrans", href: "/contact#riders" },
+      { label: "Book a delivery", href: "/quote" },
+      { label: "Vendor account", href: "/contact#vendors" },
+      { label: "Ride with us", href: "/contact#riders" },
       { label: "FAQs", href: "/contact#faqs" },
     ],
   },
@@ -38,56 +37,27 @@ const columns = [
 
 export function Footer() {
   return (
-    <footer className="relative overflow-hidden bg-navy text-white">
-      <div className="pointer-events-none absolute inset-0 grid-lines opacity-40" aria-hidden />
-      <div className="pointer-events-none absolute -left-40 top-0 size-[38rem] rounded-full bg-cyan/10 blur-3xl" aria-hidden />
-
-      <div className="relative">
-        {/* CTA strip */}
-        <div className="border-b border-white/10">
-          <div className="container-x flex flex-col gap-5 py-8 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="font-display text-xl font-semibold tracking-tight text-white">
-                Ready to send something across Calabar?
-              </p>
-              <p className="mt-1 text-sm text-white/60">
-                Instant quotes, live tracking, and riders who know every street.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Link href="/quote" className="btn btn-primary">
-                Get a quote
-              </Link>
-              <a href={site.whatsappHref} className="btn btn-ghost">
-                WhatsApp us
-              </a>
-            </div>
-          </div>
-        </div>
-
-        <div className="container-x grid gap-12 py-14 md:grid-cols-2 lg:grid-cols-[1.15fr_repeat(3,minmax(0,0.8fr))]">
+    <footer className="bg-navy text-white">
+      <div className="container-x">
+        <div className="grid gap-10 border-b border-white/12 py-14 md:grid-cols-2 lg:grid-cols-[1.4fr_repeat(3,1fr)]">
           <div>
             <Logo variant="light" />
-            <p className="mt-5 max-w-xs text-sm leading-relaxed text-white/60">
-              {site.tagline} Built in Cross River State, for the way people actually move things.
+            <p className="mt-5 max-w-[34ch] text-[0.875rem] leading-relaxed text-white/55">
+              Delivery, market runs and waybills across Calabar. Built in Cross River State since{" "}
+              {site.founded}.
             </p>
 
-            <div className="mt-6 space-y-3 text-sm">
-              <a href={site.phoneHref} className="flex items-start gap-3 text-white/75 transition hover:text-white">
-                <Phone className="mt-0.5 size-4 shrink-0 text-cyan-300" />
+            <div className="mt-6 space-y-2 text-[0.8125rem] text-white/60">
+              <a href={site.phoneHref} className="block transition-colors hover:text-white">
                 {site.phone}
               </a>
-              <a href={site.emailHref} className="flex items-start gap-3 text-white/75 transition hover:text-white">
-                <Mail className="mt-0.5 size-4 shrink-0 text-cyan-300" />
+              <a href={site.emailHref} className="block transition-colors hover:text-white">
                 {site.email}
               </a>
-              <p className="flex items-start gap-3 text-white/75">
-                <MapPin className="mt-0.5 size-4 shrink-0 text-cyan-300" />
-                {site.address}
-              </p>
+              <p className="max-w-[30ch] leading-relaxed">{site.address}</p>
             </div>
 
-            <div className="mt-6 flex items-center gap-2">
+            <div className="mt-6 flex items-center gap-1">
               {site.socials.map((s) => (
                 <a
                   key={s.label}
@@ -95,7 +65,7 @@ export function Footer() {
                   target="_blank"
                   rel="noreferrer noopener"
                   aria-label={s.label}
-                  className="grid size-9 place-items-center rounded-lg border border-white/15 text-white/70 transition hover:border-cyan-300/60 hover:text-white"
+                  className="grid size-8 place-items-center text-white/45 transition-colors hover:text-white"
                 >
                   <SocialIcon kind={s.icon} />
                 </a>
@@ -105,16 +75,12 @@ export function Footer() {
 
           {columns.map((col) => (
             <div key={col.title}>
-              <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.16em] text-white/40">{col.title}</p>
+              <p className="text-[0.6875rem] font-medium uppercase tracking-[0.16em] text-white/35">{col.title}</p>
               <ul className="mt-4 space-y-2.5">
                 {col.links.map((link) => (
                   <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      className="group inline-flex items-center gap-1 text-sm text-white/70 transition hover:text-white"
-                    >
+                    <Link href={link.href} className="text-[0.8125rem] text-white/65 transition-colors hover:text-white">
                       {link.label}
-                      <ArrowUpRight className="size-3 opacity-0 transition group-hover:opacity-70" />
                     </Link>
                   </li>
                 ))}
@@ -123,23 +89,16 @@ export function Footer() {
           ))}
         </div>
 
-        <div className="border-t border-white/10">
-          <div className="container-x flex flex-col gap-3 py-6 text-[0.75rem] text-white/45 sm:flex-row sm:items-center sm:justify-between">
-            <p>
-              © {new Date().getFullYear()} DigiTrans Logistics Ltd. RC 1234567 · Calabar, Cross River State.
-            </p>
-            <div className="flex flex-wrap items-center gap-5">
-              <Link href="/contact#privacy" className="transition hover:text-white">
-                Privacy
-              </Link>
-              <Link href="/contact#terms" className="transition hover:text-white">
-                Terms
-              </Link>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="size-1.5 rounded-full bg-success" />
-                All systems operational
-              </span>
-            </div>
+        <div className="flex flex-col gap-3 py-6 text-[0.75rem] text-white/35 sm:flex-row sm:items-center sm:justify-between">
+          <p>© {new Date().getFullYear()} DigiTrans Logistics Ltd. Calabar, Cross River State.</p>
+          <div className="flex flex-wrap items-center gap-5">
+            <Link href="/contact#privacy" className="transition-colors hover:text-white/70">
+              Privacy
+            </Link>
+            <Link href="/contact#terms" className="transition-colors hover:text-white/70">
+              Terms
+            </Link>
+            <span>{site.hours}</span>
           </div>
         </div>
       </div>

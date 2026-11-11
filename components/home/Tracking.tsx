@@ -1,159 +1,167 @@
-"use client";
-
-import { useState } from "react";
-import { Check, Copy, MapPin, Phone, ShieldCheck, Truck } from "lucide-react";
-import { cn } from "@/lib/cn";
+import Link from "next/link";
+import { ArrowRight, Check, Phone } from "lucide-react";
 
 const stages = [
-  { key: "confirmed", label: "Confirmed", time: "09:12", note: "Booking accepted · payment held" },
-  { key: "rider", label: "Rider assigned", time: "09:18", note: "Emeka · E-bike · CRD-114" },
-  { key: "collected", label: "Picked up", time: "09:31", note: "Watt Market · 2 parcels scanned" },
-  { key: "transit", label: "Out for delivery", time: "09:44", note: "En route to State Housing" },
-  { key: "delivered", label: "Delivered", time: "10:02", note: "Received by A. Bassey · photo" },
+  { label: "Booking confirmed", time: "09:12", note: "Fare held · ₦2,300" },
+  { label: "Rider assigned", time: "09:18", note: "Emeka O. accepted the job" },
+  { label: "Collected", time: "09:31", note: "2 parcels scanned at Watt Market" },
+  { label: "Out for delivery", time: "09:44", note: "En route to State Housing" },
+  { label: "Delivered", time: "10:02", note: "Signed for by A. Bassey" },
 ];
 
 const activeIndex = 3;
 
 export function Tracking() {
-  const [copied, setCopied] = useState(false);
-  const reference = "DT-CAL-8842-5117";
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(reference);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1800);
-    } catch {
-      setCopied(false);
-    }
-  };
-
   return (
-    <section id="tracking" className="section-pad relative overflow-hidden bg-navy text-white">
-      <div className="pointer-events-none absolute inset-0 radial-glow opacity-60" aria-hidden />
-      <div className="pointer-events-none absolute inset-0 grid-lines opacity-25" aria-hidden />
+    <section className="section bg-white">
+      <div className="container-x">
+        <div className="grid gap-12 lg:grid-cols-12 lg:items-center lg:gap-16">
+          <div className="lg:col-span-5">
+            <h2 className="display-2 max-w-[20ch]">You can see every step it takes.</h2>
+            <p className="body-sm mt-5">
+              Each status change is timestamped and attributed to the person responsible. Share one
+              link with the recipient and stop answering “where is my order?” calls.
+            </p>
 
-      <div className="container-x relative grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
-        <div>
-          <p className="eyebrow text-cyan-300">
-            <span className="h-px w-6 bg-cyan-300" /> Live tracking
-          </p>
-          <h2 className="display-2 mt-3 text-white">
-            Know where it is, <span className="text-cyan-300">before you ask.</span>
-          </h2>
-          <p className="lede mt-4 max-w-md text-white/70">
-            Every status change carries a timestamp and the person responsible. Share one link with the
-            recipient and stop fielding “where is my order?” calls.
-          </p>
-
-          <ul className="mt-7 space-y-3.5">
-            {[
-              { icon: MapPin, title: "Zone-accurate ETAs", body: "Fares and windows calculated from real Calabar routes." },
-              { icon: Phone, title: "Masked rider contact", body: "Call your rider without exposing either phone number." },
-              { icon: ShieldCheck, title: "Proof that stands up", body: "Photo, recipient name and signature on delivery." },
-            ].map((item) => (
-              <li key={item.title} className="flex gap-3.5">
-                <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border border-white/15 bg-white/5 text-cyan-300">
-                  <item.icon className="size-4" />
-                </span>
-                <div>
-                  <p className="text-[0.9375rem] font-semibold text-white">{item.title}</p>
-                  <p className="mt-0.5 text-[0.8125rem] leading-relaxed text-white/55">{item.body}</p>
+            <dl className="mt-8 divide-y divide-line border-y border-line">
+              {[
+                { title: "Zone-accurate arrival windows", body: "Calculated from real Calabar routes, not guesswork." },
+                { title: "Masked rider contact", body: "Call your rider without exposing either phone number." },
+                { title: "Proof that stands up", body: "Photo, recipient name and signature on delivery." },
+              ].map((item) => (
+                <div key={item.title} className="py-4">
+                  <dt className="text-[0.9375rem] font-medium text-navy">{item.title}</dt>
+                  <dd className="mt-1 text-[0.8125rem] leading-relaxed text-slate-ink">{item.body}</dd>
                 </div>
-              </li>
-            ))}
-          </ul>
+              ))}
+            </dl>
 
-          <div className="mt-8 flex flex-wrap items-center gap-3 text-[0.75rem] text-white/50">
-            <span className="font-mono uppercase tracking-[0.14em]">{reference}</span>
-            <button
-              type="button"
-              onClick={copy}
-              className="inline-flex items-center gap-1.5 rounded-md border border-white/15 px-2 py-1 font-medium text-white/70 transition hover:border-cyan-300/50 hover:text-white"
-            >
-              {copied ? <Check className="size-3 text-cyan-300" /> : <Copy className="size-3" />}
-              {copied ? "Copied" : "Copy reference"}
-            </button>
+            <Link href="/track" className="link-underline mt-8">
+              Track a delivery
+              <ArrowRight className="size-3.5" />
+            </Link>
           </div>
-        </div>
 
-        <div className="relative">
-          <div className="absolute -inset-6 rounded-[2rem] bg-cyan/10 blur-2xl" aria-hidden />
-          <div className="relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.04] p-5 backdrop-blur-md sm:p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-white/40">
-                  Delivery in progress
-                </p>
-                <p className="mt-1 font-display text-lg font-semibold tracking-tight text-white">
-                  Watt Market → State Housing
-                </p>
-                <p className="mt-0.5 text-[0.75rem] text-white/50">2 parcels · 6.4 km · arrived 10:02</p>
-              </div>
-              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-cyan/15 px-2.5 py-1 text-[0.7rem] font-semibold text-cyan-300 ring-1 ring-inset ring-cyan-300/25">
-                <span className="relative size-1.5 rounded-full bg-cyan-300 pulse-ring" />
-                On the move
-              </span>
-            </div>
-
-            <div className="mt-6">
-              <ol className="relative space-y-4">
-                <span className="absolute left-[0.6875rem] top-2 bottom-4 w-px bg-white/12" aria-hidden />
-                {stages.map((stage, i) => {
-                  const done = i < activeIndex;
-                  const active = i === activeIndex;
-                  return (
-                    <li key={stage.key} className="relative flex gap-3.5">
-                      <span
-                        className={cn(
-                          "relative z-10 mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border text-[0.6rem] font-bold",
-                          done && "border-cyan bg-cyan text-navy",
-                          active && "border-cyan bg-navy text-cyan-300 ring-4 ring-cyan/20",
-                          !done && !active && "border-white/20 bg-navy text-white/35"
-                        )}
-                      >
-                        {done ? <Check className="size-3.5" strokeWidth={3.5} /> : active ? <Truck className="size-3" /> : i + 1}
-                      </span>
-                      <div className="flex flex-1 flex-wrap items-baseline justify-between gap-x-3">
-                        <p
-                          className={cn(
-                            "text-[0.875rem] font-medium",
-                            active ? "text-white" : done ? "text-white/80" : "text-white/40"
-                          )}
-                        >
-                          {stage.label}
-                          {active && (
-                            <span className="ml-2 rounded bg-cyan/15 px-1.5 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-cyan-300">
-                              now
-                            </span>
-                          )}
-                        </p>
-                        <span className="font-mono text-[0.7rem] tabular-nums text-white/35">{stage.time}</span>
-                        <p className="w-full text-[0.75rem] text-white/45">{stage.note}</p>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ol>
-            </div>
-
-            <div className="mt-5 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-navy/60 p-3.5">
-              <div className="flex items-center gap-3">
-                <span className="grid size-9 place-items-center rounded-full bg-cyan/15 font-display text-xs font-bold text-cyan-300">
-                  EO
-                </span>
+          <div className="lg:col-span-7">
+            <div className="border border-line bg-white shadow-[var(--shadow-card)]">
+              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-5 py-4 sm:px-6">
                 <div>
-                  <p className="text-[0.8125rem] font-semibold text-white">Emeka O.</p>
-                  <p className="text-[0.6875rem] text-white/45">Rider · 4.9 ★ · 812 deliveries</p>
+                  <p className="font-display text-[1.0625rem] font-medium tracking-tight text-navy">
+                    Watt Market → State Housing
+                  </p>
+                  <p className="mt-1 font-mono text-[0.6875rem] uppercase tracking-[0.08em] text-muted">
+                    DT-CAL-8842-5117 · 2 parcels · 6.4 km
+                  </p>
+                </div>
+                <p className="text-[0.75rem] font-medium text-cyan">Out for delivery</p>
+              </div>
+
+              <div className="grid sm:grid-cols-[1.05fr_1fr]">
+                <ol className="divide-y divide-line border-b border-line px-5 sm:border-b-0 sm:border-r sm:px-6">
+                  {stages.map((stage, i) => {
+                    const done = i < activeIndex;
+                    const active = i === activeIndex;
+                    return (
+                      <li key={stage.label} className="flex gap-3 py-3.5">
+                        <span
+                          className={
+                            done
+                              ? "mt-0.5 grid size-[1.125rem] shrink-0 place-items-center rounded-full bg-cyan text-white"
+                              : active
+                                ? "mt-0.5 grid size-[1.125rem] shrink-0 place-items-center rounded-full border-2 border-cyan bg-white"
+                                : "mt-0.5 grid size-[1.125rem] shrink-0 place-items-center rounded-full border border-line-strong bg-white"
+                          }
+                        >
+                          {done && <Check className="size-2.5" strokeWidth={3.5} />}
+                          {active && <span className="size-1.5 rounded-full bg-cyan" />}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-baseline justify-between gap-3">
+                            <p
+                              className={
+                                active
+                                  ? "text-[0.875rem] font-medium text-navy"
+                                  : done
+                                    ? "text-[0.875rem] text-slate-ink"
+                                    : "text-[0.875rem] text-muted"
+                              }
+                            >
+                              {stage.label}
+                            </p>
+                            <span className="font-mono text-[0.6875rem] tabular-nums text-muted">{stage.time}</span>
+                          </div>
+                          <p className="mt-0.5 truncate text-[0.75rem] text-muted">{stage.note}</p>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+
+                {/* Map panel */}
+                <div className="relative min-h-[16rem] bg-[#eef1f2] p-5">
+                  <svg
+                    viewBox="0 0 200 200"
+                    className="absolute inset-0 size-full"
+                    aria-hidden
+                    preserveAspectRatio="xMidYMid slice"
+                  >
+                    <rect width="200" height="200" fill="#eef1f2" />
+                    {/* blocks */}
+                    {Array.from({ length: 5 }).map((_, row) =>
+                      Array.from({ length: 5 }).map((_, col) => (
+                        <rect
+                          key={`${row}-${col}`}
+                          x={col * 42 + 6}
+                          y={row * 42 + 6}
+                          width={30}
+                          height={30}
+                          fill="#e3e7e9"
+                        />
+                      ))
+                    )}
+                    {/* roads */}
+                    <path d="M0 96h200M96 0v200" stroke="#fff" strokeWidth="9" />
+                    <path d="M0 150h200M150 0v200" stroke="#fff" strokeWidth="5" />
+                    <path d="M0 42h200M42 0v200" stroke="#fff" strokeWidth="4" />
+                    {/* water */}
+                    <path d="M0 182c40-10 70-6 100 2s64 10 100 4v12H0z" fill="#dfe8ea" />
+                    {/* route */}
+                    <path
+                      d="M42 150v-54h54V54h54"
+                      fill="none"
+                      stroke="#0e7c8b"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <circle cx="42" cy="150" r="4.5" fill="#fff" stroke="#0b1b2b" strokeWidth="2.5" />
+                    <circle cx="150" cy="54" r="4.5" fill="#0b1b2b" />
+                    {/* rider position */}
+                    <circle cx="96" cy="96" r="9" fill="#0e7c8b" fillOpacity="0.14" />
+                    <circle cx="96" cy="96" r="4.5" fill="#0e7c8b" stroke="#fff" strokeWidth="2" />
+                  </svg>
+
+                  <div className="relative flex h-full flex-col justify-between">
+                    <span className="self-start bg-white px-2 py-1 text-[0.625rem] font-medium text-slate-ink shadow-sm">
+                      6.4 km · 22 min left
+                    </span>
+                    <div className="flex items-center justify-between gap-3 bg-white p-3 shadow-sm">
+                      <div className="flex items-center gap-2.5">
+                        <span className="grid size-8 place-items-center rounded-full bg-navy text-[0.6875rem] font-medium text-white">
+                          EO
+                        </span>
+                        <div>
+                          <p className="text-[0.8125rem] font-medium leading-tight text-navy">Emeka O.</p>
+                          <p className="text-[0.6875rem] text-muted">E-bike · 4.9 ★ · 812 trips</p>
+                        </div>
+                      </div>
+                      <span className="grid size-8 place-items-center border border-line text-navy">
+                        <Phone className="size-3.5" />
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <a
-                href="tel:+2348012345678"
-                className="grid size-9 place-items-center rounded-lg border border-white/15 text-white/70 transition hover:border-cyan-300/50 hover:text-white"
-                aria-label="Call rider"
-              >
-                <Phone className="size-4" />
-              </a>
             </div>
           </div>
         </div>

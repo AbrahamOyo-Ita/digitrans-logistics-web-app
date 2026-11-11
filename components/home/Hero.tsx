@@ -1,111 +1,78 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Bike, MapPin, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { site } from "@/lib/content";
-import { QuoteWidget } from "@/components/ui/QuoteWidget";
 
-const proof = [
-  { value: "38k+", label: "deliveries completed" },
-  { value: "97.4%", label: "on-time rate" },
-  { value: "240", label: "riders & runners" },
+const facts = [
+  { value: "38,000+", label: "deliveries completed" },
+  { value: "97.4%", label: "delivered on time" },
+  { value: "240", label: "riders and runners" },
+  { value: "12", label: "zones across Calabar" },
 ];
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden bg-navy text-white">
-      {/* backdrop */}
-      <div className="absolute inset-0" aria-hidden>
+    <section className="relative isolate overflow-hidden bg-navy">
+      {/* Photograph bleeds in from the right and dissolves into the navy field */}
+      <div className="absolute inset-y-0 right-0 -z-10 w-full lg:w-[64%]">
         <Image
-          src="/images/hero-courier.jpg"
-          alt=""
+          src="/images/street-wide.jpg"
+          alt="A DigiTrans rider crossing Calabar at dusk"
           fill
           priority
           sizes="100vw"
-          className="object-cover object-[58%_18%] opacity-55 sm:object-[62%_24%] lg:object-[72%_center] lg:opacity-70"
+          className="object-cover object-[42%_58%] sm:object-[50%_54%] lg:object-[54%_52%]"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-navy via-navy/92 to-navy/30 lg:via-navy/85 lg:to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/25 to-navy/55" />
-        <div className="absolute inset-0 grid-lines opacity-30" />
+        {/* dissolve edges: left, bottom, top */}
+        <div className="absolute inset-0 bg-gradient-to-r from-navy via-navy/70 to-navy/25 sm:via-navy/80 lg:via-navy/60 lg:to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-navy via-navy/80 to-transparent lg:h-52" />
+        <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-navy/85 to-transparent" />
+      </div>
+      <div className="absolute inset-0 -z-10 bg-navy/15 lg:bg-navy/25" />
+
+      <div className="container-x">
+        <div className="flex min-h-[36rem] flex-col justify-center py-16 md:min-h-[40rem] md:py-24 lg:min-h-[44rem]">
+          <p className="text-[0.8125rem] font-medium text-white/55">Calabar, Cross River State</p>
+
+          <h1 className="display-1 mt-6 max-w-[17ch] text-white">
+            Delivery, market runs and waybills, handled properly.
+          </h1>
+
+          <p className="mt-6 max-w-[44ch] text-[1.0625rem] leading-relaxed text-white/70">
+            We run our own riders and our own dispatch desk in Calabar. Fares are quoted before you
+            book, every stop is timestamped, and someone local answers when you call.
+          </p>
+
+          <div className="mt-9 flex flex-wrap items-center gap-3">
+            <Link href="/quote" className="btn btn-on-dark">
+              Book a delivery
+              <ArrowRight className="size-4" />
+            </Link>
+            <Link href="/track" className="btn btn-outline-dark">
+              Track a parcel
+            </Link>
+          </div>
+
+          <dl className="mt-16 grid max-w-2xl grid-cols-2 gap-x-8 gap-y-7 border-t border-white/15 pt-8 sm:grid-cols-4 md:mt-20">
+            {facts.map((fact) => (
+              <div key={fact.label}>
+                <dt className="font-display text-[1.5rem] font-medium leading-none tracking-tight text-white">
+                  {fact.value}
+                </dt>
+                <dd className="mt-2 text-[0.75rem] leading-snug text-white/50">{fact.label}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
       </div>
 
-      <div className="relative container-x pb-0 pt-12 sm:pt-16 lg:pt-20">
-        <div className="grid items-end gap-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:gap-12">
-          <div className="max-w-xl animate-rise">
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[0.7rem] font-medium uppercase tracking-[0.14em] text-cyan-300 backdrop-blur">
-              <Sparkles className="size-3.5" />
-              Now serving Calabar &amp; Akpabuyo
-            </span>
-
-            <h1 className="display-1 mt-5 text-white">
-              We move Calabar,{" "}
-              <span className="relative inline-block text-cyan-300">
-                door to door.
-                <svg
-                  className="absolute -bottom-1 left-0 h-2.5 w-full text-cyan-300/60"
-                  viewBox="0 0 200 12"
-                  fill="none"
-                  preserveAspectRatio="none"
-                  aria-hidden
-                >
-                  <path d="M2 8.5c38-6 82-8 196-2" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                </svg>
-              </span>
-            </h1>
-
-            <p className="lede mt-5 max-w-lg text-white/70">
-              Riders, market runs and waybills in one place. Transparent fares before you book, live
-              tracking while it moves, and proof the moment it lands.
-            </p>
-
-            <div className="mt-7 flex flex-wrap items-center gap-3">
-              <Link href="/quote" className="btn btn-primary">
-                Book a delivery
-                <ArrowRight className="size-4" />
-              </Link>
-              <Link href="/track" className="btn btn-ghost">
-                <MapPin className="size-4" />
-                Track a parcel
-              </Link>
-            </div>
-
-            <dl className="mt-9 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-white/12 pt-6">
-              {proof.map((p) => (
-                <div key={p.label}>
-                  <dt className="font-display text-xl font-bold tracking-tight text-white">{p.value}</dt>
-                  <dd className="mt-0.5 text-[0.7rem] uppercase tracking-[0.1em] text-white/45">{p.label}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-
-          <div className="relative min-w-0 animate-rise [animation-delay:120ms]">
-            <div className="mb-4 flex flex-wrap items-center gap-2 lg:justify-end">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[0.7rem] font-medium text-white/80 backdrop-blur">
-                <Bike className="size-3.5 text-cyan-300" /> Bicycle · E-bike · Motorcycle
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[0.7rem] font-medium text-white/80 backdrop-blur">
-                <ShieldCheck className="size-3.5 text-cyan-300" /> Insured to ₦50,000
-              </span>
-            </div>
-
-            <div className="relative">
-              <QuoteWidget variant="hero" />
-              <div className="pointer-events-none absolute -inset-x-6 -bottom-10 h-24 bg-cyan/20 blur-3xl" aria-hidden />
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-14 grid gap-px overflow-hidden rounded-t-2xl border border-b-0 border-white/12 bg-white/10 text-[0.8rem] sm:grid-cols-3">
-          {[
-            { title: "Fares before you commit", body: "Base + distance, no surprises at the door." },
-            { title: "Live status timeline", body: "Every stop logged with a timestamp." },
-            { title: "Support that answers", body: `${site.hours} · WhatsApp & phone` },
-          ].map((item) => (
-            <div key={item.title} className="bg-navy/70 px-4 py-3.5 backdrop-blur">
-              <p className="font-semibold text-white">{item.title}</p>
-              <p className="mt-0.5 text-[0.75rem] text-white/55">{item.body}</p>
-            </div>
-          ))}
+      <div className="relative border-t border-white/12">
+        <div className="container-x flex flex-wrap items-center justify-between gap-3 py-4 text-[0.75rem] text-white/50">
+          <p>Operating {site.hours}</p>
+          <p className="hidden sm:block">{site.address}</p>
+          <a href={site.phoneHref} className="font-medium text-white/75 transition-colors hover:text-white">
+            {site.phone}
+          </a>
         </div>
       </div>
     </section>

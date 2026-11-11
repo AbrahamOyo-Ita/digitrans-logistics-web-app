@@ -1,121 +1,101 @@
-"use client";
+import Image from "next/image";
 
-import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, Quote, Star } from "lucide-react";
-import { testimonials } from "@/lib/content";
-import { cn } from "@/lib/cn";
+const quotes = [
+  {
+    quote:
+      "Our kitchen sends forty orders a day through DigiTrans. Nothing has been lost in eighteen months, and the rider is always the same two or three people.",
+    name: "Iniobong Effiong",
+    role: "Owner, Calabar Kitchen",
+  },
+  {
+    quote:
+      "I send market lists from the clinic and everything arrives weighed and bagged with receipts. The budget approval means I never overpay.",
+    name: "Grace Etim",
+    role: "Operations Lead, Marian Road Clinics",
+  },
+  {
+    quote:
+      "The flat student rate makes a real difference. I order food and printouts to the hostel and it costs the same every time.",
+    name: "Daniel Otu",
+    role: "UNICAL student",
+  },
+];
 
 export function Testimonials() {
-  const [index, setIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
-
-  useEffect(() => {
-    if (paused) return;
-    const id = window.setInterval(() => setIndex((i) => (i + 1) % testimonials.length), 7000);
-    return () => window.clearInterval(id);
-  }, [paused]);
-
-  const active = testimonials[index];
-
   return (
-    <section className="section-pad bg-white">
-      <div className="container-x">
-        <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
-          <div>
-            <p className="eyebrow">
-              <span className="h-px w-6 bg-cyan" /> In their words
+    <section className="bg-paper">
+      <div className="container-x section">
+        <div className="grid gap-10 lg:grid-cols-12 lg:gap-16">
+          <div className="lg:col-span-4">
+            <h2 className="display-2 max-w-[18ch]">What people here say.</h2>
+            <p className="body-sm mt-5 max-w-sm">
+              Only customers with a completed delivery can leave a rating — one review per tracking
+              reference, checked by our operations team.
             </p>
-            <h2 className="display-2 mt-3 text-navy">
-              4.9 average from <span className="text-cyan">1,700+</span> rated deliveries.
-            </h2>
-            <p className="lede mt-4">
-              Only customers with a completed trip can rate — one review per delivery, verified by
-              tracking reference.
-            </p>
-
-            <div className="mt-7 flex items-center gap-4 rounded-xl border border-line bg-mist p-4">
-              <div className="font-display text-3xl font-bold tracking-tight text-navy">4.9</div>
-              <div>
-                <div className="flex gap-0.5 text-cyan">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} className="size-3.5 fill-current" />
-                  ))}
-                </div>
-                <p className="mt-1 text-[0.75rem] text-muted">Across standard, market run &amp; waybill trips</p>
+            <div className="mt-8 border-t border-line pt-5">
+              <p className="font-display text-[2rem] font-medium leading-none tracking-tight text-navy">4.9</p>
+              <p className="mt-2 text-[0.8125rem] text-muted">Average across 1,700 rated deliveries</p>
+              <div className="mt-3 flex gap-1">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <svg key={i} viewBox="0 0 20 20" className="size-3.5 fill-navy" aria-hidden>
+                    <path d="M10 1.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8L1.5 7.7l5.9-.9z" />
+                  </svg>
+                ))}
               </div>
-            </div>
-
-            <div className="mt-6 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setIndex((i) => (i - 1 + testimonials.length) % testimonials.length)}
-                className="grid size-10 place-items-center rounded-full border border-line text-navy transition hover:border-navy/30 hover:bg-mist"
-                aria-label="Previous review"
-              >
-                <ChevronLeft className="size-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setIndex((i) => (i + 1) % testimonials.length)}
-                className="grid size-10 place-items-center rounded-full border border-line text-navy transition hover:border-navy/30 hover:bg-mist"
-                aria-label="Next review"
-              >
-                <ChevronRight className="size-4" />
-              </button>
-              <span className="ml-2 font-mono text-[0.75rem] text-muted">
-                {String(index + 1).padStart(2, "0")} / {String(testimonials.length).padStart(2, "0")}
-              </span>
             </div>
           </div>
 
-          <div
-            className="relative"
-            onMouseEnter={() => setPaused(true)}
-            onMouseLeave={() => setPaused(false)}
-            onFocus={() => setPaused(true)}
-            onBlur={() => setPaused(false)}
-          >
-            <div className="relative overflow-hidden rounded-2xl border border-line bg-navy p-6 text-white shadow-[var(--shadow-lift)] sm:p-9">
-              <div className="absolute inset-0 grid-lines opacity-25" aria-hidden />
-              <Quote className="absolute right-6 top-6 size-16 text-white/6" aria-hidden />
-              <div className="relative">
-                <div className="flex gap-0.5 text-cyan-300">
-                  {Array.from({ length: active.rating }).map((_, i) => (
-                    <Star key={i} className="size-4 fill-current" />
-                  ))}
-                </div>
-                <blockquote key={active.name} className="mt-5 animate-fade font-display text-[1.15rem] font-medium leading-relaxed tracking-tight sm:text-[1.35rem]">
-                  “{active.quote}”
-                </blockquote>
-                <div className="mt-7 flex items-center gap-3 border-t border-white/10 pt-5">
-                  <span className="grid size-11 place-items-center rounded-full bg-cyan/15 font-display text-sm font-bold text-cyan-300 ring-1 ring-inset ring-cyan-300/20">
-                    {active.initials}
-                  </span>
-                  <div>
-                    <p className="text-[0.9375rem] font-semibold text-white">{active.name}</p>
-                    <p className="text-[0.75rem] text-white/55">{active.role}</p>
-                  </div>
-                  <span className="ml-auto hidden rounded-full border border-white/12 px-2.5 py-1 text-[0.625rem] text-white/50 sm:inline-flex">
-                    {active.detail}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 flex gap-2">
-              {testimonials.map((t, i) => (
-                <button
-                  key={t.name}
-                  type="button"
-                  onClick={() => setIndex(i)}
-                  aria-label={`Show review from ${t.name}`}
-                  aria-pressed={i === index}
-                  className={cn(
-                    "h-1.5 flex-1 rounded-full transition-all",
-                    i === index ? "bg-cyan" : "bg-line hover:bg-navy/25"
-                  )}
-                />
+          <div className="lg:col-span-8">
+            <div className="grid gap-px bg-line sm:grid-cols-2">
+              {quotes.map((q, i) => (
+                <figure
+                  key={q.name}
+                  className={`flex flex-col justify-between bg-white p-6 sm:p-8 ${i === 0 ? "sm:col-span-2" : ""}`}
+                >
+                  <blockquote
+                    className={`text-navy ${i === 0 ? "font-display text-[1.25rem] font-medium leading-snug tracking-tight sm:text-[1.5rem]" : "text-[0.9375rem] leading-relaxed"}`}
+                  >
+                    {q.quote}
+                  </blockquote>
+                  <figcaption className="mt-6 flex items-center justify-between gap-4 border-t border-line pt-4">
+                    <div>
+                      <p className="text-[0.8125rem] font-medium text-navy">{q.name}</p>
+                      <p className="mt-0.5 text-[0.75rem] text-muted">{q.role}</p>
+                    </div>
+                    <span className="text-[0.6875rem] text-muted">Verified delivery</span>
+                  </figcaption>
+                </figure>
               ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Merchant strip */}
+      <div className="container-x pb-16">
+        <div className="grid items-stretch gap-0 border border-line bg-white lg:grid-cols-2">
+          <div className="relative min-h-[16rem]">
+            <Image
+              src="/images/merchant.jpg"
+              alt="A restaurant owner handing a delivery bag to a DigiTrans rider"
+              fill
+              sizes="(max-width: 1024px) 100vw, 50vw"
+              className="object-cover"
+            />
+          </div>
+          <div className="flex flex-col justify-center p-7 sm:p-10">
+            <p className="text-[0.75rem] font-medium text-muted">For businesses</p>
+            <h3 className="display-3 mt-2 max-w-[26ch]">
+              Contract rates, a dispatch board and exportable reports.
+            </h3>
+            <p className="body-sm mt-3">
+              Restaurants, pharmacies, laundry, groceries and retail stores run their deliveries on
+              DigiTrans. No subscription — you pay per delivery, invoiced weekly.
+            </p>
+            <div className="mt-6">
+              <a href="/contact#vendors" className="btn btn-primary btn-sm">
+                Apply for a vendor account
+              </a>
             </div>
           </div>
         </div>

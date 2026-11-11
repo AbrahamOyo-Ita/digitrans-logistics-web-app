@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Minus, Plus } from "lucide-react";
+import { Minus, Plus } from "lucide-react";
 import { faqs } from "@/lib/content";
 import { cn } from "@/lib/cn";
 
@@ -10,60 +10,52 @@ export function Faq() {
   const [open, setOpen] = useState<number | null>(0);
 
   return (
-    <section id="faqs" className="section-pad bg-mist">
-      <div className="container-x grid gap-10 lg:grid-cols-[0.7fr_1.3fr] lg:gap-16">
-        <div>
-          <p className="eyebrow">
-            <span className="h-px w-6 bg-cyan" /> Questions
+    <section id="faqs" className="section bg-white">
+      <div className="container-x grid gap-10 lg:grid-cols-12 lg:gap-16">
+        <div className="lg:col-span-4">
+          <h2 className="display-2 max-w-[14ch]">Questions we get.</h2>
+          <p className="body-sm mt-5 max-w-sm">
+            Still unsure? Our support desk answers on the phone and on WhatsApp during operating
+            hours.
           </p>
-          <h2 className="display-2 mt-3 text-navy">Straight answers.</h2>
-          <p className="lede mt-4">
-            Still stuck? Our Calabar support desk answers on WhatsApp and phone during operating hours.
-          </p>
-          <Link
-            href="/contact"
-            className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-cyan transition hover:text-cyan-600"
-          >
-            Talk to support <ArrowUpRight className="size-4" />
+          <Link href="/contact" className="link-underline mt-6">
+            Contact support
           </Link>
         </div>
 
-        <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-white">
-          {faqs.map((faq, i) => {
-            const isOpen = open === i;
-            return (
-              <div key={faq.q}>
-                <button
-                  type="button"
-                  onClick={() => setOpen(isOpen ? null : i)}
-                  aria-expanded={isOpen}
-                  className="flex w-full items-center justify-between gap-5 px-5 py-4.5 text-left transition hover:bg-mist/60"
-                >
-                  <span className={cn("text-[0.9375rem] font-semibold leading-snug", isOpen ? "text-cyan-600" : "text-navy")}>
-                    {faq.q}
-                  </span>
-                  <span
+        <div className="lg:col-span-7 lg:col-start-6">
+          <div className="border-t border-line">
+            {faqs.map((faq, i) => {
+              const isOpen = open === i;
+              return (
+                <div key={faq.q} className="border-b border-line">
+                  <button
+                    type="button"
+                    onClick={() => setOpen(isOpen ? null : i)}
+                    aria-expanded={isOpen}
+                    className="flex w-full items-start justify-between gap-6 py-5 text-left"
+                  >
+                    <span className={cn("text-[0.9375rem] font-medium leading-snug", isOpen ? "text-navy" : "text-navy/90")}>
+                      {faq.q}
+                    </span>
+                    <span className="mt-0.5 shrink-0 text-muted">
+                      {isOpen ? <Minus className="size-4" /> : <Plus className="size-4" />}
+                    </span>
+                  </button>
+                  <div
                     className={cn(
-                      "grid size-7 shrink-0 place-items-center rounded-full border transition",
-                      isOpen ? "border-cyan bg-cyan text-white" : "border-line text-muted"
+                      "grid overflow-hidden transition-all duration-300 ease-out",
+                      isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
                     )}
                   >
-                    {isOpen ? <Minus className="size-3.5" /> : <Plus className="size-3.5" />}
-                  </span>
-                </button>
-                <div
-                  className={cn(
-                    "grid overflow-hidden transition-all duration-300 ease-out",
-                    isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-                  )}
-                >
-                  <p className="overflow-hidden px-5 pb-5 pr-14 text-[0.875rem] leading-relaxed text-slate-ink">
-                    {faq.a}
-                  </p>
+                    <p className="overflow-hidden pb-5 pr-10 text-[0.875rem] leading-relaxed text-slate-ink">
+                      {faq.a}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
     </section>

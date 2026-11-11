@@ -1,100 +1,65 @@
 import Link from "next/link";
-import { ArrowRight, Info } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { PRICING, formatNaira } from "@/lib/pricing";
 
-const cards = [
-  {
-    title: "Standard delivery",
-    rate: "from " + formatNaira(PRICING.minimumFee),
-    formula: `${formatNaira(PRICING.baseFee)} base + ${formatNaira(PRICING.ratePerKm)}/km`,
-    points: ["Minimum fare " + formatNaira(PRICING.minimumFee), "Priority +" + formatNaira(PRICING.urgentSurcharge), "Careful handling +" + formatNaira(PRICING.fragileSurcharge)],
-    accent: false,
-  },
-  {
-    title: "Market runs",
-    rate: formatNaira(PRICING.marketRunFee) + " fee",
-    formula: "Shopping budget + flat service fee",
-    points: ["Budget held, then reconciled", "Receipts on every purchase", "Unspent balance returned"],
-    accent: true,
-  },
-  {
-    title: "Waybills",
-    rate: "from " + formatNaira(PRICING.waybillTiers[0].price),
-    formula: "Tiered by weight, verified at the counter",
-    points: ["Under 5 kg " + formatNaira(1_500), "5 – 10 kg " + formatNaira(3_000), "Above 10 kg ₦250/kg"],
-    accent: false,
-  },
+const rows = [
+  { service: "Standard delivery", basis: "Base fee plus distance", rate: `${formatNaira(PRICING.baseFee)} + ${formatNaira(PRICING.ratePerKm)}/km`, minimum: formatNaira(PRICING.minimumFee) },
+  { service: "Market run", basis: "Shopping budget plus service fee", rate: `${formatNaira(PRICING.marketRunFee)} fee`, minimum: "Budget held" },
+  { service: "Waybill — under 5 kg", basis: "Weight tier, verified at the counter", rate: formatNaira(1_500), minimum: "—" },
+  { service: "Waybill — 5 to 10 kg", basis: "Weight tier, verified at the counter", rate: formatNaira(3_000), minimum: "—" },
+  { service: "Waybill — above 10 kg", basis: "Per kilogram above 10 kg", rate: `${formatNaira(250)}/kg`, minimum: "—" },
+  { service: "Verified student", basis: "Flat rate inside campus zones", rate: formatNaira(PRICING.studentFlat), minimum: "₦500 flat" },
+  { service: "Vendor contract", basis: "Standard tariff with contract discount", rate: "10% off", minimum: "By agreement" },
 ];
 
 export function Pricing() {
   return (
-    <section id="pricing" className="section-pad relative overflow-hidden bg-mist">
+    <section className="section bg-paper">
       <div className="container-x">
-        <div className="mx-auto max-w-2xl text-center">
-          <p className="eyebrow mx-auto justify-center">
-            <span className="h-px w-6 bg-cyan" /> Transparent pricing
-          </p>
-          <h2 className="display-2 mt-3 text-navy">A fare you can predict.</h2>
-          <p className="lede mt-4">
-            Our engine calculates base fee, distance and surcharges before you confirm. Student and
-            vendor rates are applied automatically — never after the fact.
-          </p>
+        <div className="grid gap-8 lg:grid-cols-12 lg:items-end lg:gap-16">
+          <div className="lg:col-span-7">
+            <h2 className="display-2 max-w-[22ch]">Published tariffs, no enquiry form.</h2>
+          </div>
+          <div className="lg:col-span-5">
+            <p className="body-sm">
+              These are the rates we work to. Priority adds {formatNaira(PRICING.urgentSurcharge)} and
+              careful handling adds {formatNaira(PRICING.fragileSurcharge)}. Nothing else is added on
+              the day.
+            </p>
+          </div>
         </div>
 
-        <div className="mt-10 grid gap-4 md:grid-cols-3">
-          {cards.map((card) => (
-            <div
-              key={card.title}
-              className={
-                card.accent
-                  ? "relative flex flex-col rounded-2xl bg-navy p-6 pt-7 text-white shadow-[var(--shadow-lift)] ring-1 ring-white/10"
-                  : "relative flex flex-col rounded-2xl border border-line bg-white p-6 pt-7 shadow-[var(--shadow-card)]"
-              }
-            >
-              <div className="flex items-center justify-between gap-3">
-                <p className={card.accent ? "text-[0.8125rem] font-medium text-cyan-300" : "text-[0.8125rem] font-medium text-muted"}>
-                  {card.title}
-                </p>
-                {card.accent && (
-                  <span className="rounded-full bg-cyan px-2.5 py-1 text-[0.625rem] font-bold uppercase tracking-[0.1em] text-white">
-                    Popular
-                  </span>
-                )}
-              </div>
-              <p className="mt-2 font-display text-3xl font-bold tracking-tight">{card.rate}</p>
-              <p className={card.accent ? "mt-1 text-[0.75rem] text-white/55" : "mt-1 text-[0.75rem] text-muted"}>
-                {card.formula}
-              </p>
-              <ul className={card.accent ? "mt-5 space-y-2.5 border-t border-white/10 pt-5" : "mt-5 space-y-2.5 border-t border-line pt-5"}>
-                {card.points.map((point) => (
-                  <li key={point} className="flex items-start gap-2 text-[0.8125rem]">
-                    <span
-                      className={
-                        card.accent
-                          ? "mt-1.5 size-1.5 shrink-0 rounded-full bg-cyan-300"
-                          : "mt-1.5 size-1.5 shrink-0 rounded-full bg-cyan"
-                      }
-                    />
-                    <span className={card.accent ? "text-white/75" : "text-slate-ink"}>{point}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+        <div className="mt-10 overflow-x-auto border border-line bg-white">
+          <table className="w-full min-w-[46rem] border-collapse text-left">
+            <thead>
+              <tr className="border-b border-line bg-white">
+                <th className="px-5 py-3.5 text-[0.6875rem] font-medium uppercase tracking-[0.12em] text-muted">Service</th>
+                <th className="px-5 py-3.5 text-[0.6875rem] font-medium uppercase tracking-[0.12em] text-muted">How it is calculated</th>
+                <th className="px-5 py-3.5 text-[0.6875rem] font-medium uppercase tracking-[0.12em] text-muted">Rate</th>
+                <th className="px-5 py-3.5 text-[0.6875rem] font-medium uppercase tracking-[0.12em] text-muted">Minimum</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {rows.map((row) => (
+                <tr key={row.service} className="transition-colors hover:bg-paper">
+                  <td className="px-5 py-4 text-[0.875rem] font-medium text-navy">{row.service}</td>
+                  <td className="px-5 py-4 text-[0.8125rem] text-slate-ink">{row.basis}</td>
+                  <td className="whitespace-nowrap px-5 py-4 text-[0.875rem] tabular-nums text-navy">{row.rate}</td>
+                  <td className="whitespace-nowrap px-5 py-4 text-[0.8125rem] tabular-nums text-muted">{row.minimum}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
 
-        <div className="mt-6 flex flex-col items-start justify-between gap-4 rounded-2xl border border-line bg-white p-5 sm:flex-row sm:items-center">
-          <p className="flex items-start gap-3 text-[0.8125rem] leading-relaxed text-slate-ink">
-            <Info className="mt-0.5 size-4 shrink-0 text-cyan" />
-            <span>
-              <strong className="font-semibold text-navy">Zone fallback pricing.</strong> Where a landmark
-              can’t be resolved to GPS, we fall back to a fixed zone-to-zone rate so the fare never
-              changes mid-trip.
-            </span>
+        <div className="mt-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+          <p className="max-w-xl text-[0.8125rem] leading-relaxed text-muted">
+            Where a landmark cannot be resolved to GPS, we fall back to a fixed zone-to-zone rate so
+            the fare never changes mid-trip.
           </p>
-          <Link href="/quote" className="btn btn-dark btn-sm shrink-0">
+          <Link href="/quote" className="link-underline shrink-0">
             Price my delivery
-            <ArrowRight className="size-4" />
+            <ArrowRight className="size-3.5" />
           </Link>
         </div>
       </div>

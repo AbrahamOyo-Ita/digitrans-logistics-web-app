@@ -1,79 +1,56 @@
 import Link from "next/link";
-import { ArrowRight, Bike, MapPin, PackageCheck, Wallet } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 const steps = [
   {
-    icon: MapPin,
-    step: "01",
+    step: "1",
     title: "Set the route",
-    body: "Choose a service, pick your zones or type a landmark. You get an itemised fare immediately.",
+    body: "Choose a service, pick your zones or add a landmark. You see the fare and window immediately.",
   },
   {
-    icon: Wallet,
-    step: "02",
-    title: "Confirm & pay",
-    body: "Pay online, by transfer, or cash to the rider. Vendors settle weekly on contract rates.",
+    step: "2",
+    title: "Confirm and pay",
+    body: "Pay online, by transfer, or in cash to the rider. Vendors settle weekly on contract rates.",
   },
   {
-    icon: Bike,
-    step: "03",
+    step: "3",
     title: "A rider is matched",
     body: "The nearest verified rider is assigned within minutes — bicycle, e-bike or motorcycle.",
   },
   {
-    icon: PackageCheck,
-    step: "04",
+    step: "4",
     title: "Track to the door",
-    body: "Follow live statuses, share the link, and receive photo proof when it lands.",
+    body: "Follow each status update, share the link, and receive photo proof when it lands.",
   },
 ];
 
 export function HowItWorks() {
   return (
-    <section className="section-pad border-y border-line bg-mist">
+    <section className="section bg-white">
       <div className="container-x">
-        <div className="mx-auto max-w-xl text-center">
-          <p className="eyebrow mx-auto justify-center">
-            <span className="h-px w-6 bg-cyan" /> How it works
-          </p>
-          <h2 className="display-2 mt-3 text-navy">Four steps, under a minute.</h2>
-          <p className="lede mt-4">
-            No app download required to book. The rider app and customer portal deliver the rest.
-          </p>
-        </div>
-
-        <ol className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {steps.map((step, i) => (
-            <li
-              key={step.step}
-              className="group relative flex flex-col rounded-2xl border border-line bg-white p-5 shadow-[var(--shadow-card)] transition hover:-translate-y-1 hover:shadow-[var(--shadow-lift)]"
-            >
-              <div className="flex items-center justify-between">
-                <span className="grid size-10 place-items-center rounded-xl bg-cyan/10 text-cyan transition group-hover:bg-cyan group-hover:text-white">
-                  <step.icon className="size-[1.15rem]" />
-                </span>
-                <span className="font-display text-2xl font-bold tracking-tight text-navy/15">{step.step}</span>
-              </div>
-              <h3 className="mt-4 font-display text-[1rem] font-semibold tracking-tight text-navy">{step.title}</h3>
-              <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-slate-ink">{step.body}</p>
-              {i < steps.length - 1 && (
-                <ArrowRight className="absolute -right-2.5 top-1/2 hidden size-4 -translate-y-1/2 text-line lg:block" aria-hidden />
-              )}
-            </li>
-          ))}
-        </ol>
-
-        <div className="mt-8 flex flex-col items-center justify-between gap-4 rounded-2xl bg-navy p-6 text-white sm:flex-row sm:p-7">
-          <div>
-            <p className="font-display text-lg font-semibold tracking-tight">A business? Get the vendor dashboard.</p>
-            <p className="mt-1 text-[0.875rem] text-white/60">
-              Contract pricing, multi-stop dispatch and exportable reports — no subscription.
+        <div className="grid gap-10 lg:grid-cols-12 lg:gap-16">
+          <div className="lg:col-span-4">
+            <h2 className="display-2 max-w-[16ch]">Four steps, under a minute.</h2>
+            <p className="body-sm mt-5 max-w-sm">
+              No app download required to book. The rider app and customer portal handle the rest.
             </p>
+            <Link href="/quote" className="btn btn-primary mt-7">
+              Start a booking
+              <ArrowRight className="size-4" />
+            </Link>
           </div>
-          <Link href="/contact#vendors" className="btn btn-primary shrink-0">
-            Apply as a vendor
-            <ArrowRight className="size-4" />
-          </Link>
+
+          <ol className="grid gap-px bg-line sm:grid-cols-2 lg:col-span-8">
+            {steps.map((s) => (
+              <li key={s.step} className="bg-white p-6 sm:p-7">
+                <span className="font-mono text-[0.6875rem] tabular-nums text-muted">0{s.step}</span>
+                <h3 className="mt-3 font-display text-[1.0625rem] font-medium tracking-tight text-navy">
+                  {s.title}
+                </h3>
+                <p className="mt-2 text-[0.8125rem] leading-relaxed text-slate-ink">{s.body}</p>
+              </li>
+            ))}
+          </ol>
         </div>
       </div>
     </section>

@@ -2,28 +2,21 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, ArrowRightLeft, Check, ChevronDown, Clock, MapPin, Package, ShoppingBasket, Zap } from "lucide-react";
-import {
-  SERVICE_LABELS,
-  ZONES,
-  estimate,
-  formatNaira,
-  waybillTier,
-  type ServiceId,
-} from "@/lib/pricing";
+import { ArrowRight, ArrowRightLeft, Check, Clock } from "lucide-react";
+import { ZONES, estimate, formatNaira, waybillTier, type ServiceId } from "@/lib/pricing";
 import { cn } from "@/lib/cn";
 
-const tabs: { id: ServiceId; label: string; icon: typeof Package }[] = [
-  { id: "standard", label: "Standard", icon: Package },
-  { id: "market-run", label: "Market run", icon: ShoppingBasket },
-  { id: "waybill", label: "Waybill", icon: MapPin },
+const tabs: { id: ServiceId; label: string }[] = [
+  { id: "standard", label: "Delivery" },
+  { id: "market-run", label: "Market run" },
+  { id: "waybill", label: "Waybill" },
 ];
 
 export function QuoteWidget({
-  variant = "hero",
+  variant = "panel",
   defaultService = "standard",
 }: {
-  variant?: "hero" | "full";
+  variant?: "panel" | "full";
   defaultService?: ServiceId;
 }) {
   const [service, setService] = useState<ServiceId>(defaultService);
@@ -52,19 +45,11 @@ export function QuoteWidget({
   };
 
   return (
-    <div className="w-full">
-      {/* Tabs */}
-      <div
-        className={cn(
-          "flex items-center gap-1 rounded-t-2xl border border-line bg-white px-2 pt-2",
-          variant === "hero" && "rounded-t-2xl"
-        )}
-        role="tablist"
-        aria-label="Delivery type"
-      >
+    <div className={cn(variant === "panel" && "border border-line bg-white")}>
+      {/* Service tabs */}
+      <div className="flex border-b border-line" role="tablist" aria-label="Delivery type">
         {tabs.map((tab) => {
           const active = service === tab.id;
-          const Icon = tab.icon;
           return (
             <button
               key={tab.id}
@@ -72,84 +57,74 @@ export function QuoteWidget({
               aria-selected={active}
               onClick={() => setService(tab.id)}
               className={cn(
-                "relative -mb-px inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-t-lg border-b-2 px-2 py-3 text-[0.8125rem] font-semibold transition sm:px-3 sm:text-sm",
-                active
-                  ? "border-cyan text-navy"
-                  : "border-transparent text-muted hover:text-slate-ink"
+                "relative flex-1 px-2 py-3.5 text-[0.8125rem] font-medium transition-colors",
+                active ? "text-navy" : "text-muted hover:text-slate-ink"
               )}
             >
-              <Icon className={cn("size-4", active ? "text-cyan" : "text-muted")} />
               {tab.label}
+              <span
+                className={cn(
+                  "absolute inset-x-0 -bottom-px h-[2px] bg-navy transition-opacity",
+                  active ? "opacity-100" : "opacity-0"
+                )}
+              />
             </button>
           );
         })}
       </div>
 
-      <div
-        className={cn(
-          "rounded-b-2xl border border-t-0 border-line bg-white p-4 shadow-[0_30px_60px_-30px_rgba(10,27,53,0.35)] sm:p-5",
-          variant === "full" && "rounded-2xl border-t sm:rounded-2xl"
-        )}
-      >
-        <div className={cn("grid gap-3", variant === "full" ? "md:grid-cols-[1fr_auto_1fr]" : "sm:grid-cols-[1fr_auto_1fr]")}>
+      <div className="p-5">
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-end">
           <div>
             <label className="field-label" htmlFor="pickup-zone">
-              Pickup zone
+              Pickup
             </label>
-            <div className="relative">
-              <MapPin className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-cyan" />
-              <select
-                id="pickup-zone"
-                className="field pl-9 pr-8 text-[0.875rem]"
-                value={pickupZone}
-                onChange={(e) => setPickupZone(e.target.value)}
-              >
-                {ZONES.map((z) => (
-                  <option key={z.id} value={z.id}>
-                    {z.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select
+              id="pickup-zone"
+              className="field text-[0.875rem]"
+              value={pickupZone}
+              onChange={(e) => setPickupZone(e.target.value)}
+            >
+              {ZONES.map((z) => (
+                <option key={z.id} value={z.id}>
+                  {z.name}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div className="flex items-end justify-center pb-1 sm:w-9">
-            <button
-              type="button"
-              onClick={swap}
-              className="grid size-9 place-items-center rounded-full border border-line text-muted transition hover:border-cyan hover:text-cyan"
-              aria-label="Swap pickup and drop-off"
-            >
-              <ArrowRightLeft className="size-4" />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={swap}
+            className="mb-1 hidden size-9 place-items-center border border-line text-muted transition-colors hover:border-line-strong hover:text-navy sm:grid"
+            aria-label="Swap pickup and drop-off"
+          >
+            <ArrowRightLeft className="size-3.5" />
+          </button>
 
           <div>
             <label className="field-label" htmlFor="dropoff-zone">
-              {service === "market-run" ? "Deliver to" : "Drop-off zone"}
+              {service === "market-run" ? "Deliver to" : "Drop-off"}
             </label>
-            <div className="relative">
-              <MapPin className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-navy/40" />
-              <select
-                id="dropoff-zone"
-                className="field pl-9 pr-8 text-[0.875rem]"
-                value={dropoffZone}
-                onChange={(e) => setDropoffZone(e.target.value)}
-              >
-                {ZONES.map((z) => (
-                  <option key={z.id} value={z.id}>
-                    {z.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select
+              id="dropoff-zone"
+              className="field text-[0.875rem]"
+              value={dropoffZone}
+              onChange={(e) => setDropoffZone(e.target.value)}
+            >
+              {ZONES.map((z) => (
+                <option key={z.id} value={z.id}>
+                  {z.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
         {service === "waybill" && (
-          <div className="mt-3 animate-fade">
-            <span className="field-label">Parcel weight</span>
-            <div className="flex flex-wrap gap-2">
+          <div className="mt-4 animate-fade">
+            <p className="field-label">Parcel weight</p>
+            <div className="grid grid-cols-3 gap-2">
               {[
                 { label: "Under 5 kg", value: 3 },
                 { label: "5 – 10 kg", value: 8 },
@@ -160,14 +135,16 @@ export function QuoteWidget({
                   type="button"
                   onClick={() => setWeight(w.value)}
                   className={cn(
-                    "rounded-lg border px-3 py-2 text-[0.8125rem] font-medium transition",
+                    "border px-2 py-2 text-[0.75rem] transition-colors",
                     weight === w.value
-                      ? "border-cyan bg-cyan/10 text-cyan-600"
-                      : "border-line text-slate-ink hover:border-navy/30"
+                      ? "border-navy bg-navy text-white"
+                      : "border-line text-slate-ink hover:border-line-strong"
                   )}
                 >
                   {w.label}
-                  <span className="ml-1.5 text-muted">· {formatNaira(waybillTier(w.value).price)}</span>
+                  <span className={cn("mt-0.5 block text-[0.6875rem]", weight === w.value ? "text-white/60" : "text-muted")}>
+                    {formatNaira(waybillTier(w.value).price)}
+                  </span>
                 </button>
               ))}
             </div>
@@ -175,17 +152,19 @@ export function QuoteWidget({
         )}
 
         {service === "market-run" && (
-          <div className="mt-3 animate-fade">
-            <span className="field-label">Shopping budget</span>
-            <div className="flex flex-wrap gap-2">
+          <div className="mt-4 animate-fade">
+            <p className="field-label">Shopping budget</p>
+            <div className="grid grid-cols-3 gap-2">
               {[5000, 8000, 15000].map((b) => (
                 <button
                   key={b}
                   type="button"
                   onClick={() => setBudget(b)}
                   className={cn(
-                    "rounded-lg border px-3 py-2 text-[0.8125rem] font-medium transition",
-                    budget === b ? "border-cyan bg-cyan/10 text-cyan-600" : "border-line text-slate-ink hover:border-navy/30"
+                    "border px-2 py-2.5 text-[0.8125rem] transition-colors",
+                    budget === b
+                      ? "border-navy bg-navy text-white"
+                      : "border-line text-slate-ink hover:border-line-strong"
                   )}
                 >
                   {formatNaira(b)}
@@ -195,91 +174,77 @@ export function QuoteWidget({
           </div>
         )}
 
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-mist p-3">
-          <button
-            type="button"
-            onClick={() => setUrgent(!urgent)}
-            className="group inline-flex items-center gap-2.5 text-left"
-            aria-pressed={urgent}
+        <label className="mt-4 flex cursor-pointer items-start gap-2.5">
+          <span
+            className={cn(
+              "mt-0.5 grid size-4 shrink-0 place-items-center border transition-colors",
+              urgent ? "border-navy bg-navy text-white" : "border-line-strong text-transparent"
+            )}
           >
-            <span
-              className={cn(
-                "flex size-5 items-center justify-center rounded-md border transition",
-                urgent ? "border-cyan bg-cyan text-white" : "border-line bg-white text-transparent"
-              )}
-            >
-              <Check className="size-3.5" strokeWidth={3} />
-            </span>
-            <span>
-              <span className="flex items-center gap-1 text-[0.8125rem] font-semibold text-navy">
-                <Zap className="size-3.5 text-cyan" /> Priority delivery
-              </span>
-              <span className="text-[0.7rem] text-muted">Next available rider · +{formatNaira(700)}</span>
-            </span>
-          </button>
+            <Check className="size-2.5" strokeWidth={3.5} />
+          </span>
+          <input type="checkbox" checked={urgent} onChange={() => setUrgent(!urgent)} className="sr-only" />
+          <span className="text-[0.8125rem] text-slate-ink">
+            Priority delivery
+            <span className="ml-1 text-muted">+{formatNaira(700)}</span>
+          </span>
+        </label>
+      </div>
 
-          <div className="text-right">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-muted">
-              {service === "market-run" ? "Budget + fee" : "Estimated fare"}
+      {/* Fare */}
+      <div className="border-t border-line bg-paper p-5">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <p className="text-[0.75rem] text-muted">
+              {service === "market-run" ? "Budget plus service fee" : "Estimated total"}
             </p>
-            <p className="font-display text-[1.6rem] font-bold leading-none tracking-tight text-navy">
+            <p className="mt-1 font-display text-[1.75rem] font-medium leading-none tracking-tight text-navy">
               {formatNaira(result.total)}
             </p>
           </div>
-        </div>
-
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Link href="/quote" className="btn btn-primary flex-1">
-            Book this delivery
-            <ArrowRight className="size-4" />
-          </Link>
-          {variant === "full" ? (
-            <button type="button" className="btn btn-outline sm:w-auto">
-              <Clock className="size-4" />
-              Schedule for later
-            </button>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 text-[0.75rem] text-muted sm:w-auto">
-              <Clock className="size-3.5" />
-              {result.etaMinutes[0]} – {result.etaMinutes[1]} min ETA
-            </span>
-          )}
+          <p className="flex items-center gap-1.5 pb-1 text-[0.75rem] text-muted">
+            <Clock className="size-3.5" />
+            {result.etaMinutes[0]}–{result.etaMinutes[1]} min
+          </p>
         </div>
 
         {variant === "full" && (
-          <div className="mt-4 space-y-1.5 border-t border-line pt-4">
+          <div className="mt-5 space-y-2 border-t border-line pt-4">
             {result.fares.map((line, i) => (
-              <div key={`${line.label}-${i}`} className="flex items-baseline justify-between text-[0.8125rem]">
+              <div key={`${line.label}-${i}`} className="flex items-baseline justify-between gap-3 text-[0.8125rem]">
                 <span className="text-slate-ink">
                   {line.label}
-                  {line.detail && <span className="ml-1.5 text-muted">· {line.detail}</span>}
+                  {line.detail && <span className="block text-[0.6875rem] text-muted">{line.detail}</span>}
                 </span>
                 <span
                   className={cn(
-                    "font-medium tabular-nums",
-                    line.tone === "discount" ? "text-success" : line.tone === "surcharge" ? "text-warning" : "text-navy"
+                    "shrink-0 tabular-nums",
+                    line.tone === "discount" ? "text-success" : "text-navy"
                   )}
                 >
-                  {formatNaira(line.amount)}
+                  {line.tone === "discount" ? "−" : ""}
+                  {formatNaira(Math.abs(line.amount))}
                 </span>
               </div>
             ))}
-            <div className="flex items-baseline justify-between border-t border-line pt-2 text-sm font-semibold text-navy">
-              <span>{SERVICE_LABELS[service]}</span>
+            <p className="flex justify-between border-t border-line pt-2.5 text-[0.8125rem] font-medium text-navy">
+              <span>Total</span>
               <span className="tabular-nums">{formatNaira(result.total)}</span>
-            </div>
-            {result.notice && <p className="pt-1 text-[0.7rem] leading-relaxed text-muted">{result.notice}</p>}
+            </p>
+            {result.notice && (
+              <p className="pt-1 text-[0.6875rem] leading-relaxed text-muted">{result.notice}</p>
+            )}
           </div>
         )}
+
+        <Link href="/quote" className="btn btn-primary mt-5 w-full">
+          Continue to booking
+          <ArrowRight className="size-4" />
+        </Link>
+        <p className="mt-3 text-center text-[0.6875rem] text-muted">
+          No payment now. You confirm the fare before a rider is dispatched.
+        </p>
       </div>
     </div>
-  );
-}
-
-export function ScrollCue() {
-  return (
-    <span className="inline-flex items-center gap-1 text-[0.75rem] font-medium text-white/60">
-      <ChevronDown className="size-3.5 animate-bounce" /> More below
-    </span>
   );
 }

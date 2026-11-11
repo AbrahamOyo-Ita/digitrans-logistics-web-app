@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, ArrowUpRight, Check, Clock, Wallet } from "lucide-react";
-import { services } from "@/lib/content";
+import { ArrowRight, ArrowUpRight, Check } from "lucide-react";
+import { PageHead } from "@/components/ui/PageHead";
 import { QuoteWidget } from "@/components/ui/QuoteWidget";
+import { services } from "@/lib/content";
 import type { ServiceId } from "@/lib/pricing";
 
 const serviceToQuote: Record<string, ServiceId> = {
@@ -30,7 +31,7 @@ export async function generateMetadata({
   if (!service) return { title: "Service not found" };
   return {
     title: `${service.name} in Calabar`,
-    description: service.blurb + " " + service.description.slice(0, 110),
+    description: `${service.blurb} ${service.description.slice(0, 100)}`,
     alternates: { canonical: `/services/${service.slug}` },
     openGraph: {
       title: `${service.name} · DigiTrans Logistics`,
@@ -78,153 +79,154 @@ export default async function ServiceDetailPage({
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      <section className="relative overflow-hidden bg-navy text-white">
-        <div className="absolute inset-0" aria-hidden>
-          <Image src={service.image} alt="" fill className="object-cover opacity-35" sizes="100vw" priority />
-          <div className="absolute inset-0 bg-gradient-to-r from-navy via-navy/92 to-navy/45" />
-          <div className="absolute inset-0 grid-lines opacity-20" />
-        </div>
-
-        <div className="container-x relative py-14 sm:py-20">
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-[0.75rem] text-white/45">
-            <Link href="/" className="transition hover:text-white">
-              Home
+      <PageHead
+        title={service.name}
+        lead={service.blurb}
+        trail={[{ label: "Services", href: "/services" }, { label: service.name }]}
+        image={service.image}
+        imageAlt={service.name}
+      >
+        <div className="mt-8 flex flex-wrap items-center gap-x-10 gap-y-4 border-t border-white/15 pt-6">
+          <div>
+            <p className="text-[0.6875rem] text-white/40">From</p>
+            <p className="mt-1 text-[0.9375rem] font-medium text-white">{service.priceFrom}</p>
+          </div>
+          <div>
+            <p className="text-[0.6875rem] text-white/40">Typical window</p>
+            <p className="mt-1 text-[0.9375rem] font-medium text-white">{service.turnaround}</p>
+          </div>
+          <div className="flex gap-3 pt-1">
+            <Link href="/quote" className="btn btn-on-dark btn-sm">
+              Get a fare
             </Link>
-            <span aria-hidden>/</span>
-            <Link href="/services" className="transition hover:text-white">
-              Services
+            <Link href="/track" className="btn btn-outline-dark btn-sm">
+              Track a parcel
             </Link>
-            <span aria-hidden>/</span>
-            <span className="text-white/70">{service.name}</span>
-          </nav>
-
-          <div className="mt-5 grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
-            <div>
-              <h1 className="display-1 max-w-xl text-white">{service.name}</h1>
-              <p className="lede mt-4 max-w-lg text-white/70">{service.blurb}</p>
-
-              <div className="mt-6 flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[0.75rem] font-medium text-white/85 backdrop-blur">
-                  <Wallet className="size-3.5 text-cyan-300" /> from {service.priceFrom}
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[0.75rem] font-medium text-white/85 backdrop-blur">
-                  <Clock className="size-3.5 text-cyan-300" /> {service.turnaround}
-                </span>
-              </div>
-
-              <div className="mt-7 flex flex-wrap gap-3">
-                <Link href="/quote" className="btn btn-primary">
-                  Get an instant quote <ArrowRight className="size-4" />
-                </Link>
-                <Link href="/track" className="btn btn-ghost">
-                  Track a delivery
-                </Link>
-              </div>
-            </div>
           </div>
         </div>
-      </section>
+      </PageHead>
 
-      <section className="section-pad bg-white">
-        <div className="container-x grid gap-12 lg:grid-cols-[1.15fr_0.85fr] lg:items-start lg:gap-16">
-          <div>
-            <p className="eyebrow">
-              <span className="h-px w-6 bg-cyan" /> Overview
+      <section className="section bg-white">
+        <div className="container-x grid gap-12 lg:grid-cols-12 lg:gap-16">
+          <div className="lg:col-span-7">
+            <h2 className="display-3">What you get</h2>
+            <p className="mt-3 max-w-[62ch] text-[0.9375rem] leading-relaxed text-slate-ink">
+              {service.description}
             </p>
-            <h2 className="display-3 mt-3 text-navy">What you get</h2>
-            <p className="mt-3 text-[0.9375rem] leading-relaxed text-slate-ink">{service.description}</p>
 
-            <ul className="mt-6 grid gap-2 sm:grid-cols-2">
+            <ul className="mt-7 grid gap-px border border-line bg-line sm:grid-cols-2">
               {service.highlights.map((h) => (
-                <li key={h} className="flex items-start gap-2.5 rounded-xl border border-line bg-mist px-3.5 py-3">
-                  <span className="mt-0.5 grid size-4.5 shrink-0 place-items-center rounded-full bg-cyan text-white">
-                    <Check className="size-3" strokeWidth={3.5} />
-                  </span>
-                  <span className="text-[0.8125rem] font-medium text-navy">{h}</span>
+                <li key={h} className="flex items-start gap-2.5 bg-white p-4">
+                  <Check className="mt-0.5 size-4 shrink-0 text-cyan" strokeWidth={2.5} />
+                  <span className="text-[0.8125rem] leading-relaxed text-navy">{h}</span>
                 </li>
               ))}
             </ul>
 
-            <h2 className="display-3 mt-12 text-navy">How it works</h2>
-            <ol className="mt-5 space-y-4 border-l border-line pl-6">
+            <h2 className="display-3 mt-14">How it works</h2>
+            <ol className="mt-6 divide-y divide-line border-t border-line">
               {service.steps.map((step, i) => (
-                <li key={step.title} className="relative">
-                  <span className="absolute -left-[1.9rem] top-0 grid size-6 place-items-center rounded-full border border-cyan/30 bg-cyan/10 text-[0.625rem] font-bold text-cyan-600">
-                    {i + 1}
-                  </span>
-                  <p className="text-[0.9375rem] font-semibold text-navy">{step.title}</p>
-                  <p className="mt-1 text-[0.875rem] leading-relaxed text-slate-ink">{step.body}</p>
+                <li key={step.title} className="grid grid-cols-[auto_1fr] gap-x-5 py-5">
+                  <span className="pt-0.5 font-mono text-[0.6875rem] tabular-nums text-muted">0{i + 1}</span>
+                  <div>
+                    <p className="text-[0.9375rem] font-medium text-navy">{step.title}</p>
+                    <p className="mt-1 text-[0.875rem] leading-relaxed text-slate-ink">{step.body}</p>
+                  </div>
                 </li>
               ))}
             </ol>
 
-            <h2 className="display-3 mt-12 text-navy">Frequently asked</h2>
-            <div className="mt-5 divide-y divide-line overflow-hidden rounded-2xl border border-line">
+            <figure className="mt-12">
+              <div className="relative aspect-[16/9] overflow-hidden bg-navy">
+                <Image
+                  src={service.image}
+                  alt={service.name}
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 60vw"
+                  className="object-cover"
+                />
+              </div>
+            </figure>
+
+            <h2 className="display-3 mt-14">Frequently asked</h2>
+            <div className="mt-5 border-t border-line">
               {service.faqs.map((faq) => (
-                <details key={faq.q} className="group bg-white p-4 open:bg-mist/50">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[0.875rem] font-semibold text-navy marker:hidden">
+                <details key={faq.q} className="group border-b border-line">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-6 py-4 text-[0.9375rem] font-medium text-navy marker:hidden">
                     {faq.q}
-                    <span className="grid size-6 shrink-0 place-items-center rounded-full border border-line text-muted transition group-open:rotate-45 group-open:border-cyan group-open:bg-cyan group-open:text-white">
-                      +
+                    <span className="text-muted transition-transform group-open:rotate-45">
+                      <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                        <path d="M8 2v12M2 8h12" strokeLinecap="round" />
+                      </svg>
                     </span>
                   </summary>
-                  <p className="mt-2.5 pr-8 text-[0.875rem] leading-relaxed text-slate-ink">{faq.a}</p>
+                  <p className="max-w-[62ch] pb-5 pr-8 text-[0.875rem] leading-relaxed text-slate-ink">{faq.a}</p>
                 </details>
               ))}
             </div>
           </div>
 
-          <aside className="lg:sticky lg:top-24">
-            <div className="rounded-2xl border border-line bg-mist p-4 sm:p-5">
-              <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-muted">
-                Estimate this service
-              </p>
-              <div className="mt-3">
+          <aside className="lg:col-span-5">
+            <div className="lg:sticky lg:top-24">
+              <h2 className="display-3">Price this service</h2>
+              <p className="body-sm mt-2">Live fares for your route, calculated the same way dispatch does.</p>
+              <div className="mt-5">
                 <QuoteWidget variant="full" defaultService={serviceToQuote[service.slug] ?? "standard"} />
               </div>
-            </div>
 
-            <div className="mt-4 rounded-2xl border border-navy/10 bg-navy p-5 text-white">
-              <p className="font-display text-[1rem] font-semibold tracking-tight">Talk to dispatch</p>
-              <p className="mt-1 text-[0.8125rem] leading-relaxed text-white/60">
-                Complex route, bulk order or a recurring schedule? We’ll price it properly.
-              </p>
-              <div className="mt-4 grid gap-2">
-                <a href="tel:+2348012345678" className="btn btn-primary btn-sm">
-                  Call +234 801 234 5678
-                </a>
-                <a href="https://wa.me/2348012345678" className="btn btn-ghost btn-sm">
-                  WhatsApp dispatch
-                </a>
+              <div className="mt-6 border border-line p-5">
+                <p className="text-[0.875rem] font-medium text-navy">Talk to dispatch</p>
+                <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-slate-ink">
+                  Bulk order, awkward route or a recurring schedule? We will price it properly.
+                </p>
+                <div className="mt-4 flex flex-col gap-2">
+                  <a href="tel:+2348012345678" className="btn btn-primary btn-sm w-full">
+                    Call +234 801 234 5678
+                  </a>
+                  <a
+                    href="https://wa.me/2348012345678"
+                    className="btn btn-outline btn-sm w-full"
+                  >
+                    Message on WhatsApp
+                  </a>
+                </div>
               </div>
             </div>
           </aside>
         </div>
       </section>
 
-      <section className="border-t border-line bg-mist py-14">
+      <section className="border-t border-line bg-paper py-14">
         <div className="container-x">
-          <div className="flex items-end justify-between gap-4">
-            <h2 className="display-3 text-navy">Also moving in Calabar</h2>
-            <Link href="/services" className="inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-cyan">
-              All services <ArrowUpRight className="size-3.5" />
+          <div className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
+            <h2 className="display-3">Other services</h2>
+            <Link href="/services" className="link-underline">
+              All services
+              <ArrowUpRight className="size-3.5" />
             </Link>
           </div>
-          <div className="mt-5 grid gap-4 sm:grid-cols-3">
+          <div className="mt-6 grid gap-px bg-line sm:grid-cols-3">
             {related.map((item) => (
               <Link
                 key={item.slug}
                 href={`/services/${item.slug}`}
-                className="group overflow-hidden rounded-xl border border-line bg-white transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)]"
+                className="group bg-white p-5 transition-colors hover:bg-paper"
               >
-                <div className="relative h-28 overflow-hidden">
-                  <Image src={item.image} alt="" fill sizes="33vw" className="object-cover transition duration-500 group-hover:scale-105" />
-                  <div className="absolute inset-0 bg-navy/25" />
+                <div className="relative aspect-[16/10] overflow-hidden bg-navy">
+                  <Image
+                    src={item.image}
+                    alt={item.name}
+                    fill
+                    sizes="33vw"
+                    className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                  />
                 </div>
-                <div className="p-4">
-                  <p className="text-[0.875rem] font-semibold text-navy">{item.name}</p>
-                  <p className="mt-1 text-[0.75rem] leading-relaxed text-muted">{item.short}</p>
-                </div>
+                <p className="mt-4 text-[0.9375rem] font-medium text-navy">{item.name}</p>
+                <p className="mt-1 text-[0.8125rem] leading-relaxed text-slate-ink">{item.short}</p>
+                <span className="mt-3 inline-flex items-center gap-1.5 text-[0.75rem] text-muted">
+                  From {item.priceFrom}
+                  <ArrowRight className="size-3" />
+                </span>
               </Link>
             ))}
           </div>

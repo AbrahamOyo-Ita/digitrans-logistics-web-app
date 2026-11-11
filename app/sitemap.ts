@@ -5,7 +5,7 @@ const base = "https://digitrans.ng";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
-  const pages = ["", "/services", "/about", "/contact", "/quote", "/track"].map((path) => ({
+  const pages = ["", "/services", "/pricing", "/coverage", "/about", "/contact", "/quote", "/track"].map((path) => ({
     url: `${base}${path}`,
     lastModified: now,
     changeFrequency: "weekly" as const,

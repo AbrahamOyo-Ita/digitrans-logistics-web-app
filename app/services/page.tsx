@@ -1,113 +1,114 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, Clock, Wallet } from "lucide-react";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { PageHead } from "@/components/ui/PageHead";
 import { services } from "@/lib/content";
 import { PRICING, formatNaira } from "@/lib/pricing";
 
 export const metadata: Metadata = {
-  title: "Services & pricing",
+  title: "Services",
   description:
-    "Compare DigiTrans services — standard delivery, market runs, waybills, business dispatch, student delivery and scheduled pickups across Calabar.",
+    "Six DigiTrans services in Calabar: standard delivery, market runs, waybills, business dispatch, student delivery and scheduled pickups.",
   alternates: { canonical: "/services" },
 };
 
 export default function ServicesPage() {
   return (
     <>
-      <section className="relative overflow-hidden bg-navy py-14 text-white sm:py-20">
-        <div className="absolute inset-0 radial-glow opacity-55" aria-hidden />
-        <div className="absolute inset-0 grid-lines opacity-20" aria-hidden />
-        <div className="container-x relative">
-          <p className="eyebrow text-cyan-300">
-            <span className="h-px w-6 bg-cyan-300" /> Services
-          </p>
-          <h1 className="display-2 mt-3 max-w-2xl text-white">
-            One operator for everything that moves in Calabar.
-          </h1>
-          <p className="lede mt-4 max-w-xl text-white/70">
-            Six services, one dispatch desk, one tracking page. Prices below are the live tariffs — no
-            “contact us for pricing”.
-          </p>
-
-          <div className="mt-8 grid gap-px overflow-hidden rounded-xl border border-white/12 bg-white/10 sm:grid-cols-3">
-            {[
-              { k: "Standard from", v: formatNaira(PRICING.minimumFee) },
-              { k: "Market run fee", v: formatNaira(PRICING.marketRunFee) },
-              { k: "Student flat rate", v: formatNaira(PRICING.studentFlat) },
-            ].map((item) => (
-              <div key={item.k} className="bg-navy/70 px-4 py-3.5 backdrop-blur">
-                <p className="text-[0.625rem] uppercase tracking-[0.14em] text-white/45">{item.k}</p>
-                <p className="mt-1 font-display text-lg font-semibold text-white">{item.v}</p>
-              </div>
-            ))}
-          </div>
+      <PageHead
+        title="Six services, one dispatch desk."
+        lead="Everything we do in Calabar, with the tariff for each shown up front. Pick the one that fits, or call dispatch and we will tell you which is cheaper."
+        trail={[{ label: "Services" }]}
+        image="/images/street-wide.jpg"
+        imageAlt="A DigiTrans rider in Calabar at dusk"
+      >
+        <div className="mt-8 grid max-w-2xl grid-cols-3 border-t border-white/15">
+          {[
+            { k: "Delivery from", v: formatNaira(PRICING.minimumFee) },
+            { k: "Market run fee", v: formatNaira(PRICING.marketRunFee) },
+            { k: "Student flat rate", v: formatNaira(PRICING.studentFlat) },
+          ].map((item) => (
+            <div key={item.k} className="pt-5">
+              <p className="text-[0.6875rem] text-white/40">{item.k}</p>
+              <p className="mt-1 font-display text-[1.125rem] font-medium tracking-tight text-white">{item.v}</p>
+            </div>
+          ))}
         </div>
-      </section>
+      </PageHead>
 
-      <section className="section-pad bg-white">
-        <div className="container-x space-y-5">
+      <section className="bg-white">
+        <div className="container-x">
           {services.map((service, i) => (
             <article
               key={service.slug}
-              className="group grid gap-0 overflow-hidden rounded-2xl border border-line bg-white shadow-[var(--shadow-card)] transition hover:border-navy/15 hover:shadow-[var(--shadow-lift)] md:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)]"
+              className="grid gap-8 border-b border-line py-12 lg:grid-cols-12 lg:items-center lg:gap-14 lg:py-16"
             >
-              <div className={`relative min-h-56 ${i % 2 === 1 ? "md:order-2" : ""}`}>
-                <Image
-                  src={service.image}
-                  alt={service.name}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 40vw"
-                  className="object-cover transition duration-700 group-hover:scale-[1.03]"
-                />
-                <div className="absolute inset-0 bg-gradient-to-tr from-navy/45 via-transparent to-transparent" />
-                <div className="absolute bottom-3 left-3 flex gap-2">
-                  <span className="rounded-md bg-white/95 px-2 py-1 text-[0.6875rem] font-semibold text-navy">
-                    from {service.priceFrom}
-                  </span>
-                  <span className="rounded-md bg-navy/80 px-2 py-1 text-[0.6875rem] font-medium text-white backdrop-blur">
-                    {service.turnaround}
-                  </span>
-                </div>
+              <div className={`lg:col-span-6 ${i % 2 === 1 ? "lg:order-2" : ""}`}>
+                <Link href={`/services/${service.slug}`} className="group block">
+                  <div className="relative aspect-[16/10] overflow-hidden bg-navy">
+                    <Image
+                      src={service.image}
+                      alt={service.name}
+                      fill
+                      sizes="(max-width: 1024px) 100vw, 50vw"
+                      className="object-cover transition-transform duration-700 group-hover:scale-[1.02]"
+                    />
+                  </div>
+                </Link>
               </div>
 
-              <div className="flex flex-col p-5 sm:p-7">
-                <div className="flex items-start justify-between gap-4">
+              <div className={`lg:col-span-5 ${i % 2 === 1 ? "lg:order-1" : "lg:col-start-8"}`}>
+                <p className="font-mono text-[0.6875rem] tabular-nums text-muted">0{i + 1}</p>
+                <h2 className="display-3 mt-3">{service.name}</h2>
+                <p className="body-sm mt-3 max-w-[46ch]">{service.description}</p>
+
+                <dl className="mt-6 grid grid-cols-2 gap-x-8 border-t border-line pt-4">
                   <div>
-                    <h2 className="display-3 text-navy">{service.name}</h2>
-                    <p className="mt-1.5 text-[0.9375rem] leading-relaxed text-slate-ink">{service.blurb}</p>
+                    <dt className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted">From</dt>
+                    <dd className="mt-1 text-[0.875rem] font-medium text-navy">{service.priceFrom}</dd>
                   </div>
-                  <span className="hidden font-display text-3xl font-bold tracking-tight text-navy/10 sm:block">
-                    0{i + 1}
-                  </span>
-                </div>
+                  <div>
+                    <dt className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted">Typical window</dt>
+                    <dd className="mt-1 text-[0.875rem] font-medium text-navy">{service.turnaround}</dd>
+                  </div>
+                </dl>
 
-                <ul className="mt-4 grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
-                  {service.highlights.map((h) => (
-                    <li key={h} className="flex items-start gap-2 text-[0.8125rem] text-slate-ink">
-                      <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-cyan" />
-                      {h}
-                    </li>
-                  ))}
-                </ul>
-
-                <div className="mt-auto flex flex-wrap items-center gap-3 pt-5">
-                  <Link href={`/services/${service.slug}`} className="btn btn-outline btn-sm">
-                    Service details <ArrowUpRight className="size-3.5" />
+                <div className="mt-6 flex flex-wrap items-center gap-x-8 gap-y-3">
+                  <Link href={`/services/${service.slug}`} className="link-underline">
+                    Service detail
+                    <ArrowUpRight className="size-3.5" />
                   </Link>
-                  <Link href="/quote" className="btn btn-primary btn-sm">
-                    Get a quote <ArrowRight className="size-3.5" />
+                  <Link href="/quote" className="link-underline">
+                    Get a fare
+                    <ArrowRight className="size-3.5" />
                   </Link>
-                  <span className="inline-flex items-center gap-1.5 text-[0.75rem] text-muted">
-                    <Clock className="size-3.5" /> {service.turnaround}
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 text-[0.75rem] text-muted">
-                    <Wallet className="size-3.5" /> {service.priceFrom}
-                  </span>
                 </div>
               </div>
             </article>
           ))}
+        </div>
+      </section>
+
+      <section className="bg-navy py-14">
+        <div className="container-x flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-center">
+          <div>
+            <p className="font-display text-[1.25rem] font-medium tracking-tight text-white">
+              Not sure which service you need?
+            </p>
+            <p className="mt-1.5 max-w-lg text-[0.875rem] leading-relaxed text-white/55">
+              Tell dispatch what you are sending and where it is going. We will quote the cheapest
+              option, not the most expensive one we can justify.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link href="/quote" className="btn btn-on-dark btn-sm">
+              Price it
+            </Link>
+            <Link href="/contact" className="btn btn-outline-dark btn-sm">
+              Talk to dispatch
+            </Link>
+          </div>
         </div>
       </section>
     </>

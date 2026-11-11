@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Check, CircleCheck, Loader2, Minus, Plus, ShieldCheck } from "lucide-react";
+import { ArrowRight, Check, CircleCheck, Loader2, Minus, Plus } from "lucide-react";
 import { SERVICE_LABELS, ZONES, estimate, formatNaira, type ServiceId } from "@/lib/pricing";
 import { cn } from "@/lib/cn";
 
@@ -51,17 +51,15 @@ export function BookingForm() {
 
   if (state === "done") {
     return (
-      <div className="rounded-2xl border border-line bg-white p-8 text-center shadow-[var(--shadow-card)]">
-        <span className="mx-auto grid size-14 place-items-center rounded-full bg-success/10 text-success">
-          <CircleCheck className="size-7" />
-        </span>
-        <h2 className="display-3 mt-5 text-navy">Booking request received</h2>
-        <p className="mx-auto mt-2 max-w-md text-[0.9375rem] leading-relaxed text-slate-ink">
+      <div className="border border-line bg-white p-8 sm:p-12">
+        <CircleCheck className="size-8 text-cyan" strokeWidth={1.5} />
+        <h2 className="display-3 mt-5">Booking request received</h2>
+        <p className="body-sm mt-3 max-w-lg">
           Dispatch has your request for {SERVICE_LABELS[service].toLowerCase()} at an estimated{" "}
-          <strong className="font-semibold text-navy">{formatNaira(result.total)}</strong>. A rider is
-          matched within minutes and you’ll get the tracking reference by SMS.
+          <strong className="font-medium text-navy">{formatNaira(result.total)}</strong>. A rider is
+          matched within minutes and the tracking reference arrives by SMS.
         </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
+        <div className="mt-7 flex flex-wrap gap-3">
           <Link href="/track" className="btn btn-primary">
             Track this delivery
           </Link>
@@ -69,7 +67,7 @@ export function BookingForm() {
             Book another
           </button>
         </div>
-        <p className="mt-5 text-[0.6875rem] text-muted">
+        <p className="mt-6 text-[0.75rem] text-muted">
           Preview build — no payment is taken and no rider is dispatched.
         </p>
       </div>
@@ -77,14 +75,12 @@ export function BookingForm() {
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-start">
-      <div className="relative space-y-5">
-        <fieldset className="rounded-2xl border border-line bg-white p-5 shadow-[var(--shadow-card)] sm:p-6">
+    <form onSubmit={submit} className="grid gap-8 lg:grid-cols-12 lg:items-start">
+      <div className="lg:col-span-7">
+        {/* Service */}
+        <fieldset className="border-b border-line pb-8">
           <legend className="sr-only">Service</legend>
-          <p className="flex items-center gap-2 text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-muted">
-            <span className="grid size-5 place-items-center rounded-full bg-cyan/10 text-[0.625rem] font-bold text-cyan-600">1</span>
-            Service
-          </p>
+          <p className="text-[0.6875rem] uppercase tracking-[0.14em] text-muted">01 · Service</p>
           <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {serviceOptions.map((option) => {
               const active = service === option;
@@ -93,38 +89,24 @@ export function BookingForm() {
                   key={option}
                   type="button"
                   onClick={() => setService(option)}
-                  className={cn(
-                    "rounded-xl border px-3 py-3 text-left text-[0.8125rem] font-medium transition",
-                    active
-                      ? "border-cyan bg-cyan/10 text-navy ring-1 ring-cyan"
-                      : "border-line text-slate-ink hover:border-navy/25 hover:bg-mist"
-                  )}
                   aria-pressed={active}
+                  className={cn(
+                    "flex items-center justify-between gap-2 border px-3.5 py-3 text-left text-[0.8125rem] transition-colors",
+                    active ? "border-navy bg-navy text-white" : "border-line text-slate-ink hover:border-line-strong"
+                  )}
                 >
-                  <span className="flex items-center justify-between gap-2">
-                    {SERVICE_LABELS[option]}
-                    <span
-                      className={cn(
-                        "grid size-4 place-items-center rounded-full border",
-                        active ? "border-cyan bg-cyan text-white" : "border-line text-transparent"
-                      )}
-                    >
-                      <Check className="size-2.5" strokeWidth={4} />
-                    </span>
-                  </span>
+                  {SERVICE_LABELS[option]}
+                  {active && <Check className="size-3.5 shrink-0" strokeWidth={2.5} />}
                 </button>
               );
             })}
           </div>
         </fieldset>
 
-        <fieldset className="rounded-2xl border border-line bg-white p-5 shadow-[var(--shadow-card)] sm:p-6">
-          <legend className="sr-only">Route &amp; details</legend>
-          <p className="flex items-center gap-2 text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-muted">
-            <span className="grid size-5 place-items-center rounded-full bg-cyan/10 text-[0.625rem] font-bold text-cyan-600">2</span>
-            Route &amp; details
-          </p>
-
+        {/* Route */}
+        <fieldset className="border-b border-line py-8">
+          <legend className="sr-only">Route and details</legend>
+          <p className="text-[0.6875rem] uppercase tracking-[0.14em] text-muted">02 · Route and details</p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div>
               <label className="field-label" htmlFor="q-pickup">
@@ -154,7 +136,7 @@ export function BookingForm() {
               <label className="field-label" htmlFor="q-pickup-detail">
                 Pickup landmark
               </label>
-              <input id="q-pickup-detail" className="field" placeholder="e.g. 14 Marian Road, by the bank" />
+              <input id="q-pickup-detail" className="field" placeholder="14 Marian Road, by the bank" />
             </div>
             <div>
               <label className="field-label" htmlFor="q-recipient">
@@ -175,9 +157,9 @@ export function BookingForm() {
           </div>
 
           {service === "waybill" && (
-            <div className="mt-4">
+            <div className="mt-5">
               <label className="field-label" htmlFor="q-weight">
-                Parcel weight · {weight} kg
+                Parcel weight — {weight} kg
               </label>
               <input
                 id="q-weight"
@@ -195,10 +177,10 @@ export function BookingForm() {
             </div>
           )}
 
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-5 grid gap-2 sm:grid-cols-2">
             {[
-              { label: "Priority delivery", value: urgent, set: setUrgent, note: `+${formatNaira(700)}` },
-              { label: "Careful handling", value: fragile, set: setFragile, note: `+${formatNaira(400)}` },
+              { label: "Priority delivery", note: `+${formatNaira(700)}`, value: urgent, set: setUrgent },
+              { label: "Careful handling", note: `+${formatNaira(400)}`, value: fragile, set: setFragile },
             ].map((toggle) => (
               <button
                 key={toggle.label}
@@ -206,76 +188,73 @@ export function BookingForm() {
                 onClick={() => toggle.set(!toggle.value)}
                 aria-pressed={toggle.value}
                 className={cn(
-                  "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-[0.8125rem] transition",
-                  toggle.value ? "border-cyan bg-cyan/10 text-navy" : "border-line text-slate-ink hover:border-navy/25"
+                  "flex items-center justify-between border px-3.5 py-3 text-[0.8125rem] transition-colors",
+                  toggle.value ? "border-navy bg-paper text-navy" : "border-line text-slate-ink hover:border-line-strong"
                 )}
               >
-                <span
-                  className={cn(
-                    "grid size-4 place-items-center rounded border",
-                    toggle.value ? "border-cyan bg-cyan text-white" : "border-line text-transparent"
-                  )}
-                >
-                  <Check className="size-2.5" strokeWidth={4} />
+                <span className="flex items-center gap-2.5">
+                  <span
+                    className={cn(
+                      "grid size-4 place-items-center border",
+                      toggle.value ? "border-navy bg-navy text-white" : "border-line-strong text-transparent"
+                    )}
+                  >
+                    <Check className="size-2.5" strokeWidth={3.5} />
+                  </span>
+                  {toggle.label}
                 </span>
-                {toggle.label}
-                <span className="text-[0.6875rem] text-muted">{toggle.note}</span>
+                <span className="text-[0.75rem] text-muted">{toggle.note}</span>
               </button>
             ))}
           </div>
         </fieldset>
 
         {service === "market-run" && (
-          <fieldset className="rounded-2xl border border-line bg-white p-5 shadow-[var(--shadow-card)] sm:p-6">
+          <fieldset className="border-b border-line py-8">
             <legend className="sr-only">Shopping list</legend>
-            <p className="flex items-center gap-2 text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-muted">
-              <span className="grid size-5 place-items-center rounded-full bg-cyan/10 text-[0.625rem] font-bold text-cyan-600">3</span>
-              Shopping list
-            </p>
+            <p className="text-[0.6875rem] uppercase tracking-[0.14em] text-muted">03 · Shopping list</p>
             <div className="mt-4 space-y-2">
               {items.map((item, index) => (
-                <div key={index} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-2">
+                <div key={index} className="grid grid-cols-[1fr_auto_auto] items-center gap-2 sm:grid-cols-[1fr_auto_auto_auto]">
                   <input
-                    className="field text-[0.8125rem]"
+                    className="field"
                     value={item.name}
                     onChange={(e) => updateItem(index, { name: e.target.value })}
                     placeholder="Item"
                     aria-label={`Item ${index + 1} name`}
                   />
-                  <div className="flex items-center rounded-lg border border-line">
+                  <div className="flex items-center border border-line-strong">
                     <button
                       type="button"
-                      className="grid size-9 place-items-center text-muted transition hover:text-navy"
+                      className="grid size-11 place-items-center text-muted transition-colors hover:text-navy"
                       onClick={() => updateItem(index, { qty: Math.max(1, item.qty - 1) })}
                       aria-label="Decrease quantity"
                     >
                       <Minus className="size-3.5" />
                     </button>
-                    <span className="w-6 text-center text-[0.8125rem] font-medium tabular-nums">{item.qty}</span>
+                    <span className="w-6 text-center text-[0.8125rem] tabular-nums">{item.qty}</span>
                     <button
                       type="button"
-                      className="grid size-9 place-items-center text-muted transition hover:text-navy"
+                      className="grid size-11 place-items-center text-muted transition-colors hover:text-navy"
                       onClick={() => updateItem(index, { qty: item.qty + 1 })}
                       aria-label="Increase quantity"
                     >
                       <Plus className="size-3.5" />
                     </button>
                   </div>
-                  <div className="relative">
-                    <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[0.8125rem] text-muted">
-                      ₦
-                    </span>
+                  <div className="relative hidden sm:block">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[0.8125rem] text-muted">₦</span>
                     <input
                       type="number"
                       min={0}
                       step={100}
-                      className="field w-24 pl-6 text-[0.8125rem] tabular-nums"
+                      className="field w-28 pl-6 tabular-nums"
                       value={item.price}
                       onChange={(e) => updateItem(index, { price: Number(e.target.value) })}
                       aria-label={`Estimated price for item ${index + 1}`}
                     />
                   </div>
-                  <span className="w-20 text-right text-[0.8125rem] font-medium tabular-nums text-navy">
+                  <span className="w-20 text-right text-[0.8125rem] tabular-nums text-navy">
                     {formatNaira(item.price * item.qty)}
                   </span>
                 </div>
@@ -284,70 +263,76 @@ export function BookingForm() {
             <button
               type="button"
               onClick={() => setItems((prev) => [...prev, { name: "", qty: 1, price: 0 }])}
-              className="mt-3 inline-flex items-center gap-1.5 text-[0.8125rem] font-semibold text-cyan"
+              className="mt-4 inline-flex items-center gap-1.5 text-[0.8125rem] font-medium text-navy underline decoration-line-strong underline-offset-4"
             >
-              <Plus className="size-3.5" /> Add another item
+              <Plus className="size-3.5" /> Add an item
             </button>
           </fieldset>
         )}
+
+        <fieldset className="pt-8">
+          <legend className="sr-only">Contact</legend>
+          <p className="text-[0.6875rem] uppercase tracking-[0.14em] text-muted">04 · Your contact</p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="field-label" htmlFor="q-name">
+                Full name
+              </label>
+              <input id="q-name" required className="field" placeholder="Ada Effiong" autoComplete="name" />
+            </div>
+            <div>
+              <label className="field-label" htmlFor="q-phone">
+                Phone number
+              </label>
+              <input id="q-phone" required className="field" placeholder="080…" inputMode="tel" autoComplete="tel" />
+            </div>
+          </div>
+          <label className="mt-4 flex items-start gap-2.5 text-[0.75rem] leading-relaxed text-muted">
+            <input type="checkbox" defaultChecked className="mt-0.5 size-4 accent-navy" />
+            Send the tracking link to the recipient by SMS when the rider collects the item.
+          </label>
+        </fieldset>
       </div>
 
       {/* Summary */}
-      <aside className="lg:sticky lg:top-24">
-        <div className="overflow-hidden rounded-2xl border border-navy/10 bg-navy text-white shadow-[var(--shadow-lift)]">
-          <div className="p-5 sm:p-6">
-            <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-cyan-300">
-              {SERVICE_LABELS[service]}
-            </p>
-            <p className="mt-1.5 font-display text-[2rem] font-bold leading-none tracking-tight">
-              {formatNaira(result.total)}
-            </p>
-            <p className="mt-1.5 text-[0.75rem] text-white/55">
-              {result.distanceKm.toFixed(1)} km · {result.etaMinutes[0]}–{result.etaMinutes[1]} min ETA
-            </p>
+      <aside className="lg:col-span-5">
+        <div className="lg:sticky lg:top-24">
+          <div className="border border-line bg-white">
+            <div className="border-b border-line px-5 py-4">
+              <p className="text-[0.6875rem] uppercase tracking-[0.14em] text-muted">{SERVICE_LABELS[service]}</p>
+              <p className="mt-2 font-display text-[2rem] font-medium leading-none tracking-tight text-navy">
+                {formatNaira(result.total)}
+              </p>
+              <p className="mt-2 text-[0.75rem] text-muted">
+                {result.distanceKm.toFixed(1)} km · {result.etaMinutes[0]}–{result.etaMinutes[1]} min
+              </p>
+            </div>
 
-            <div className="mt-5 space-y-1.5 border-t border-white/10 pt-4">
+            <div className="space-y-2 px-5 py-4">
               {result.fares.map((line, i) => (
                 <div key={`${line.label}-${i}`} className="flex items-baseline justify-between gap-3 text-[0.8125rem]">
-                  <span className="text-white/60">
+                  <span className="text-slate-ink">
                     {line.label}
-                    {line.detail && <span className="block text-[0.6875rem] text-white/35">{line.detail}</span>}
+                    {line.detail && <span className="block text-[0.6875rem] text-muted">{line.detail}</span>}
                   </span>
-                  <span
-                    className={cn(
-                      "shrink-0 font-medium tabular-nums",
-                      line.tone === "discount" ? "text-emerald-300" : line.tone === "surcharge" ? "text-amber-300" : "text-white/90"
-                    )}
-                  >
-                    {formatNaira(line.amount)}
+                  <span className={cn("shrink-0 tabular-nums", line.tone === "discount" ? "text-success" : "text-navy")}>
+                    {line.tone === "discount" ? "−" : ""}
+                    {formatNaira(Math.abs(line.amount))}
                   </span>
                 </div>
               ))}
+              <div className="flex justify-between border-t border-line pt-2.5 text-[0.875rem] font-medium text-navy">
+                <span>Total</span>
+                <span className="tabular-nums">{formatNaira(result.total)}</span>
+              </div>
+              {result.notice && <p className="pt-1 text-[0.6875rem] leading-relaxed text-muted">{result.notice}</p>}
             </div>
 
-            {result.notice && (
-              <p className="mt-4 rounded-lg border border-white/10 bg-white/5 p-2.5 text-[0.6875rem] leading-relaxed text-white/55">
-                {result.notice}
-              </p>
-            )}
-          </div>
-
-          <div className="border-t border-white/10 bg-navy-700/60 p-5 sm:p-6">
-            <div className="grid gap-2">
-              <label className="sr-only" htmlFor="q-phone">
-                Your phone number
-              </label>
-              <input
-                id="q-phone"
-                required
-                inputMode="tel"
-                placeholder="Your phone number"
-                className="field border-white/15 bg-white/10 text-white placeholder:text-white/35 focus:bg-white/15"
-              />
+            <div className="border-t border-line p-5">
               <button type="submit" className="btn btn-primary w-full" disabled={state === "submitting"}>
                 {state === "submitting" ? (
                   <>
-                    <Loader2 className="size-4 animate-spin" /> Reserving a rider…
+                    <Loader2 className="size-4 animate-spin" /> Reserving a rider
                   </>
                 ) : (
                   <>
@@ -355,20 +340,22 @@ export function BookingForm() {
                   </>
                 )}
               </button>
+              <p className="mt-3 text-center text-[0.6875rem] leading-relaxed text-muted">
+                No payment now. You confirm the final fare before dispatch.
+              </p>
             </div>
-            <p className="mt-3 flex items-start gap-1.5 text-[0.6875rem] leading-relaxed text-white/45">
-              <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-cyan-300" />
-              No payment is taken now. You confirm the final fare before dispatch in the next step.
+          </div>
+
+          <div className="mt-4 border border-line p-5">
+            <p className="text-[0.875rem] font-medium text-navy">Prefer to talk?</p>
+            <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-slate-ink">
+              Dispatch answers Mon–Sat, 7am–8pm, on{" "}
+              <a href="tel:+2348012345678" className="font-medium text-navy underline decoration-line-strong underline-offset-2">
+                +234 801 234 5678
+              </a>
+              .
             </p>
           </div>
-        </div>
-
-        <div className="mt-4 rounded-xl border border-line bg-white p-4 text-[0.75rem] leading-relaxed text-slate-ink">
-          <strong className="font-semibold text-navy">Need it in a hurry?</strong> Call the dispatch desk on{" "}
-          <a href="tel:+2348012345678" className="font-medium text-cyan">
-            +234 801 234 5678
-          </a>{" "}
-          and we’ll book it for you.
         </div>
       </aside>
     </form>
