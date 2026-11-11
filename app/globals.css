@@ -280,11 +280,6 @@
     color: var(--color-muted);
   }
 
-  .kicker {
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: var(--color-muted);
-  }
 }
 
 @layer utilities {
