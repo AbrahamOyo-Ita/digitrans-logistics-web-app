@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHead } from "@/components/ui/PageHead";
+import { Eyebrow } from "@/components/ui/Bits";
 import { ContactForm } from "./ContactForm";
 import { faqs, site } from "@/lib/content";
 
@@ -44,7 +45,8 @@ export default function ContactPage() {
       <section className="section bg-white">
         <div className="container-x grid gap-12 lg:grid-cols-12 lg:gap-16">
           <div className="lg:col-span-7">
-            <h2 className="display-2">Send us a message.</h2>
+                        <Eyebrow>Message the desk</Eyebrow>
+                        <h2 className="display-2 mt-2.5 max-w-[22ch]">Send us a message.</h2>
             <p className="body-sm mt-3 max-w-lg">
               Tell us what you need. For anything already on the road, call dispatch — it is always
               faster than a form.
@@ -124,7 +126,8 @@ export default function ContactPage() {
       <section id="faqs" className="section bg-paper">
         <div className="container-x grid gap-10 lg:grid-cols-12 lg:gap-16">
           <div className="lg:col-span-4">
-            <h2 className="display-2 max-w-[14ch]">Common questions.</h2>
+                        <Eyebrow>FAQs</Eyebrow>
+                        <h2 className="display-2 mt-2.5 max-w-[22ch]">Common questions.</h2>
           </div>
           <div className="lg:col-span-8">
             <div className="divide-y divide-line border-y border-line">

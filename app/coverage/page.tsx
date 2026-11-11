@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { PageHead } from "@/components/ui/PageHead";
+import { Eyebrow } from "@/components/ui/Bits";
 import { ZONES } from "@/lib/pricing";
 
 export const metadata: Metadata = {
@@ -60,7 +61,8 @@ export default function CoveragePage() {
         <div className="container-x">
           <div className="grid gap-10 border-b border-line pb-10 lg:grid-cols-12 lg:gap-16">
             <div className="lg:col-span-5">
-              <h2 className="display-2 max-w-[18ch]">Every zone, and what is inside it.</h2>
+                            <Eyebrow>Zones</Eyebrow>
+                          <h2 className="display-2 mt-2.5 max-w-[22ch]">Every zone, and what is inside it.</h2>
             </div>
             <div className="lg:col-span-6 lg:col-start-7">
               <p className="body-sm">

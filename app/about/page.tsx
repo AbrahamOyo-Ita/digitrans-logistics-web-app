@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { PageHead } from "@/components/ui/PageHead";
+import { Eyebrow } from "@/components/ui/Bits";
 import { site } from "@/lib/content";
 
 export const metadata: Metadata = {
@@ -69,7 +70,8 @@ export default function AboutPage() {
       <section className="section bg-white">
         <div className="container-x grid gap-12 lg:grid-cols-12 lg:gap-16">
           <div className="lg:col-span-7">
-            <h2 className="display-2 max-w-[22ch]">An operator, not a marketplace.</h2>
+                        <Eyebrow>How we work</Eyebrow>
+                        <h2 className="display-2 mt-2.5 max-w-[22ch]">An operator, not a marketplace.</h2>
             <div className="mt-6 space-y-5 body-sm">
               <p>
                 We hire, vet and equip our own riders. That means a guarantor on file, a signed rider
@@ -135,7 +137,8 @@ export default function AboutPage() {
 
       <section className="section bg-paper">
         <div className="container-x">
-          <h2 className="display-2 max-w-[20ch]">From one rider to a city platform.</h2>
+                    <Eyebrow>Our story</Eyebrow>
+                      <h2 className="display-2 mt-2.5 max-w-[22ch]">From one rider to a city platform.</h2>
           <ol className="mt-10 grid gap-px bg-line sm:grid-cols-2 lg:grid-cols-3">
             {timeline.map((item) => (
               <li key={item.year} className="bg-white p-6">
@@ -150,7 +153,8 @@ export default function AboutPage() {
 
       <section className="section bg-white">
         <div className="container-x">
-          <h2 className="display-2 max-w-[20ch]">Work with us.</h2>
+                    <Eyebrow>Careers</Eyebrow>
+                      <h2 className="display-2 mt-2.5 max-w-[22ch]">Work with us.</h2>
           <div className="mt-10 grid gap-px border border-line bg-line lg:grid-cols-3">
             {[
               {
