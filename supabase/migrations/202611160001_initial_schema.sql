@@ -853,21 +853,29 @@ END;
 $bucket_preflight$;
 
 
-DO $storage_policy_preflight$
+-- Supabase owns storage.objects on hosted projects and does not permit the
+-- project database role to alter that managed table. Local/test stacks may
+-- own it, so apply equivalent policies there when ownership permits; hosted
+-- Storage operations use the server-only Supabase service key instead.
+DO $storage_policy_optional$
+DECLARE
+  can_manage boolean := false;
 BEGIN
-  IF EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='storage' AND tablename='objects') THEN
-    RAISE EXCEPTION 'Existing storage.objects policies require a separate security review before DigiTrans policies are added.';
+  SELECT (pg_get_userbyid(c.relowner)=current_user)
+    INTO can_manage
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid=c.relnamespace
+   WHERE n.nspname='storage' AND c.relname='objects' AND c.relkind='r';
+  IF can_manage THEN
+    EXECUTE 'GRANT USAGE ON SCHEMA storage TO anon, authenticated';
+    EXECUTE 'ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY';
+    EXECUTE 'GRANT SELECT ON storage.objects TO anon, authenticated';
+    EXECUTE 'GRANT INSERT, UPDATE, DELETE ON storage.objects TO authenticated';
+    EXECUTE $policy$CREATE POLICY digitrans_public_assets_read ON storage.objects FOR SELECT TO anon, authenticated
+      USING (bucket_id='public-site-assets')$policy$;
+    EXECUTE $policy$CREATE POLICY digitrans_public_assets_manage ON storage.objects FOR ALL TO authenticated
+      USING (bucket_id='public-site-assets' AND public.app_user_has_permission('content.manage'))
+      WITH CHECK (bucket_id='public-site-assets' AND public.app_user_has_permission('content.manage'))$policy$;
   END IF;
 END;
-$storage_policy_preflight$;
-
-GRANT USAGE ON SCHEMA storage TO anon, authenticated;
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
-GRANT SELECT ON storage.objects TO anon, authenticated;
-GRANT INSERT, UPDATE, DELETE ON storage.objects TO authenticated;
-
-CREATE POLICY digitrans_public_assets_read ON storage.objects FOR SELECT TO anon, authenticated
-USING (bucket_id='public-site-assets');
-CREATE POLICY digitrans_public_assets_manage ON storage.objects FOR ALL TO authenticated
-USING (bucket_id='public-site-assets' AND public.app_user_has_permission('content.manage'))
-WITH CHECK (bucket_id='public-site-assets' AND public.app_user_has_permission('content.manage'));
+$storage_policy_optional$;

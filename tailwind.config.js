@@ -21,7 +21,7 @@ export default {
         paper: '#f7f8f8',
         mist: '#f4f5f5',
         line: { DEFAULT: '#e3e6e8', strong: '#cfd5d9' },
-        'slate-ink': '#46566b',
+        'ink-slate': '#46566b',
         muted: '#6d7b89',
         cyan: {
           DEFAULT: '#0e7c8b',

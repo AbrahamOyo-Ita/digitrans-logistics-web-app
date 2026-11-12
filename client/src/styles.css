@@ -1,5 +1,5 @@
-@import '@fontsource-variable/inter/index.css';
-@import '@fontsource-variable/inter-tight/index.css';
+@import '../../node_modules/@fontsource-variable/inter/index.css';
+@import '../../node_modules/@fontsource-variable/inter-tight/index.css';
 
 @tailwind base;
 @tailwind components;
@@ -39,8 +39,8 @@ p { text-wrap: pretty; }
   .display-1 { @apply font-display text-[clamp(2.7rem,5.4vw,4.25rem)] font-semibold leading-[1.03] tracking-[-.04em]; }
   .display-2 { @apply font-display text-[clamp(1.9rem,3.2vw,2.75rem)] font-semibold leading-[1.08] tracking-[-.035em]; }
   .display-3 { @apply font-display text-[clamp(1.3rem,1.7vw,1.5rem)] font-semibold leading-[1.22] tracking-[-.025em]; }
-  .lede { @apply text-[clamp(1rem,1.1vw,1.125rem)] leading-[1.7] text-slate-ink; }
-  .body-sm { @apply text-[.9375rem] leading-[1.7] text-slate-ink; }
+  .lede { @apply text-[clamp(1rem,1.1vw,1.125rem)] leading-[1.7] text-ink-slate; }
+  .body-sm { @apply text-[.9375rem] leading-[1.7] text-ink-slate; }
   .section { @apply py-[clamp(4.5rem,7vw,7rem)]; }
   .section-tight { @apply py-[clamp(3rem,5vw,4.5rem)]; }
   .eyebrow { @apply inline-flex items-center gap-2 text-[.6875rem] font-semibold uppercase tracking-[.16em] text-cyan; }
@@ -52,15 +52,16 @@ p { text-wrap: pretty; }
   .pill-white { @apply border-white bg-white text-navy hover:bg-white/90; }
   .pill-line { @apply border-line-strong bg-white text-navy hover:border-navy; }
   .pill-ghost { @apply border-white/35 bg-white/[.08] text-white hover:border-white/60 hover:bg-white/[.16]; }
-  .field { @apply min-h-12 w-full appearance-none rounded-[4px] border border-line-strong bg-white px-3.5 py-2.5 text-[.9375rem] text-navy outline-none transition placeholder:text-[#98a4b0] hover:border-[#b6c0c8] focus:border-cyan focus:ring-[3px] focus:ring-cyan/15; }
-  .field-dark { @apply border-white/25 bg-white/[.04] text-white placeholder:text-white/45 hover:border-white/40 focus:border-white/75 focus:ring-0; }
+  .field { @apply min-h-12 w-full appearance-none rounded-xl border border-line-strong bg-white px-4 py-3 text-[.9375rem] text-navy outline-none transition-all placeholder:text-[#98a4b0] hover:border-[#b6c0c8] focus:border-cyan focus:ring-[3px] focus:ring-cyan/15; }
+  .field-dark { @apply rounded-xl border-white/25 bg-white/[.04] text-white placeholder:text-white/45 hover:border-white/40 focus:border-white/75 focus:ring-0; }
   .field-pill { @apply rounded-full px-5; }
+  .field-label { @apply mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted; }
   .link-underline { @apply inline-flex items-center gap-1.5 border-b border-line-strong pb-[.2rem] text-[.9375rem] font-medium text-navy transition-colors hover:border-navy; }
-  .surface { @apply rounded-[14px] border border-line bg-white shadow-card; }
-  .surface-flat { @apply rounded-[14px] border border-line bg-white; }
-  .surface-dark { @apply rounded-[14px] bg-navy text-white; }
+  .surface { @apply rounded-2xl border border-line bg-white shadow-card; }
+  .surface-flat { @apply rounded-2xl border border-line bg-white; }
+  .surface-dark { @apply rounded-2xl bg-navy text-white; }
   .band { @apply bg-navy text-white; }
-  .nav-link { @apply py-2 text-[.875rem] text-slate-ink transition-colors hover:text-navy; }
+  .nav-link { @apply py-2 text-[.875rem] text-ink-slate transition-colors hover:text-navy; }
   .nav-active { @apply text-navy; }
   .footer-title { @apply mb-4 text-[.6875rem] font-medium uppercase tracking-[.16em] text-white/65; }
   .footer-link { @apply block py-1.5 text-left text-[.8125rem] text-white/55 transition-colors hover:text-white; }
