@@ -17,7 +17,12 @@ export function mediaUrl(path){
 
 export async function api(path,options={}){
   const headers={...(options.body&&!(options.body instanceof FormData)?{'Content-Type':'application/json'}:{}),...(options.headers||{})};
-  const res=await fetch(apiUrl(path),{credentials:'include',...options,headers,body:options.body&&!(options.body instanceof FormData)?JSON.stringify(options.body):options.body});
+  let res;
+  try{
+    res=await fetch(apiUrl(path),{credentials:'include',...options,headers,body:options.body&&!(options.body instanceof FormData)?JSON.stringify(options.body):options.body});
+  }catch(error){
+    throw new ApiError('DigiTrans services are temporarily unavailable. Please try again shortly.',503,{cause:error?.name||'network_error'});
+  }
   let payload={};try{payload=await res.json();}catch{}
   if(!res.ok)throw new ApiError(payload.error||'Something went wrong. Please try again.',res.status,payload.details||null);
   return payload;

@@ -50,7 +50,7 @@ A migration/seed write is target-gated. Local apply requires a loopback database
 
 ## Architecture
 
-- **Frontend:** React, Vite, PWA shell. Vercel serves static assets/SPA routes only. `www.digitransdelivery.com` is attached to the existing Vercel project; add the Vercel CNAME shown in [the DNS runbook](docs/production-dns-setup.md) at TruHost. Set the Vercel build variable `VITE_API_BASE_URL` only after the Express API is deployed at its real HTTPS origin. That API host/origin is still unprovided, so production builds remain blocked.
+- **Frontend:** React, Vite, PWA shell. Vercel serves static assets/SPA routes only. Set the Vercel build variable `VITE_API_BASE_URL=https://api.digitransdelivery.com` only after the Express API is live at that HTTPS origin. The API host must allow both `https://digitransdelivery.com` and `https://www.digitransdelivery.com` in `CLIENT_ORIGINS`.
 - **API:** long-running Express process on a Node host. Scheduled delivery advancement stays in the Node service; the API is not ported to Edge Functions.
 - **Database:** Supabase PostgreSQL via a server-only `pg` pool and async repository adapter. Database migrations are versioned under `supabase/migrations/`; API startup checks recorded checksums and seed readiness but does not mutate schema.
 - **Authentication:** Supabase Auth owns credentials, email verification, recovery, sessions and refresh. App roles/statuses stay in `public.users` and permissions in the seeded role catalog. Session cookies are HTTP-only; configure `SESSION_COOKIE_SAME_SITE=none` and `Secure` when the frontend and API are cross-site.

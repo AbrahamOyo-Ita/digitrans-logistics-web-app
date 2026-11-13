@@ -21,6 +21,8 @@ test('production origins are HTTPS origins without path components',()=>{
 test('CORS allowlist contains configured origins and development preview hosts are handled separately',()=>{
   const origins=getAllowedOrigins({NODE_ENV:'production',APP_URL:'https://app.example.test',CLIENT_ORIGINS:'https://admin.example.test'});
   assert.deepEqual([...origins].sort(),['https://admin.example.test','https://app.example.test']);
+  const productionOrigins=getAllowedOrigins({NODE_ENV:'production',APP_URL:'https://digitransdelivery.com',CLIENT_ORIGINS:'https://digitransdelivery.com,https://www.digitransdelivery.com'});
+  assert.deepEqual([...productionOrigins].sort(),['https://digitransdelivery.com','https://www.digitransdelivery.com']);
   assert.throws(()=>getAllowedOrigins({NODE_ENV:'production',APP_URL:'https://app.example.test',CLIENT_ORIGINS:'http://localhost:5173'}),/HTTPS/);
 });
 

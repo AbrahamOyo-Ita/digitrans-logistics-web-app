@@ -4,7 +4,7 @@
 
 - `www.digitransdelivery.com` has been added to the existing Vercel project `digitrans-logistics-web-app`.
 - Vercel currently reports the domain as misconfigured. Its detected nameservers are `ns1.cloudoon.com`, `ns2.cloudoon.net`, and `ns3.cloudoon.org`; DNS is external and must be managed at TruHost.
-- The production API host is not yet selected, so `VITE_API_BASE_URL` is intentionally not configured. Do not deploy the production frontend until an HTTPS API origin is live and configured.
+- The production API is expected at `https://api.digitransdelivery.com`; it must be reachable over HTTPS before the frontend can authenticate or load public content.
 - No TruHost or Resend connector is available in this session. The records below are documented from the values supplied by the domain owner; they have **not** been added to DNS or verified with Resend.
 
 ## Add these records at TruHost
@@ -32,6 +32,6 @@ The Vercel DNS check also listed `cname.vercel-dns.com.` as a fallback CNAME tar
 ## Still required before production deployment
 
 - Select a Node host and deploy the long-running Express API. Prefer `https://api.digitransdelivery.com` so it shares the same site with `https://www.digitransdelivery.com`; this is a suggested hostname, **not** an existing API service.
-- After that API is reachable, set Vercel's `VITE_API_BASE_URL` to the actual HTTPS API origin and set the Node service's `APP_URL` / `CLIENT_ORIGINS` to the actual web origin. Configure `SESSION_COOKIE_SAME_SITE` consistently with the final host topology.
+- After the API is reachable, set Vercel's `VITE_API_BASE_URL=https://api.digitransdelivery.com` and set the Node service's `APP_URL=https://digitransdelivery.com` and `CLIENT_ORIGINS=https://digitransdelivery.com,https://www.digitransdelivery.com`. Configure `SESSION_COOKIE_SAME_SITE` consistently with the final host topology.
 - Add the API subdomain DNS target specified by the chosen Node host. It is not included above because no API provider/target was supplied.
 - Do not switch production traffic until the API, database migrations/seed, Auth redirect settings, Resend verification, and end-to-end smoke tests are complete.
