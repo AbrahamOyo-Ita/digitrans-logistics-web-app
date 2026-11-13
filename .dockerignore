@@ -1,0 +1,12 @@
+.git
+.fly-config
+node_modules
+uploads
+data
+public
+client
+docs
+*.md
+.env
+.env.*
+*.test.js
