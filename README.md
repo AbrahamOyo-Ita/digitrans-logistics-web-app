@@ -73,7 +73,7 @@ See `.env.example`, `docs/supabase-migration.md`, and [the DNS setup runbook](do
 - Optional Paystack secrets/callback once payment operations are approved.
 - A trusted `TRUST_PROXY` setting matching the actual Node host/reverse proxy.
 
-Never expose the service-role key or database URL in Vite variables, browser code, logs or Git. The Vercel frontend and Node API are separate deployments.
+Never expose the service-role key or database URL in Vite variables, browser code, logs or Git. The Vercel frontend and Node API are separate deployments. The API writes one-line JSON logs to stdout/stderr, attaches an opaque `X-Request-ID` to each response, and records method, path, status and duration without query strings or request bodies. Error details are sanitized and sensitive context fields are redacted; use the response request ID to correlate a support report with host logs.
 
 ## Verification boundary and remaining work
 

@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import db from '../db.js';
 import { requireAuth, requireRole, requirePermission, notify, audit, revokeAllSessions } from '../auth.js';
 import { calculateRiderEarnings } from '../pricing.js';
+import {logger} from '../logger.js';
 
 const router=asyncRouter();
 const riderOnly=requireRole('rider');
@@ -192,7 +193,7 @@ router.post('/rider/jobs/:deliveryId/status',requireAuth,riderOnly,async (req, r
       await db.prepare('INSERT INTO financial_ledger (id,reference,type,amount,related_id,related_type,description) VALUES (?,?,?,?,?,?,?)').run(id(),`LED-${earningRef}-D`,'digitrans_share',earnings.digitransShare,d.id,'delivery',`DigiTrans share for ${d.reference}`);
     }
   });
-  try{await statusUpdate();}catch(e){console.error(e);return res.status(409).json({error:'Unable to record the update. Refresh and try again.'});}
+  try{await statusUpdate();}catch(error){logger.error('delivery.status_update_failed',{requestId:req.requestId,deliveryId:d.id,error});return res.status(409).json({error:'Unable to record the update. Refresh and try again.'});}
   if(d.customer_id)await notify(d.customer_id,next==='delivered'?'Delivery completed':'Delivery update',`Delivery ${d.reference}: ${next.replaceAll('_',' ')}.`,'delivery',d.id);
   await audit(req.user,'delivery.status_changed','delivery',d.id,{status:d.status},{status:next},notes,req.ip);
   res.json({message:'Delivery progress updated.',status:next});

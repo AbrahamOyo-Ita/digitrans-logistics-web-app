@@ -4,6 +4,8 @@ import db from '../db.js';
 import {requireAuth,requirePermission,notify,audit,revokeAllSessions,createSupabaseActiveUser} from '../auth.js';
 import {getSupabaseAdmin} from '../supabase.js';
 import { createDelivery } from './customer.js';
+import {logger} from '../logger.js';
+import {buildUserIdentifierPredicate,normalizePhoneNumber} from '../phone.js';
 
 const router=asyncRouter();
 const id=()=>crypto.randomUUID();
@@ -156,7 +158,7 @@ router.post('/ops/deliveries/:id/assign',requireAuth,requirePermission('deliveri
     await db.prepare('INSERT INTO delivery_status_history (id,delivery_id,prev_status,new_status,actor_id,actor_role,notes) VALUES (?,?,?,?,?,?,?)').run(id(),delivery.id,previous,'assigned',req.user.id,req.user.role,current?'Rider reassigned':'Rider assigned');
     await db.prepare("UPDATE riders SET availability='on_delivery' WHERE user_id=?").run(riderId);
   });
-  try{await assign();}catch(e){console.error(e);return res.status(409).json({error:'Unable to create rider assignment.'});}
+  try{await assign();}catch(error){logger.error('delivery.assignment_failed',{requestId:req.requestId,deliveryId:delivery.id,riderId,error});return res.status(409).json({error:'Unable to create rider assignment.'});}
   await notify(riderId,'New delivery assignment',`You have been assigned delivery ${delivery.reference}.`,'assignment',delivery.id);
   if(delivery.customer_id)await notify(delivery.customer_id,'Rider assigned',`A rider has been assigned to ${delivery.reference}.`,'delivery',delivery.id);
   await audit(req.user,current?'delivery.reassigned':'delivery.assigned','delivery',delivery.id,{status:delivery.status,riderId:current?.rider_id||null},{status:'assigned',riderId,assignmentRef},reason,req.ip);
@@ -362,11 +364,12 @@ router.get('/ops/admin-users',requireAuth,requirePermission('admin.manage'),asyn
   res.json({admins:await db.prepare(`SELECT u.id,u.email,u.phone,u.role,u.status,u.created_at,p.full_name FROM users u JOIN profiles p ON p.user_id=u.id WHERE u.role NOT IN ('customer','student','rider','vendor','investor') ORDER BY u.created_at`).all()});
 });
 router.post('/ops/admin-users',requireAuth,requirePermission('admin.manage'),async (req, res) => {
-  const fullName=String(req.body?.fullName||'').trim(),email=String(req.body?.email||'').trim().toLowerCase(),phone=String(req.body?.phone||'').trim(),role=String(req.body?.role||''),password=String(req.body?.password||'');
+  const fullName=String(req.body?.fullName||'').trim(),email=String(req.body?.email||'').trim().toLowerCase(),phone=normalizePhoneNumber(req.body?.phone),role=String(req.body?.role||''),password=String(req.body?.password||'');
   const roles=['ops_officer','rider_manager','vendor_manager','finance_officer','investment_manager','super_admin'];
   if(!roles.includes(role)||role==='super_admin'&&req.user.role!=='super_admin')return res.status(403).json({error:'You cannot assign this administrative role.'});
-  if(fullName.length<2||!/^\S+@\S+\.\S+$/.test(email)||phone.length<7||password.length<12||!/[A-Z]/.test(password)||!/[a-z]/.test(password)||!/[0-9]/.test(password)||!/[!@#$%^&*]/.test(password))return res.status(400).json({error:'Enter valid details and a 12-character password with upper, lower, number and symbol.'});
-  if(await db.prepare('SELECT id FROM users WHERE email=? OR phone=?').get(email,phone))return res.status(409).json({error:'This email or phone is already registered.'});
+  if(fullName.length<2||!/^\S+@\S+\.\S+$/.test(email)||!phone||password.length<12||!/[A-Z]/.test(password)||!/[a-z]/.test(password)||!/[0-9]/.test(password)||!/[!@#$%^&*]/.test(password))return res.status(400).json({error:'Enter valid details and a 12-character password with upper, lower, number and symbol.'});
+  const phonePredicate=buildUserIdentifierPredicate(phone,{emailColumn:'email',phoneColumn:'phone'});
+  if(await db.prepare(`SELECT id FROM users WHERE lower(email)=? OR ${phonePredicate.sql}`).get(email,...phonePredicate.params))return res.status(409).json({error:'This email or phone is already registered.'});
   let authUser;
   try{authUser=await createSupabaseActiveUser({email,password,fullName,role,phone});}
   catch(error){return res.status(error?.status||409).json({error:error?.status?error.message:'Unable to create this administrative account.'});}

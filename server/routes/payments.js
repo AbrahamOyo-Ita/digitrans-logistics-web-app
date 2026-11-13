@@ -5,6 +5,7 @@ import db from '../db.js';
 import { requireAuth, requireRole } from '../auth.js';
 import {initializePaystackPayment,settleVerifiedPayment,verifyPaystackPayment,verifyPaystackSignature,reference} from '../payments.js';
 import {applyFailedPaystackPayment} from '../payment-rpc.js';
+import {logger} from '../logger.js';
 
 const router=asyncRouter();
 const id=()=>crypto.randomUUID();
@@ -79,7 +80,7 @@ router.post('/payments/paystack/webhook',express.raw({type:'application/json'}),
     else return res.status(200).json({received:true});
     res.status(200).json({received:true});
   }catch(error){
-    console.error('Paystack webhook could not be reconciled:',error.message);
+    logger.error('payments.paystack_webhook_reconciliation_failed',{requestId:req.requestId,error});
     const status=Number(error?.status)||503;
     res.status(status>=500?503:status).json({received:true,reconciled:false});
   }

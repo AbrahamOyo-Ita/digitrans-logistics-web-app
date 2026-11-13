@@ -4,16 +4,14 @@ import PublicSite from './pages/PublicSite';
 import AuthPage from './pages/AuthPage';
 import Workspace from './pages/Workspace';
 import {Loading,Toast} from './components/UI';
+import {getRoleHome,isWorkspacePath,ROLE_PREFIX} from '../../shared/roles.js';
 
-const ROLE_HOME={customer:'/customer',student:'/customer',rider:'/rider',vendor:'/vendor',investor:'/investor',ops_officer:'/ops',rider_manager:'/ops',vendor_manager:'/ops',finance_officer:'/ops',investment_manager:'/ops',super_admin:'/ops'};
-const ROLE_PREFIX={customer:'/customer',student:'/customer',rider:'/rider',vendor:'/vendor',investor:'/investor',ops_officer:'/ops',rider_manager:'/ops',vendor_manager:'/ops',finance_officer:'/ops',investment_manager:'/ops',super_admin:'/ops'};
 const readLocation=()=>({pathname:window.location.pathname||'/',search:window.location.search,hash:window.location.hash});
 const pathWithQuery=loc=>`${loc.pathname}${loc.search}${loc.hash}`;
 const safePath=(target)=>{
  try{const url=new URL(target,window.location.origin);return url.origin===window.location.origin?`${url.pathname}${url.search}${url.hash}`:'/';}catch{return '/';}
 };
-const isWorkspacePath=path=>path==='/workspace'||['/customer','/rider','/vendor','/investor','/ops'].some(prefix=>path===prefix||path.startsWith(`${prefix}/`));
-const roleHome=user=>ROLE_HOME[user?.role]||'/';
+const roleHome=user=>getRoleHome(user?.role);
 
 export default function App(){
  const [location,setLocation]=useState(readLocation),[user,setUser]=useState(null),[authState,setAuthState]=useState('loading'),[toast,setToast]=useState(null);

@@ -2,14 +2,17 @@ import crypto from 'node:crypto';
 import db from './db.js';
 import {createSupabaseUserClient,getSupabaseAdmin} from './supabase.js';
 import {getSessionCookieOptions} from './config.js';
+import {buildUserIdentifierPredicate} from './phone.js';
+import {APP_ROLES} from '../shared/roles.js';
 
 export const ADMIN_ROLES=['super_admin','ops_officer','finance_officer'];
-export const ROLE_HOME={super_admin:'/admin',ops_officer:'/admin',finance_officer:'/admin',rider_manager:'/admin',vendor_manager:'/admin',investment_manager:'/admin',customer:'/workspace',student:'/workspace',vendor:'/vendor',rider:'/rider',investor:'/investor'};
-const ROLE_SET=new Set(Object.keys(ROLE_HOME));
+const ROLE_SET=new Set(APP_ROLES);
 
-function authError(error){
+export function authError(error){
   const status=Number(error?.status)||0,code=String(error?.code||'');
-  if(status===400||status===422||['invalid_credentials','weak_password','email_exists','user_already_exists'].includes(code))return Object.assign(new Error('The sign-in or account details could not be accepted.'),{status:400});
+  if(code==='invalid_credentials')return Object.assign(new Error('The sign-in details are incorrect.'),{status:401});
+  if(code==='email_not_confirmed')return Object.assign(new Error('Verify your email address before signing in.'),{status:403});
+  if(status===400||status===422||['weak_password','email_exists','user_already_exists'].includes(code))return Object.assign(new Error('The sign-in or account details could not be accepted.'),{status:400});
   if(status===404)return Object.assign(new Error('The account could not be found.'),{status:404});
   if(status===429)return Object.assign(new Error('Too many authentication requests. Please try again shortly.'),{status:429});
   return Object.assign(new Error('Authentication is temporarily unavailable.'),{status:503});
@@ -188,9 +191,17 @@ export async function verifySupabaseOtp({email,token,type='signup'}={}){
   return {user,session:data.session};
 }
 
+export async function resolveLoginEmail(identifier,lookup=async predicate=>db.prepare(`SELECT email FROM public.users WHERE ${predicate.sql}`).get(...predicate.params)){
+  let predicate;
+  try{predicate=buildUserIdentifierPredicate(identifier,{emailColumn:'email',phoneColumn:'phone'});}
+  catch(error){throw Object.assign(new Error(error.message),{status:400});}
+  const row=await lookup(predicate);
+  if(!row?.email)throw Object.assign(new Error('The sign-in details are incorrect.'),{status:401});
+  return String(row.email).trim().toLowerCase();
+}
+
 export async function loginSupabaseUser(identifier,password){
-  const email=String(identifier||'').trim().toLowerCase();
-  if(!email.includes('@'))throw Object.assign(new Error('Use the email address registered to this account.'),{status:400});
+  const email=await resolveLoginEmail(identifier);
   const client=createSupabaseUserClient();
   const {data,error}=await client.auth.signInWithPassword({email,password:String(password||'')});
   if(error)throw authError(error);

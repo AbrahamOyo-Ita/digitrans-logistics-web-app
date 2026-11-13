@@ -8,6 +8,8 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import db from './db.js';
+import {logger} from './logger.js';
+import {createRequestLoggingMiddleware} from './request-logging.js';
 import {getAllowedOrigins,normalizeOrigin,validateRuntimeConfig} from './config.js';
 import {refreshExpiredSession,notify} from './auth.js';
 import {assertApplicationReady} from './readiness.js';
@@ -33,6 +35,7 @@ const proxySetting=String(process.env.TRUST_PROXY??'1').trim().toLowerCase();
 const trustProxy=proxySetting==='false'?false:/^\d+$/.test(proxySetting)?Number(proxySetting):proxySetting.includes(',')?proxySetting.split(',').map(value=>value.trim()):proxySetting;
 app.disable('x-powered-by');
 app.set('trust proxy',trustProxy);
+app.use(createRequestLoggingMiddleware({logger}));
 
 app.use(cors({
   origin(origin,callback){
@@ -45,6 +48,7 @@ app.use(cors({
     const error=new Error('Origin not allowed by CORS.');error.status=403;return callback(error);
   },
   credentials:true,
+  exposedHeaders:['X-Request-ID'],
   maxAge:600,
 }));
 app.use(helmet({
@@ -83,9 +87,9 @@ app.use('/api',(req,res)=>res.status(404).json({error:'API endpoint not found.'}
 
 app.use((err,req,res,_next)=>{
   const status=Number(err?.status)||500;
-  const logMessage=`[${new Date().toISOString()}] ${req.method} ${req.path} (${status})`;
-  if(status>=500)console.error(`${logMessage}:`,err?.stack||err);
-  else if(status>=400)console.warn(`${logMessage}: ${err?.message||'Request failed.'}`);
+  const fields={requestId:req.requestId||null,method:req.method,path:req.path,statusCode:status,error:err};
+  if(status>=500)logger.error('http.error',fields);
+  else if(status>=400)logger.warn('http.error',fields);
   if(res.headersSent)return;
   res.status(status).json({error:status>=500?'Something went wrong. Please try again.':(err.message||'Request failed.')});
 });
@@ -122,20 +126,21 @@ async function advanceScheduledDeliveries(){
     });
     for(const delivery of advanced){
       try{if(delivery.customer_id)await notify(delivery.customer_id,'Scheduled delivery is in the queue',`Delivery ${delivery.reference} is now ready for dispatch.`,'delivery',delivery.id);}
-      catch(error){console.error('scheduled delivery notification failed',error.message);}
+      catch(error){logger.error('scheduler.notification_failed',{requestId:null,deliveryId:delivery.id,error});}
     }
   }finally{advancingScheduledDeliveries=false;}
 }
-try{await advanceScheduledDeliveries();}catch(error){console.error('scheduled delivery scan failed',error.message);}
-const scheduler=setInterval(()=>advanceScheduledDeliveries().catch(error=>console.error('scheduled delivery scan failed',error.message)),30_000);
+try{await advanceScheduledDeliveries();}catch(error){logger.error('scheduler.scan_failed',{error});}
+const scheduler=setInterval(()=>advanceScheduledDeliveries().catch(error=>logger.error('scheduler.scan_failed',{error})),30_000);
 
 const port=Number(process.env.PORT||3001),host=process.env.HOST||'0.0.0.0';
-const server=app.listen(port,host,()=>console.log(`DigiTrans API listening on http://${host}:${port} (${isProduction?'production':'development'})`));
+const server=app.listen(port,host,()=>logger.info('server.started',{host,port,environment:isProduction?'production':'development'}));
 let shuttingDown=false;
 function shutdown(){
   if(shuttingDown)return;shuttingDown=true;clearInterval(scheduler);
   const forced=setTimeout(()=>process.exit(1),10_000);forced.unref();
-  server.close(async()=>{try{await db.close();clearTimeout(forced);process.exit(0);}catch(error){console.error('Database pool shutdown failed:',error.message);process.exit(1);}});
+  logger.info('server.shutdown_started');
+  server.close(async()=>{try{await db.close();clearTimeout(forced);logger.info('server.shutdown_complete');process.exit(0);}catch(error){logger.error('database.shutdown_failed',{error});process.exit(1);}});
 }
 process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);
 export default app;

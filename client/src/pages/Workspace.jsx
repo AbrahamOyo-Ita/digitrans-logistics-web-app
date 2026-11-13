@@ -3,9 +3,9 @@ import Icon from '../components/Icon';
 import Brand from '../components/Brand';
 import {api} from '../lib/api';
 import WorkspaceContent from './WorkspaceContent';
+import {ROLE_PREFIX} from '../../../shared/roles.js';
 
 const names={customer:'Customer',student:'Student',rider:'Rider',vendor:'Business',investor:'Investor',ops_officer:'Operations',rider_manager:'Rider manager',vendor_manager:'Vendor manager',finance_officer:'Finance',investment_manager:'Investment manager',super_admin:'Super admin'};
-const basePath={customer:'/customer',student:'/customer',rider:'/rider',vendor:'/vendor',investor:'/investor',ops_officer:'/ops',rider_manager:'/ops',vendor_manager:'/ops',finance_officer:'/ops',investment_manager:'/ops',super_admin:'/ops'};
 const icons={overview:'home',dashboard:'home',booking:'plus',deliveries:'truck',history:'file',market:'bag',waybills:'box',profile:'user',notifications:'bell',support:'support',jobs:'bike',earnings:'wallet',documents:'shield',business:'chart',opportunities:'chart',applications:'file',withdrawals:'wallet',riders:'bike',vendors:'users',customers:'users',finance:'wallet',investments:'chart',pricing:'settings',website:'globe',audit:'file',team:'users',contact:'mail'};
 function navFor(role){
  if(['customer','student'].includes(role))return [{key:'overview',label:'Overview'},{key:'booking',label:'Book a delivery'},{key:'market',label:'Market Runs'},{key:'waybills',label:'Intercity waybills'},{key:'history',label:'Delivery history'},{key:'notifications',label:'Notifications'},{key:'profile',label:'My profile'},{key:'support',label:'Help & support'}];
@@ -19,12 +19,12 @@ function navFor(role){
  if(role==='investment_manager')return [{key:'overview',label:'Investment overview'},{key:'investments',label:'Opportunities & applications'},{key:'withdrawals',label:'Investor withdrawals'}];
  return [{key:'overview',label:'Operations overview'},{key:'deliveries',label:'Delivery operations'},{key:'booking',label:'Manual booking'},{key:'riders',label:'Rider management'},{key:'vendors',label:'Vendor management'},{key:'customers',label:'Accounts & verification'},{key:'waybills',label:'Waybills'},{key:'market',label:'Market Runs'},{key:'finance',label:'Finance & settlements'},{key:'investments',label:'Investments'},{key:'pricing',label:'Pricing & service areas'},{key:'website',label:'Public website'},{key:'support',label:'Support requests'},{key:'contact',label:'Public enquiries'},{key:'audit',label:'Audit history'},{key:'team',label:'Admin users'}];
 }
-const pathFor=(role,key)=>`${basePath[role]||'/ops'}${key==='overview'?'':`/${key}`}`;
+const pathFor=(role,key)=>`${ROLE_PREFIX[role]||'/ops'}${key==='overview'?'':`/${key}`}`;
 
 export default function Workspace({user,navigate,onLogout,showToast}){
  const [mobileOpen,setMobileOpen]=useState(false),[notifications,setNotifications]=useState([]),[notificationsOpen,setNotificationsOpen]=useState(false),[unread,setUnread]=useState(0);
  const role=user.role,items=useMemo(()=>navFor(role),[role]);
- const prefix=basePath[role]||'/ops',pathname=window.location.pathname;
+ const prefix=ROLE_PREFIX[role]||'/ops',pathname=window.location.pathname;
  let key=pathname.replace(prefix,'').split('/').filter(Boolean)[0]||'overview';
  if(role==='student'&&pathname.startsWith('/customer'))key=pathname.replace('/customer','').split('/').filter(Boolean)[0]||'overview';
  const active=items.find(i=>i.key===key)||items[0];
