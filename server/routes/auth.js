@@ -11,7 +11,7 @@ const registerSchema=z.object({
   fullName:z.string().trim().min(2).max(100),
   email:z.string().trim().email().max(180),
   phone:z.string().trim().min(8).max(24),
-  password:z.string().min(8).max(128).regex(/[A-Za-z]/,'Password must include a letter').regex(/[0-9]/,'Password must include a number'),
+  password:z.string().min(8).max(128).regex(/[A-Z]/,'Password must include an uppercase letter').regex(/[a-z]/,'Password must include a lowercase letter').regex(/[0-9]/,'Password must include a number').regex(/[^A-Za-z0-9]/,'Password must include a special character'),
   confirmPassword:z.string(),
   role:z.enum(['customer','student','rider','vendor','investor']).default('customer'),
   acceptedTerms:z.literal(true),

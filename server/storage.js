@@ -98,14 +98,14 @@ export async function uploadPrivateImage(bucket,{ownerId,recordId,file,authorize
   }catch(error){if(error?.status)throw error;throw storageError(error);}
 }
 
-export async function createPrivateSignedUrl(bucket,objectPath,{authorized=false,ownerId,expiresIn=120}={}){
+export async function createPrivateSignedUrl(bucket,objectPath,{authorized=false,ownerId,expiresIn=900}={}){
   ensurePrivateBucket(bucket);
   const path=safeObjectPath(objectPath);
   if(authorized!==true)throw Object.assign(new Error('File access is not authorized.'),{status:403});
   if(ownerId===undefined)throw Object.assign(new Error('Stored file owner is required.'),{status:400});
   ensureOwnerPath(path,ownerId);
   const ttl=Number(expiresIn);
-  if(!Number.isInteger(ttl)||ttl<30||ttl>600)throw Object.assign(new Error('Signed URL expiry must be from 30 to 600 seconds.'),{status:400});
+  if(!Number.isInteger(ttl)||ttl<30||ttl>900)throw Object.assign(new Error('Signed URL expiry must be from 30 to 900 seconds.'),{status:400});
   try{
     const {data,error}=await storageClientProvider().storage.from(bucket).createSignedUrl(path,ttl);
     if(error)throw storageError(error);
@@ -128,7 +128,7 @@ export async function deletePrivateObject(bucket,objectPath,{authorized=false,ow
 
 export async function uploadPublicSiteImage({recordId,file,authorized=false}){
   requireAuthorization(authorized);
-  const {extension,mimeType,size}=validateUpload(file,allowedImages,5*1024*1024);
+  const {extension,mimeType,size}=validateUpload(file,allowedImages,2*1024*1024);
   const record=safeSegment(recordId,'Record ID');
   const path=`${record}/${crypto.randomUUID()}${extension}`;
   try{

@@ -20,7 +20,8 @@ export async function createDelivery({ userId, role, body, actor, channel='app' 
   const scheduledAt = timing === 'scheduled' ? String(body.scheduledAt || '') : null;
   if (pickup.length < 4 || dropoff.length < 4 || recipientName.length < 2 || recipientPhone.length < 7) throw Object.assign(new Error('Add pickup, destination, recipient name and phone.'),{status:400});
   if (!['bicycle','electric_bicycle','motorcycle','partner'].includes(body.deliveryMethod || 'bicycle')) throw Object.assign(new Error('Choose a supported delivery method.'),{status:400});
-  if (timing === 'scheduled' && (!scheduledAt || !Number.isFinite(Date.parse(scheduledAt)) || Date.parse(scheduledAt) < Date.now()+30*60*1000)) throw Object.assign(new Error('Choose a future delivery time at least 30 minutes from now.'),{status:400});
+  const scheduledMs=scheduledAt?Date.parse(scheduledAt):NaN;
+  if (timing === 'scheduled' && (!scheduledAt || !Number.isFinite(scheduledMs) || scheduledMs < Date.now()+2*60*60*1000 || scheduledMs > Date.now()+7*24*60*60*1000)) throw Object.assign(new Error('Choose a delivery time between 2 hours and 7 days from now.'),{status:400});
   if (String(body.prohibitedAccepted) !== 'true') throw Object.assign(new Error('Confirm the prohibited items and packaging policy.'),{status:400});
   const category = String(body.packageCategory || 'general').slice(0,80);
   const description = String(body.packageDescription || '').trim().slice(0,500);

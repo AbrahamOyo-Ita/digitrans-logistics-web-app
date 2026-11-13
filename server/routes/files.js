@@ -83,7 +83,7 @@ router.get('/private-files/:fileId',requireAuth,async(req,res)=>{
   if(!row){row=await db.prepare(`SELECT p.id,p.photo_path,d.customer_id,d.vendor_id,da.rider_id FROM public.delivery_proof p JOIN public.deliveries d ON d.id=p.delivery_id LEFT JOIN public.delivery_assignments da ON da.delivery_id=d.id AND da.status IN ('accepted','completed') WHERE p.id=?`).get(key);if(row?.photo_path){storagePath=row.photo_path;bucket=PRIVATE_BUCKETS.deliveryProof;ownerId=row.rider_id||objectOwner(storagePath);allowed=req.user.id===row.customer_id||req.user.id===row.vendor_id||req.user.id===row.rider_id||await permissionFor(req.user,'deliveries.read');}}
   if(!row){row=await db.prepare('SELECT e.id,e.receipt_path,m.customer_id FROM public.market_run_expenses e JOIN public.market_runs m ON m.id=e.market_run_id WHERE e.id=?').get(key);if(row?.receipt_path){storagePath=row.receipt_path;bucket=PRIVATE_BUCKETS.marketRunReceipt;ownerId=objectOwner(storagePath);allowed=req.user.id===row.customer_id||await permissionFor(req.user,'market_runs.manage')||await permissionFor(req.user,'finance.read');}}
   if(!allowed||!storagePath||!bucket)return res.status(404).json({error:'File not found.'});
-  const {signedUrl}=await createPrivateSignedUrl(bucket,storagePath,{authorized:true,ownerId,expiresIn:120});
+  const {signedUrl}=await createPrivateSignedUrl(bucket,storagePath,{authorized:true,ownerId,expiresIn:900});
   res.setHeader('Cache-Control','private, no-store');res.setHeader('Referrer-Policy','no-referrer');
   res.redirect(302,signedUrl);
 });

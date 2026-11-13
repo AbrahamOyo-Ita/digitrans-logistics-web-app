@@ -17,3 +17,4 @@ function buildUpload(allowed,maxBytes,message){
 }
 export const documentUpload=buildUpload(allowedDocuments,10*1024*1024,'Upload a PDF, JPG, PNG or WebP file.');
 export const imageUpload=buildUpload(allowedImages,5*1024*1024,'Upload a JPG, PNG or WebP image.');
+export const publicSiteImageUpload=buildUpload(allowedImages,2*1024*1024,'Public banner images must be JPG, PNG or WebP files no larger than 2 MB.');

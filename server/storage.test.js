@@ -38,11 +38,13 @@ test('signed URLs require completed route authorization, safe paths, and short e
   await assert.rejects(createPrivateSignedUrl(PRIVATE_BUCKETS.deliveryProof,path,{authorized:true}),error=>error.status===400);
   await assert.rejects(createPrivateSignedUrl(PRIVATE_BUCKETS.deliveryProof,`${owner}/../proof.png`,{authorized:true,ownerId:owner}),error=>error.status===400);
   await assert.rejects(createPrivateSignedUrl(PRIVATE_BUCKETS.deliveryProof,path,{authorized:true,ownerId:'d84c6735-8c03-48e0-86e5-45d9f816f1bd'}),error=>error.status===404);
-  await assert.rejects(createPrivateSignedUrl(PRIVATE_BUCKETS.deliveryProof,path,{authorized:true,expiresIn:900}),error=>error.status===400);
+  await assert.rejects(createPrivateSignedUrl(PRIVATE_BUCKETS.deliveryProof,path,{authorized:true,expiresIn:901}),error=>error.status===400);
+  const fifteenMinutes=await createPrivateSignedUrl(PRIVATE_BUCKETS.deliveryProof,path,{authorized:true,ownerId:owner,expiresIn:900});
+  assert.equal(fifteenMinutes.expiresIn,900);
   const signed=await createPrivateSignedUrl(PRIVATE_BUCKETS.deliveryProof,path,{authorized:true,ownerId:owner,expiresIn:90});
   assert.equal(signed.expiresIn,90);
   assert.match(signed.signedUrl,/short-lived/);
-  assert.equal(calls.filter(call=>call.method==='signed').length,1);
+  assert.equal(calls.filter(call=>call.method==='signed').length,2);
 });
 
 test('private removal is authorization-gated; public assets accept only validated images',async()=>{

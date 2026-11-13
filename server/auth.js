@@ -16,7 +16,7 @@ function authError(error){
 }
 function assertPassword(password){
   const value=String(password||'');
-  if(value.length<8||value.length>128||!/[A-Za-z]/.test(value)||!/[0-9]/.test(value))throw Object.assign(new Error('Password must be 8–128 characters and include a letter and a number.'),{status:400});
+  if(value.length<8||value.length>128||!/[A-Z]/.test(value)||!/[a-z]/.test(value)||!/[0-9]/.test(value)||!/[^A-Za-z0-9]/.test(value))throw Object.assign(new Error('Password must be 8–128 characters and include uppercase, lowercase, a number, and a special character.'),{status:400});
   return value;
 }
 function jwtPayload(token){

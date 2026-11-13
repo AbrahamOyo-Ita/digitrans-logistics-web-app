@@ -2,13 +2,13 @@ import {asyncRouter} from '../async-router.js';
 import crypto from 'crypto';
 import db from '../db.js';
 import { requireAuth, requirePermission, audit } from '../auth.js';
-import {imageUpload} from '../uploads.js';
+import {publicSiteImageUpload} from '../uploads.js';
 import {uploadPublicSiteImage,deletePublicSiteImage} from '../storage.js';
 import { isEmailConfigured, sendEmail } from '../email.js';
 
 const router=asyncRouter();
 const allowedSettings=['public_phone','public_email','public_address','public_about','public_home_hero_title','public_home_hero_text','public_service_areas','public_whatsapp'];
-const upload=(req,res,next)=>imageUpload.single('image')(req,res,e=>{if(e)return res.status(e.code==='LIMIT_FILE_SIZE'?413:400).json({error:e.message});next();});
+const upload=(req,res,next)=>publicSiteImageUpload.single('image')(req,res,e=>{if(e)return res.status(e.code==='LIMIT_FILE_SIZE'?413:400).json({error:e.message});next();});
 
 router.post('/public/contact',async(req,res)=>{
   const name=String(req.body?.name||'').trim(),email=String(req.body?.email||'').trim().toLowerCase(),phone=String(req.body?.phone||'').trim(),category=String(req.body?.category||'general').trim().replace(/[\r\n]+/g,' ').slice(0,80),message=String(req.body?.message||'').trim();
