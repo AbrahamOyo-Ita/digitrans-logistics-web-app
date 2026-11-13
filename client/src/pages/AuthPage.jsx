@@ -1,37 +1,732 @@
-import React,{useEffect,useRef,useState} from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Icon from '../components/Icon';
 import Brand from '../components/Brand';
-import {Button,Card,Field,Input,Select} from '../components/UI';
-import {api} from '../lib/api';
+import { api } from '../lib/api';
 
-const roles=[['customer','Customer'],['student','Student'],['rider','Rider'],['vendor','Business / vendor'],['investor','Investor']];
+const roles = [
+  ['customer', 'Customer'],
+  ['student', 'Student'],
+  ['rider', 'Rider'],
+  ['vendor', 'Business / Vendor'],
+  ['investor', 'Investor']
+];
 
-export default function AuthPage({mode='login',navigate,onAuthenticated,initialRole='customer',resetToken='',resetEmail='',verificationEmail='',verificationToken=''}){
- const [kind,setKind]=useState(mode),[role,setRole]=useState(roles.some(r=>r[0]===initialRole)?initialRole:'customer'),[busy,setBusy]=useState(false),[error,setError]=useState(''),[success,setSuccess]=useState(''),[verificationUrl,setVerificationUrl]=useState('');
- const verificationStarted=useRef(false);
- const params=new URLSearchParams(window.location.search);
- const next=params.get('next')||'/workspace';
- useEffect(()=>{document.title=`${kind==='register'?'Create an account':kind==='forgot'?'Reset your password':kind==='reset'?'Choose a new password':kind==='verify'?'Verify your email':'Sign in'} · DigiTrans Logistics`;},[kind]);
- useEffect(()=>{
-  if(kind!=='verify'||verificationStarted.current)return;
-  verificationStarted.current=true;
-  let active=true;
-  const params=new URLSearchParams(window.location.search),email=verificationEmail||params.get('email')||'',token=verificationToken||params.get('token')||params.get('token_hash')||'';
-  if(!email||!token){setError('This verification link is incomplete. Request a new link or sign in.');setKind('login');return;}
-  setBusy(true);setError('');
-  api('/auth/verify-email',{method:'POST',body:{email,token}}).then(result=>{
-   if(!active)return;
-   if(result.pendingApproval){setSuccess(result.message);setKind('login');return;}
-   onAuthenticated(result.user,next);
-  }).catch(err=>{if(active){setError(err.message);setKind('login');}}).finally(()=>{if(active)setBusy(false);});
-  return()=>{active=false;};
- },[kind,verificationEmail,verificationToken,onAuthenticated,next]);
- const heading={login:'Welcome back.',register:'Create your account.',forgot:'Reset your password.',reset:'Choose a new password.',verify:'Verify your email.'}[kind]||'Welcome back.';
- const subheading={login:'Sign in to continue to your DigiTrans workspace.',register:'A few details and you’re on your way.',forgot:'We’ll send recovery instructions if your account matches.',reset:'Set a new password to secure your account.',verify:'Confirm the email address on your DigiTrans account.'}[kind]||'Sign in to continue.';
- const switchKind=target=>{setError('');setSuccess('');if(target==='login')navigate(`/login?next=${encodeURIComponent(next)}`);else if(target==='register')navigate(`/register?role=${encodeURIComponent(role)}&next=${encodeURIComponent(next)}`);else if(target==='forgot')navigate(`/forgot-password?next=${encodeURIComponent(next)}`);else setKind(target);};
- const submit=async e=>{e.preventDefault();setBusy(true);setError('');setSuccess('');try{const form=Object.fromEntries(new FormData(e.currentTarget));if(kind==='login'){const out=await api('/auth/login',{method:'POST',body:{identifier:form.identifier,password:form.password}});onAuthenticated(out.user,next);return;}if(kind==='register'){const out=await api('/auth/register',{method:'POST',body:{...form,role,acceptedTerms:form.acceptedTerms==='on',fullName:form.fullName,email:form.email,phone:form.phone,password:form.password,confirmPassword:form.confirmPassword}});setSuccess(out.message);if(out.debugVerificationUrl)setVerificationUrl(out.debugVerificationUrl);return;}if(kind==='forgot'){const out=await api('/auth/forgot-password',{method:'POST',body:{identifier:form.identifier}});setSuccess(out.message);if(out.debugVerificationUrl)setVerificationUrl(out.debugVerificationUrl);return;}if(kind==='reset'){const token=resetToken||form.token;const email=resetEmail||form.email;const out=await api('/auth/reset-password',{method:'POST',body:{email,token,password:form.password,confirmPassword:form.confirmPassword}});setSuccess(out.message);setKind('login');return;}}catch(err){setError(err.message);}finally{setBusy(false);}};
- const formHeading=kind==='login'?'Sign in':kind==='register'?'Create an account':kind==='forgot'?'Send recovery instructions':kind==='verify'?'Verifying email…':'Update password';
- return <main className="min-h-screen bg-paper text-navy"><header className="relative z-10 border-b border-line bg-white"><div className="container-x flex h-[4.5rem] items-center justify-between gap-4"><Brand navigate={navigate}/><div className="flex items-center gap-3 text-[.8125rem]">{kind==='register'?<><span className="hidden text-muted sm:inline">Already have an account?</span><button type="button" onClick={()=>switchKind('login')} className="font-medium text-cyan hover:text-cyan-600">Sign in</button></>:<><span className="hidden text-muted sm:inline">Need help?</span><button type="button" onClick={()=>navigate('/contact')} className="font-medium text-navy hover:text-cyan">Contact support</button></>}</div></div></header>
-  <div className="container-x grid min-h-[calc(100vh-4.5rem)] items-stretch gap-8 py-6 sm:py-10 lg:grid-cols-[.92fr_1.08fr] lg:gap-14 lg:py-12"><section className="auth-visual relative isolate min-h-[260px] overflow-hidden rounded-[14px] bg-navy text-white sm:min-h-[320px] lg:min-h-[620px]"><img src="/images/street-wide.jpg" alt="DigiTrans rider moving through Calabar" className="absolute inset-0 -z-20 h-full w-full object-cover object-[55%_58%]"/><div className="absolute inset-0 -z-10 bg-gradient-to-br from-navy/95 via-navy/80 to-navy/35"/><div className="absolute -right-20 -top-20 -z-10 h-72 w-72 rounded-full border border-white/15"/><div className="absolute -right-8 top-8 -z-10 h-48 w-48 rounded-full border border-white/10"/><div className="flex h-full flex-col justify-between p-6 sm:p-9 lg:p-12"><div><p className="eyebrow eyebrow-light">DigiTrans workspace</p><h1 className="display-2 mt-4 max-w-[12ch] text-white">Every journey, in one place.</h1><p className="mt-4 max-w-[40ch] text-[.9375rem] leading-relaxed text-white/70">Follow deliveries, manage bookings and keep your service details close at hand.</p></div><div className="hidden space-y-3 border-t border-white/15 pt-6 sm:block">{['Your delivery history and live updates.','One secure workspace for your account.','Local support from the Calabar team.'].map(item=><div key={item} className="flex items-center gap-3 text-[.8125rem] text-white/75"><span className="grid size-6 place-items-center rounded-full bg-cyan text-white"><Icon name="check" size={13}/></span><span>{item}</span></div>)}</div><div className="mt-6 flex items-center gap-2 text-[.75rem] text-white/55"><Icon name="pin" size={14} className="text-cyan-300"/>Calabar · Cross River State</div></div></section>
-   <section className="flex items-center justify-center py-4 lg:py-8"><div className="w-full max-w-[450px]"><div className="mb-6"><p className="eyebrow">Your DigiTrans account</p><h2 className="display-2 mt-2 text-navy">{heading}</h2><p className="mt-2 max-w-[44ch] text-[.875rem] leading-6 text-muted">{subheading}</p></div>{success&&<div className="mb-5 border-l-2 border-success bg-[#edf7f1] px-4 py-3 text-[.8125rem] leading-6 text-[#27684d]" role="status">{success}{verificationUrl&&<a className="mt-2 inline-flex font-semibold underline underline-offset-2" href={verificationUrl}>Continue with local verification link</a>}</div>}{error&&<div className="mb-5 flex gap-2 border-l-2 border-danger bg-[#fbf0ef] px-4 py-3 text-[.8125rem] leading-6 text-danger" role="alert"><Icon name="alert" size={16} className="mt-1"/>{error}</div>}<Card padding="p-5 sm:p-7" className="rounded-[14px] border-line shadow-card">{kind==='verify'?<div className="py-4 text-center text-sm text-muted" role="status">{busy?'Checking your email verification link…':'Email verification is complete.'}</div>:<form onSubmit={submit} className="space-y-4">{kind==='login'&&<><Field label="Email address" required><Input name="identifier" type="email" required autoComplete="username" placeholder="you@example.com"/></Field><Field label="Password" required><Input name="password" type="password" required autoComplete="current-password" placeholder="Enter your password"/></Field><div className="flex justify-end"><button type="button" className="text-[.8125rem] font-medium text-cyan hover:text-cyan-600" onClick={()=>switchKind('forgot')}>Forgot password?</button></div></>}{kind==='register'&&<><fieldset><legend className="mb-2 text-[.8125rem] font-medium text-navy">Choose an account type</legend><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{roles.map(([value,label])=><button type="button" key={value} onClick={()=>setRole(value)} aria-pressed={role===value} className={`min-h-10 border px-2.5 py-2 text-[.75rem] font-medium transition ${role===value?'border-cyan bg-cyan/5 text-cyan ring-1 ring-cyan/20':'border-line-strong bg-white text-ink-slate hover:border-cyan/50'}`}>{label}</button>)}</div></fieldset><Field label="Full legal name" required><Input name="fullName" required minLength={2} maxLength={100} autoComplete="name" placeholder="Your full name"/></Field><div className="grid gap-4 sm:grid-cols-2"><Field label="Email address" required><Input name="email" type="email" required autoComplete="email" placeholder="you@example.com"/></Field><Field label="Phone number" required><Input name="phone" type="tel" required autoComplete="tel" minLength={8} placeholder="+234…"/></Field></div><Field label="Password" hint="At least 8 characters with a letter and number." required><Input name="password" type="password" minLength={8} maxLength={128} required autoComplete="new-password" placeholder="Create a password"/></Field><Field label="Confirm password" required><Input name="confirmPassword" type="password" minLength={8} required autoComplete="new-password" placeholder="Repeat your password"/></Field><label className="flex items-start gap-2.5 text-[.75rem] leading-5 text-muted"><input className="mt-1 accent-cyan" type="checkbox" name="acceptedTerms" required/><span>I agree to the <button type="button" onClick={()=>navigate('/terms')} className="font-medium text-cyan underline underline-offset-2">Terms</button> and <button type="button" onClick={()=>navigate('/privacy')} className="font-medium text-cyan underline underline-offset-2">Privacy Policy</button>.</span></label></>}{kind==='forgot'&&<><Field label="Email or phone number" required><Input name="identifier" required autoComplete="username" placeholder="you@example.com or +234…"/></Field><p className="text-[.75rem] leading-5 text-muted">If we find a matching account, we’ll send recovery instructions to the address or number on file.</p></>}{kind==='reset'&&<><input type="hidden" name="email" value={resetEmail}/><Field label="Recovery token" required><Input name="token" defaultValue={resetToken} required placeholder="Paste the token from your recovery message"/></Field><Field label="New password" required><Input name="password" type="password" required minLength={8} autoComplete="new-password"/></Field><Field label="Confirm password" required><Input name="confirmPassword" type="password" required autoComplete="new-password"/></Field></>}<Button type="submit" size="lg" className="mt-2 w-full !min-h-12" loading={busy} iconRight={kind==='login'?'arrow':'check'}>{busy?formHeading:formHeading}</Button></form>}</Card><div className="mt-5 text-center text-[.8125rem] text-ink-slate">{kind==='login'?<>New to DigiTrans? <button type="button" onClick={()=>switchKind('register')} className="font-semibold text-cyan hover:text-cyan-600">Create an account</button></>:kind==='register'?<>Already have a profile? <button type="button" onClick={()=>switchKind('login')} className="font-semibold text-cyan hover:text-cyan-600">Sign in</button></>:<button type="button" onClick={()=>switchKind('login')} className="inline-flex items-center gap-1.5 font-semibold text-cyan hover:text-cyan-600"><Icon name="arrow" size={14} className="rotate-180"/>Back to sign in</button>}</div><p className="mt-7 flex items-center justify-center gap-2 text-[.6875rem] font-medium text-muted"><Icon name="shield" size={13}/>Secure sign-in · Private by role · Calabar, Nigeria</p><p className="mt-8 text-center text-[.6875rem] text-muted">© {new Date().getFullYear()} DigiTrans Logistics Ltd.</p></div></section></div></main>;
+function GoogleIcon({ className = 'w-4 h-4' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24">
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+    </svg>
+  );
+}
+
+export default function AuthPage({
+  mode = 'login',
+  navigate,
+  onAuthenticated,
+  initialRole = 'customer',
+  resetToken = '',
+  resetEmail = '',
+  verificationEmail = '',
+  verificationToken = ''
+}) {
+  const [kind, setKind] = useState(mode);
+  const [role, setRole] = useState(roles.some(r => r[0] === initialRole) ? initialRole : 'customer');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [verificationUrl, setVerificationUrl] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const verificationStarted = useRef(false);
+  const params = new URLSearchParams(window.location.search);
+  const next = params.get('next') || '/workspace';
+
+  useEffect(() => {
+    document.title = `${
+      kind === 'register'
+        ? 'Join Us'
+        : kind === 'forgot'
+        ? 'Reset password'
+        : kind === 'reset'
+        ? 'New password'
+        : kind === 'verify'
+        ? 'Verify email'
+        : 'Welcome back'
+    } · DigiTrans Logistics`;
+  }, [kind]);
+
+  useEffect(() => {
+    if (kind !== 'verify' || verificationStarted.current) return;
+    verificationStarted.current = true;
+    let active = true;
+    const p = new URLSearchParams(window.location.search);
+    const email = verificationEmail || p.get('email') || '';
+    const token = verificationToken || p.get('token') || p.get('token_hash') || '';
+    if (!email || !token) {
+      setError('This verification link is incomplete. Request a new link or sign in.');
+      setKind('login');
+      return;
+    }
+    setBusy(true);
+    setError('');
+    api('/auth/verify-email', { method: 'POST', body: { email, token } })
+      .then(result => {
+        if (!active) return;
+        if (result.pendingApproval) {
+          setSuccess(result.message);
+          setKind('login');
+          return;
+        }
+        onAuthenticated(result.user, next);
+      })
+      .catch(err => {
+        if (active) {
+          setError(err.message);
+          setKind('login');
+        }
+      })
+      .finally(() => {
+        if (active) setBusy(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [kind, verificationEmail, verificationToken, onAuthenticated, next]);
+
+  const switchKind = target => {
+    setError('');
+    setSuccess('');
+    if (target === 'login') navigate(`/login?next=${encodeURIComponent(next)}`);
+    else if (target === 'register') navigate(`/register?role=${encodeURIComponent(role)}&next=${encodeURIComponent(next)}`);
+    else if (target === 'forgot') navigate(`/forgot-password?next=${encodeURIComponent(next)}`);
+    else setKind(target);
+  };
+
+  const submit = async e => {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    setSuccess('');
+    try {
+      const form = Object.fromEntries(new FormData(e.currentTarget));
+      if (kind === 'login') {
+        const out = await api('/auth/login', {
+          method: 'POST',
+          body: { identifier: form.identifier, password: form.password }
+        });
+        onAuthenticated(out.user, next);
+        return;
+      }
+      if (kind === 'register') {
+        const out = await api('/auth/register', {
+          method: 'POST',
+          body: {
+            ...form,
+            role,
+            acceptedTerms: form.acceptedTerms === 'on',
+            fullName: form.fullName,
+            email: form.email,
+            phone: form.phone,
+            password: form.password,
+            confirmPassword: form.confirmPassword
+          }
+        });
+        setSuccess(out.message);
+        if (out.debugVerificationUrl) setVerificationUrl(out.debugVerificationUrl);
+        return;
+      }
+      if (kind === 'forgot') {
+        const out = await api('/auth/forgot-password', {
+          method: 'POST',
+          body: { identifier: form.identifier }
+        });
+        setSuccess(out.message);
+        if (out.debugVerificationUrl) setVerificationUrl(out.debugVerificationUrl);
+        return;
+      }
+      if (kind === 'reset') {
+        const token = resetToken || form.token;
+        const email = resetEmail || form.email;
+        const out = await api('/auth/reset-password', {
+          method: 'POST',
+          body: { email, token, password: form.password, confirmPassword: form.confirmPassword }
+        });
+        setSuccess(out.message);
+        setKind('login');
+        return;
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleGoogleAuth = () => {
+    setError('');
+    setSuccess('Connecting to Google Single Sign-On… If this takes a moment, please sign in with your email or phone.');
+  };
+
+  return (
+    <main className="min-h-screen w-full bg-[#0d1424] flex items-center justify-center p-3 sm:p-5 lg:p-7 relative font-sans selection:bg-blue-600 selection:text-white">
+      {/* Outer Card filling viewport */}
+      <div className="w-full max-w-[1360px] min-h-[calc(100vh-1.5rem)] sm:min-h-[calc(100vh-2.5rem)] lg:h-[calc(100vh-3.5rem)] bg-white rounded-[28px] sm:rounded-[36px] shadow-[0_30px_90px_rgba(0,0,0,0.55)] p-3 sm:p-4 lg:p-5 grid lg:grid-cols-[1.14fr_1fr] gap-6 lg:gap-8 overflow-hidden items-stretch">
+        
+        {/* Left Column: Atmospheric Visual Hero with Glassmorphism */}
+        <section className="relative isolate rounded-[24px] sm:rounded-[30px] overflow-hidden flex flex-col justify-between p-6 sm:p-8 lg:p-11 text-white min-h-[460px] lg:min-h-0 bg-gradient-to-br from-[#0e2c60] via-[#124294] to-[#0d6e8a] shadow-inner">
+          {/* Real Brand Photograph */}
+          <img
+            src="/images/street-wide.jpg"
+            alt="DigiTrans logistics rider moving through Calabar"
+            className="absolute inset-0 -z-20 h-full w-full object-cover object-[52%_48%] scale-105 filter brightness-[0.92] contrast-[1.08] transition-transform duration-1000 ease-out"
+          />
+          {/* Deep Navy/Cyan Gradient Overlay matching reference UI color grading */}
+          <div className="absolute inset-0 -z-10 bg-gradient-to-br from-[#091e42]/94 via-[#103a82]/88 to-[#0a5872]/85 mix-blend-multiply" />
+          <div className="absolute inset-0 -z-10 bg-gradient-to-t from-[#061225]/95 via-transparent to-[#0a2046]/60" />
+          
+          {/* Ambient Lighting Glows */}
+          <div className="absolute -top-24 -left-24 -z-10 w-80 h-80 rounded-full bg-blue-400/25 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -right-24 -z-10 w-80 h-80 rounded-full bg-cyan-400/25 blur-3xl pointer-events-none" />
+
+          {/* Top Brand Bar */}
+          <div className="flex items-center justify-between gap-4">
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="inline-flex items-center gap-3 group text-left transition-transform active:scale-95"
+            >
+              <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center p-1.5 shadow-md shadow-black/10 group-hover:scale-105 transition-all">
+                <img
+                  src="/images/Digitrans_App_Icon.jpeg"
+                  alt="DigiTrans"
+                  className="w-full h-full object-contain rounded-xl"
+                />
+              </div>
+              <div>
+                <div className="font-display font-bold text-lg leading-tight tracking-tight text-white flex items-center gap-1.5">
+                  DigiTrans
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse" />
+                </div>
+                <div className="text-[11px] font-medium tracking-wide text-cyan-200/90">
+                  Logistics & Delivery · Calabar
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-medium text-white/90 hover:text-white transition-all backdrop-blur-md"
+            >
+              <Icon name="home" size={13} />
+              <span className="hidden sm:inline">Back to site</span>
+            </button>
+          </div>
+
+          {/* Center Copy with Pill Badge */}
+          <div className="my-auto py-6 sm:py-8">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-xs font-semibold text-white shadow-sm mb-4">
+              <span>{kind === 'login' ? 'Calabar Dispatch Desk ⚡' : 'Join Us to Build 🚀'}</span>
+            </div>
+            <h1 className="font-display text-3xl sm:text-4xl lg:text-[2.85rem] font-bold text-white tracking-tight leading-[1.15] mb-3">
+              {kind === 'login'
+                ? 'Welcome Back'
+                : kind === 'register'
+                ? 'Start your Journey'
+                : kind === 'forgot'
+                ? 'Account Recovery'
+                : 'Reset Password'}
+            </h1>
+            <p className="text-sm sm:text-base text-white/85 max-w-[46ch] leading-relaxed">
+              {kind === 'login'
+                ? 'Follow every parcel in real time, manage waybills, and keep your business moving forward.'
+                : 'Follow these simple steps to set up your account and plug into the fastest delivery network across Calabar.'}
+            </p>
+          </div>
+
+          {/* Bottom 3 Step Cards matching the reference image layout */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+            {/* Step 1: Active card */}
+            <div className="rounded-2xl p-4 bg-white text-slate-900 shadow-xl transition-all">
+              <div className="w-7 h-7 rounded-full bg-[#1d4ed8] text-white text-xs font-bold flex items-center justify-center mb-2.5 shadow-sm">
+                1
+              </div>
+              <p className="font-semibold text-xs sm:text-[13px] leading-snug text-slate-900">
+                {kind === 'login' ? 'Sign into account' : 'Register your account'}
+              </p>
+              <p className="text-[11px] text-slate-500 mt-1 hidden sm:block">
+                {kind === 'login' ? 'Enter verified credentials' : 'Your basic credentials'}
+              </p>
+            </div>
+
+            {/* Step 2: Frosted glass card */}
+            <div className="rounded-2xl p-4 bg-white/15 backdrop-blur-md border border-white/20 text-white transition-all">
+              <div className="w-7 h-7 rounded-full bg-white/20 text-white text-xs font-bold flex items-center justify-center mb-2.5">
+                2
+              </div>
+              <p className="font-medium text-xs sm:text-[13px] leading-snug text-white/95">
+                {kind === 'login' ? 'Live GPS Dispatch' : 'Set up your profile'}
+              </p>
+              <p className="text-[11px] text-white/70 mt-1 hidden sm:block">
+                {kind === 'login' ? 'Track real-time riders' : 'Personal & role info'}
+              </p>
+            </div>
+
+            {/* Step 3: Frosted glass card */}
+            <div className="rounded-2xl p-4 bg-white/15 backdrop-blur-md border border-white/20 text-white transition-all">
+              <div className="w-7 h-7 rounded-full bg-white/20 text-white text-xs font-bold flex items-center justify-center mb-2.5">
+                3
+              </div>
+              <p className="font-medium text-xs sm:text-[13px] leading-snug text-white/95">
+                {kind === 'login' ? 'Instant Waybills' : 'Verify your identity'}
+              </p>
+              <p className="text-[11px] text-white/70 mt-1 hidden sm:block">
+                {kind === 'login' ? 'Automated manifests' : 'Phone / ID check'}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Right Column: Clean, Spacious, Minimalist Form */}
+        <section className="flex flex-col justify-center px-3 sm:px-8 lg:px-10 py-4 sm:py-6 overflow-y-auto max-h-full">
+          <div className="w-full max-w-[440px] mx-auto py-2">
+            
+            {/* Header */}
+            <div className="text-center mb-6">
+              <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-slate-900">
+                {kind === 'login'
+                  ? 'Welcome Back'
+                  : kind === 'register'
+                  ? 'Join Us'
+                  : kind === 'forgot'
+                  ? 'Reset Password'
+                  : kind === 'reset'
+                  ? 'New Password'
+                  : 'Email Verification'}
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-500 mt-2">
+                {kind === 'login'
+                  ? 'Please enter your account details to access your workspace.'
+                  : kind === 'register'
+                  ? 'Create an account to book and track deliveries across Calabar.'
+                  : kind === 'forgot'
+                  ? 'Enter your email or phone to receive recovery instructions.'
+                  : 'Update your password to continue.'}
+              </p>
+            </div>
+
+            {/* Alerts */}
+            {success && (
+              <div className="mb-5 rounded-2xl bg-emerald-50 border border-emerald-200/80 p-4 text-xs sm:text-sm text-emerald-800 flex items-start gap-3">
+                <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5">
+                  <Icon name="check" size={13} />
+                </span>
+                <div className="space-y-1">
+                  <p>{success}</p>
+                  {verificationUrl && (
+                    <a
+                      className="font-semibold text-emerald-900 underline underline-offset-2 block"
+                      href={verificationUrl}
+                    >
+                      Click here to complete local verification
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="mb-5 rounded-2xl bg-rose-50 border border-rose-200/80 p-4 text-xs sm:text-sm text-rose-800 flex items-start gap-3">
+                <span className="w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center shrink-0 mt-0.5">
+                  <Icon name="alert" size={13} />
+                </span>
+                <p>{error}</p>
+              </div>
+            )}
+
+            {kind === 'verify' ? (
+              <div className="py-8 text-center text-sm text-slate-600">
+                {busy ? 'Checking your email verification link…' : 'Email verification is complete.'}
+              </div>
+            ) : (
+              <form onSubmit={submit} className="space-y-4">
+                
+                {/* LOGIN FORM */}
+                {kind === 'login' && (
+                  <>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                        Email address or Phone
+                      </label>
+                      <input
+                        name="identifier"
+                        type="text"
+                        required
+                        autoComplete="username"
+                        placeholder="you@example.com or +234..."
+                        className="w-full bg-[#f4f5f8] hover:bg-[#edeff2] focus:bg-white border border-transparent focus:border-[#1d4ed8] focus:ring-4 focus:ring-blue-500/10 rounded-2xl px-4 py-3.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-xs font-semibold text-slate-700">
+                          Password
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => switchKind('forgot')}
+                          className="text-xs font-semibold text-[#1d4ed8] hover:underline"
+                        >
+                          Forgot password?
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <input
+                          name="password"
+                          type={showPassword ? 'text' : 'password'}
+                          required
+                          autoComplete="current-password"
+                          placeholder="••••••••••••"
+                          className="w-full bg-[#f4f5f8] hover:bg-[#edeff2] focus:bg-white border border-transparent focus:border-[#1d4ed8] focus:ring-4 focus:ring-blue-500/10 rounded-2xl px-4 py-3.5 pr-11 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          aria-label={showPassword ? 'Hide password' : 'Show password'}
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                        >
+                          <Icon name={showPassword ? 'eyeOff' : 'eye'} size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* REGISTER FORM */}
+                {kind === 'register' && (
+                  <>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-2">
+                        Account type
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {roles.map(([value, label]) => (
+                          <button
+                            type="button"
+                            key={value}
+                            onClick={() => setRole(value)}
+                            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                              role === value
+                                ? 'bg-[#1d4ed8] text-white shadow-md shadow-blue-500/20'
+                                : 'bg-[#f4f5f8] text-slate-600 hover:bg-slate-200/70'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                        Full Name
+                      </label>
+                      <input
+                        name="fullName"
+                        type="text"
+                        required
+                        minLength={2}
+                        maxLength={100}
+                        autoComplete="name"
+                        placeholder="e.g. Juliet Johnson"
+                        className="w-full bg-[#f4f5f8] hover:bg-[#edeff2] focus:bg-white border border-transparent focus:border-[#1d4ed8] focus:ring-4 focus:ring-blue-500/10 rounded-2xl px-4 py-3.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          Email address
+                        </label>
+                        <input
+                          name="email"
+                          type="email"
+                          required
+                          autoComplete="email"
+                          placeholder="you@example.com"
+                          className="w-full bg-[#f4f5f8] hover:bg-[#edeff2] focus:bg-white border border-transparent focus:border-[#1d4ed8] focus:ring-4 focus:ring-blue-500/10 rounded-2xl px-4 py-3.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          Phone number
+                        </label>
+                        <input
+                          name="phone"
+                          type="tel"
+                          required
+                          autoComplete="tel"
+                          minLength={8}
+                          placeholder="+234 800 000 0000"
+                          className="w-full bg-[#f4f5f8] hover:bg-[#edeff2] focus:bg-white border border-transparent focus:border-[#1d4ed8] focus:ring-4 focus:ring-blue-500/10 rounded-2xl px-4 py-3.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                        Password
+                      </label>
+                      <div className="relative">
+                        <input
+                          name="password"
+                          type={showPassword ? 'text' : 'password'}
+                          minLength={8}
+                          maxLength={128}
+                          required
+                          autoComplete="new-password"
+                          placeholder="At least 8 characters"
+                          className="w-full bg-[#f4f5f8] hover:bg-[#edeff2] focus:bg-white border border-transparent focus:border-[#1d4ed8] focus:ring-4 focus:ring-blue-500/10 rounded-2xl px-4 py-3.5 pr-11 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          aria-label={showPassword ? 'Hide password' : 'Show password'}
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                        >
+                          <Icon name={showPassword ? 'eyeOff' : 'eye'} size={18} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                        Confirm password
+                      </label>
+                      <div className="relative">
+                        <input
+                          name="confirmPassword"
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          minLength={8}
+                          required
+                          autoComplete="new-password"
+                          placeholder="Repeat password"
+                          className="w-full bg-[#f4f5f8] hover:bg-[#edeff2] focus:bg-white border border-transparent focus:border-[#1d4ed8] focus:ring-4 focus:ring-blue-500/10 rounded-2xl px-4 py-3.5 pr-11 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                        >
+                          <Icon name={showConfirmPassword ? 'eyeOff' : 'eye'} size={18} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <label className="flex items-start gap-2.5 text-xs text-slate-600 pt-1 cursor-pointer">
+                      <input
+                        className="mt-0.5 accent-[#1d4ed8] rounded"
+                        type="checkbox"
+                        name="acceptedTerms"
+                        required
+                      />
+                      <span>
+                        I agree to the{' '}
+                        <button
+                          type="button"
+                          onClick={() => navigate('/terms')}
+                          className="font-medium text-[#1d4ed8] underline underline-offset-2"
+                        >
+                          Terms
+                        </button>{' '}
+                        and{' '}
+                        <button
+                          type="button"
+                          onClick={() => navigate('/privacy')}
+                          className="font-medium text-[#1d4ed8] underline underline-offset-2"
+                        >
+                          Privacy Policy
+                        </button>
+                        .
+                      </span>
+                    </label>
+                  </>
+                )}
+
+                {/* FORGOT PASSWORD FORM */}
+                {kind === 'forgot' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                      Email or Phone number
+                    </label>
+                    <input
+                      name="identifier"
+                      required
+                      autoComplete="username"
+                      placeholder="you@example.com or +234..."
+                      className="w-full bg-[#f4f5f8] hover:bg-[#edeff2] focus:bg-white border border-transparent focus:border-[#1d4ed8] focus:ring-4 focus:ring-blue-500/10 rounded-2xl px-4 py-3.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200"
+                    />
+                    <p className="text-xs text-slate-500 mt-2">
+                      If we find an account that matches, we’ll dispatch recovery instructions immediately.
+                    </p>
+                  </div>
+                )}
+
+                {/* RESET PASSWORD FORM */}
+                {kind === 'reset' && (
+                  <>
+                    <input type="hidden" name="email" value={resetEmail} />
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                        Recovery token
+                      </label>
+                      <input
+                        name="token"
+                        defaultValue={resetToken}
+                        required
+                        placeholder="Paste the token from your message"
+                        className="w-full bg-[#f4f5f8] hover:bg-[#edeff2] focus:bg-white border border-transparent focus:border-[#1d4ed8] focus:ring-4 focus:ring-blue-500/10 rounded-2xl px-4 py-3.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                        New password
+                      </label>
+                      <input
+                        name="password"
+                        type="password"
+                        required
+                        minLength={8}
+                        autoComplete="new-password"
+                        className="w-full bg-[#f4f5f8] hover:bg-[#edeff2] focus:bg-white border border-transparent focus:border-[#1d4ed8] focus:ring-4 focus:ring-blue-500/10 rounded-2xl px-4 py-3.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                        Confirm password
+                      </label>
+                      <input
+                        name="confirmPassword"
+                        type="password"
+                        required
+                        autoComplete="new-password"
+                        className="w-full bg-[#f4f5f8] hover:bg-[#edeff2] focus:bg-white border border-transparent focus:border-[#1d4ed8] focus:ring-4 focus:ring-blue-500/10 rounded-2xl px-4 py-3.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* Primary Action Button (Matches Reference) */}
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="w-full py-4 rounded-2xl bg-[#1d4ed8] hover:bg-[#1e40af] active:scale-[0.99] text-white font-semibold text-base shadow-lg shadow-blue-600/25 transition-all duration-200 flex items-center justify-center gap-2 mt-4 cursor-pointer"
+                >
+                  {busy ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                      </svg>
+                      <span>Processing…</span>
+                    </span>
+                  ) : (
+                    kind === 'login'
+                      ? 'Continue'
+                      : kind === 'register'
+                      ? 'Continue'
+                      : kind === 'forgot'
+                      ? 'Send Recovery Link'
+                      : 'Update Password'
+                  )}
+                </button>
+
+                {/* Toggle Link below Continue Button */}
+                <div className="text-center text-xs sm:text-sm text-slate-600 pt-2">
+                  {kind === 'login' ? (
+                    <>
+                      Already have an account?{' '}
+                      <button
+                        type="button"
+                        onClick={() => switchKind('register')}
+                        className="font-semibold text-[#1d4ed8] hover:underline"
+                      >
+                        Join Us
+                      </button>
+                    </>
+                  ) : kind === 'register' ? (
+                    <>
+                      Already have an account?{' '}
+                      <button
+                        type="button"
+                        onClick={() => switchKind('login')}
+                        className="font-semibold text-[#1d4ed8] hover:underline"
+                      >
+                        Log in
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => switchKind('login')}
+                      className="inline-flex items-center gap-1.5 font-semibold text-[#1d4ed8] hover:underline"
+                    >
+                      <Icon name="arrow" size={13} className="rotate-180" />
+                      Back to sign in
+                    </button>
+                  )}
+                </div>
+
+                {/* 'Or' Divider */}
+                <div className="relative flex items-center justify-center my-6">
+                  <div className="border-t border-slate-200 w-full" />
+                  <span className="bg-white px-3 text-xs font-medium text-slate-400 uppercase tracking-wider absolute">
+                    Or
+                  </span>
+                </div>
+
+                {/* Sign up/in with Google (Matches Reference) */}
+                <button
+                  type="button"
+                  onClick={handleGoogleAuth}
+                  className="w-full py-3.5 rounded-2xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 bg-white font-medium text-slate-700 text-sm shadow-sm transition-all duration-200 flex items-center justify-center gap-3 cursor-pointer"
+                >
+                  <GoogleIcon className="w-4 h-4" />
+                  <span>{kind === 'register' ? 'Sign up with Google' : 'Sign in with Google'}</span>
+                </button>
+
+                {/* Terms and Privacy Footnote */}
+                <p className="text-[11px] text-slate-400 text-center leading-relaxed pt-2">
+                  By continuing, you confirm that you carefully have read and agree to the DigiTrans{' '}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/privacy')}
+                    className="text-slate-600 underline hover:text-[#1d4ed8]"
+                  >
+                    Privacy Policy
+                  </button>{' '}
+                  and{' '}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/terms')}
+                    className="text-slate-600 underline hover:text-[#1d4ed8]"
+                  >
+                    Terms of Service
+                  </button>
+                  .
+                </p>
+              </form>
+            )}
+          </div>
+        </section>
+
+      </div>
+    </main>
+  );
 }

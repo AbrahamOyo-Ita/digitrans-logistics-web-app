@@ -1,4 +1,4 @@
-# Supabase migration — code-preparation status
+# Supabase migration - code-preparation status
 
 ## Decision and safety boundary
 

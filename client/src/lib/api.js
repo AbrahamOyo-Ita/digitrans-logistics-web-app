@@ -34,6 +34,6 @@ export async function upload(path,file,fields={},fileField='file'){
   if(!res.ok)throw new ApiError(payload.error||'Upload failed.',res.status);return payload;
 }
 export const money=(value,opts={})=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:0,...opts}).format(Number(value||0));
-export const date=(value,opts={})=>value?new Intl.DateTimeFormat('en-NG',{day:'numeric',month:'short',year:'numeric',...opts}).format(new Date(value)):'—';
-export const time=(value)=>value?new Intl.DateTimeFormat('en-NG',{hour:'numeric',minute:'2-digit'}).format(new Date(value)):'—';
+export const date=(value,opts={})=>value?new Intl.DateTimeFormat('en-NG',{day:'numeric',month:'short',year:'numeric',...opts}).format(new Date(value)):'-';
+export const time=(value)=>value?new Intl.DateTimeFormat('en-NG',{hour:'numeric',minute:'2-digit'}).format(new Date(value)):'-';
 export const statusLabel=(value='')=>value.replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase());

@@ -20,7 +20,7 @@ export const services = [
     image: '/images/handover.jpg', priceFrom: '₦1,000', turnaround: '60 – 120 min', icon: 'truck', quoteService: 'standard',
     highlights: ['Live tracking with rider contact', 'Photo + signature proof of delivery', 'Distance-based pricing from ₦1,000', 'Insured on every confirmed trip'],
     steps: [
-      { title: 'Tell us the route', body: 'Pick a pickup and drop-off zone — or type a landmark for exact pricing.' },
+      { title: 'Tell us the route', body: 'Pick a pickup and drop-off zone - or type a landmark for exact pricing.' },
       { title: 'Confirm the fare', body: 'You see the fare breakdown before booking. Pay online, by transfer, or cash to the rider.' },
       { title: 'Track to the door', body: 'Follow status updates and share your tracking link with the recipient.' },
     ],
@@ -33,7 +33,7 @@ export const services = [
   {
     slug: 'market-runs', name: 'Market runs', short: 'We shop Watt Market so you don’t have to.',
     blurb: 'Send your list, approve the budget, get the goods plus your receipt.',
-    description: 'Skip the traffic and the haggling. Send us your list, set a spending cap, and a trained market runner will buy at Watt Market, Marian or Ikot Ishie and deliver to your door — with receipts and any unspent balance returned.',
+    description: 'Skip the traffic and the haggling. Send us your list, set a spending cap, and a trained market runner will buy at Watt Market, Marian or Ikot Ishie and deliver to your door - with receipts and any unspent balance returned.',
     image: '/images/market-run.jpg', priceFrom: '₦1,500 + budget', turnaround: '90 – 150 min', icon: 'bag', quoteService: 'market-run',
     highlights: ['Receipts for every purchase', 'Budget approval before extra spend', 'Trained market runners', 'Unspent balance returned'],
     steps: [
@@ -61,7 +61,7 @@ export const services = [
     faqs: [
       { q: 'How is weight measured?', a: 'We charge on actual weight or volumetric weight (L×W×H ÷ 5000), whichever is higher.' },
       { q: 'Do you move parcels inter-state?', a: 'Calabar to Uyo, Port Harcourt and Abuja hubs run daily. Other destinations are routed through partners.' },
-      { q: 'Can I insure a parcel?', a: 'Yes — declare a value above ₦50,000 and we quote cover on the declared amount at the counter.' },
+      { q: 'Can I insure a parcel?', a: 'Yes - declare a value above ₦50,000 and we quote cover on the declared amount at the counter.' },
     ],
   },
   {
@@ -100,7 +100,7 @@ export const services = [
   },
   {
     slug: 'scheduled-pickups', name: 'Scheduled pickups', short: 'Recurring runs, planned a week ahead.',
-    blurb: 'Lock a pickup window and we arrive within it — every time.',
+    blurb: 'Lock a pickup window and we arrive within it - every time.',
     description: "For offices, pharmacies and food businesses that know tomorrow's route today. Schedule single or recurring pickups, set a time window, and we dispatch against it with the same live tracking and proof of delivery.",
     image: '/images/hero-courier.jpg', priceFrom: '₦1,200', turnaround: 'Book 24 hrs ahead', icon: 'clock', quoteService: 'standard',
     highlights: ['Recurring daily or weekly runs', 'Locked pickup windows', 'Same tracking & proof of delivery', 'Priority rider allocation'],
@@ -112,7 +112,7 @@ export const services = [
     faqs: [
       { q: 'How far ahead can I book?', a: 'Up to 14 days ahead, with recurring series available on vendor accounts.' },
       { q: 'What if my window changes?', a: 'Reschedule free of charge up to 3 hours before the window opens.' },
-      { q: 'Do scheduled runs cost more?', a: 'No premium — the fare follows standard pricing, and contracts get their vendor rate.' },
+      { q: 'Do scheduled runs cost more?', a: 'No premium - the fare follows standard pricing, and contracts get their vendor rate.' },
     ],
   },
 ];
@@ -153,9 +153,9 @@ export const articles = [
     image: '/images/handover.jpg', imageAlt: 'A rider handing a parcel to a customer in Calabar',
     excerpt: 'Distance, weight and time of day move a fare more than anything else. Here is the arithmetic behind a typical Calabar trip, and the four extras worth paying for.',
     body: [
-      { paragraphs: ['Most delivery quotes in Calabar are a single number with no breakdown, which makes it impossible to tell whether you are being charged for distance, weight or the weather. We publish our arithmetic instead: a base fee of ₦500 plus ₦250 per kilometre, with a ₦1,000 minimum.', 'That structure matters because Calabar is not a grid. A trip from Watt Market to State Housing is roughly 6.4 km of real road, which lands at ₦2,100. The same distance on the airport road behaves differently — longer stretches, fewer stops, and a rider who can hold a steady speed.'] },
+      { paragraphs: ['Most delivery quotes in Calabar are a single number with no breakdown, which makes it impossible to tell whether you are being charged for distance, weight or the weather. We publish our arithmetic instead: a base fee of ₦500 plus ₦250 per kilometre, with a ₦1,000 minimum.', 'That structure matters because Calabar is not a grid. A trip from Watt Market to State Housing is roughly 6.4 km of real road, which lands at ₦2,100. The same distance on the airport road behaves differently - longer stretches, fewer stops, and a rider who can hold a steady speed.'] },
       { heading: 'What actually moves the fare', paragraphs: [], bullets: ['Distance: ₦250 per kilometre after the base fee, measured on real routes rather than straight lines.', 'Weight: waybills move to a flat ₦3,000 between 5 kg and 10 kg, then ₦250 per kilogram above that.', 'Time: priority dispatch adds ₦700 and pulls a rider off the bench immediately.', 'Handling: fragile or awkward loads add ₦400, including the packing material.'] },
-      { heading: 'The extras worth paying for', paragraphs: ['Priority is worth it when the parcel is the point — a passport, a signed document, medication. Careful handling is worth it when the item cannot be replaced locally. Everything else about a fare should be predictable, which is why we do not add a charge at the door.', 'If a fare ever looks wrong, the dispatch desk can replay the route and the timestamps. That is the whole reason every stop is recorded.'] },
+      { heading: 'The extras worth paying for', paragraphs: ['Priority is worth it when the parcel is the point - a passport, a signed document, medication. Careful handling is worth it when the item cannot be replaced locally. Everything else about a fare should be predictable, which is why we do not add a charge at the door.', 'If a fare ever looks wrong, the dispatch desk can replay the route and the timestamps. That is the whole reason every stop is recorded.'] },
     ],
   },
   {
@@ -164,7 +164,7 @@ export const articles = [
     excerpt: 'The difference between a good market run and a frustrating one is usually the list. Quantities, brands, budget caps and a photo of the thing you actually want.',
     body: [
       { paragraphs: ["Market runners are not mind readers, and a list that says ‘tomatoes, peppers, enough for the week’ will always come back with somebody's judgement call attached. A better list names quantities in the units the market sells, and says what to do when the price is different from what you expected."] },
-      { heading: 'Five things every list should include', paragraphs: [], bullets: ['Quantity in market units — a paint bucket, a basket, a specific number of tubers.', 'Brand or grade where it matters, plus an acceptable substitute.', 'A spending cap, and a rule for what happens if the market is above it.', 'Where the runner should call you — a WhatsApp number that will actually be answered.', 'A delivery window, so the runner can plan the order of the market before heading out.'] },
+      { heading: 'Five things every list should include', paragraphs: [], bullets: ['Quantity in market units - a paint bucket, a basket, a specific number of tubers.', 'Brand or grade where it matters, plus an acceptable substitute.', 'A spending cap, and a rule for what happens if the market is above it.', 'Where the runner should call you - a WhatsApp number that will actually be answered.', 'A delivery window, so the runner can plan the order of the market before heading out.'] },
       { heading: 'How the budget works', paragraphs: ["A market run holds your shopping budget rather than charging it. The flat ₦1,500 service fee covers the runner's time and the trip. At the end, we reconcile the actual receipts, return any unspent balance, and send photographs of every receipt with the delivery.", 'If something costs more than expected, nothing extra is spent without your approval. You get a prompt, you decide, and the run continues or stops there.'] },
     ],
   },
@@ -175,7 +175,7 @@ export const articles = [
     body: [
       { paragraphs: ['A waybill is the closest thing logistics has to a receipt for the journey itself. Ours carries a number, a QR code, and a scan at dispatch and at arrival, so the parcel position is a fact rather than a phone call.', 'Pricing follows weight tiers: ₦1,500 under 5 kg, ₦3,000 between 5 kg and 10 kg, then ₦250 per kilogram above 10 kg. Volumetric weight (length × width × height ÷ 5000) applies when a parcel is bulky but light, which is the same rule the airlines use.'] },
       { heading: 'Routes we run', paragraphs: ['Calabar to Uyo, Port Harcourt and Abuja move daily through our hubs. Destinations outside those corridors are routed through partner carriers, with the same waybill number following the parcel.'] },
-      { heading: 'What cover means', paragraphs: ['Every confirmed trip carries cover up to ₦50,000 for loss or damage in transit. If a parcel is worth more, declare the value at the counter and we quote cover on the declared amount — a small percentage, quoted before you pay, not a surprise line on a claim form.', 'Prohibited items are the usual list: cash, live animals, hazardous materials and anything illegal. Perishables travel on market runs or priority bookings, where the delivery window is short enough to matter.'] },
+      { heading: 'What cover means', paragraphs: ['Every confirmed trip carries cover up to ₦50,000 for loss or damage in transit. If a parcel is worth more, declare the value at the counter and we quote cover on the declared amount - a small percentage, quoted before you pay, not a surprise line on a claim form.', 'Prohibited items are the usual list: cash, live animals, hazardous materials and anything illegal. Perishables travel on market runs or priority bookings, where the delivery window is short enough to matter.'] },
     ],
   },
 ];

@@ -1,4 +1,4 @@
-# DigiTrans Logistics — migration and readiness report
+# DigiTrans Logistics - migration and readiness report
 
 **Review date:** 16 November 2026
 

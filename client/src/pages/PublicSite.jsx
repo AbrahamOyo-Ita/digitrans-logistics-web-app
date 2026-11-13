@@ -27,7 +27,7 @@ export default function PublicSite({page='/',navigate,onLogin,user}){
   }[page]||['DigiTrans Logistics','Delivery, market runs and waybills across Calabar.'];
   const title=service?`${service.name} in Calabar`:article?`${article.title} | DigiTrans Logistics`:meta[0];
   const description=service?service.blurb:article?article.excerpt:meta[1];
-  document.title=page==='/'?'DigiTrans Logistics — Delivery, market runs & waybills in Calabar':article?`${article.title} | DigiTrans Logistics`:`${title} · DigiTrans Logistics`;
+  document.title=page==='/'?'DigiTrans Logistics - Delivery, market runs & waybills in Calabar':article?`${article.title} | DigiTrans Logistics`:`${title} · DigiTrans Logistics`;
   let descriptionTag=document.querySelector('meta[name="description"]');
   if(descriptionTag)descriptionTag.setAttribute('content',description);
  },[page]);
