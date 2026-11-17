@@ -46,7 +46,7 @@ npm run db:seed -- --dry-run          # show safe catalogue seed checksum; opens
 git diff --check                      # whitespace/conflict check
 ```
 
-A migration/seed write is target-gated. Local apply requires a loopback database. Staging requires `--allow-staging` and an exact configured host/user identity. Production requires `--approve-production`, an exact host/user identity, and `SUPABASE_PRODUCTION_MIGRATION_APPROVAL=I_REVIEWED_BACKUP_AND_CUTOVER_PLAN`. The user has explicitly approved the checked-in migrations and seed after backup/schema review; they are still **unapplied**. A read-only review found no public application tables, Auth users, Storage buckets/objects or recorded migrations in the connected Supabase project. The connected-service changes so far are the Vercel custom-domain attachment and Supabase Auth site/redirect configuration; see [DNS setup](docs/production-dns-setup.md).
+A migration/seed write is target-gated. Local apply requires a loopback database. Staging requires `--allow-staging` and an exact configured host/user identity. Production requires `--approve-production`, an exact host/user identity, and `SUPABASE_PRODUCTION_MIGRATION_APPROVAL=I_REVIEWED_BACKUP_AND_CUTOVER_PLAN`. The user's approval of the checked-in migrations and seed was conditional on a verified backup and final schema/security review; those gates and the immediate pre-write confirmation remain outstanding, so they are **unapplied**. A read-only review found no public application tables, Auth users, Storage buckets/objects or recorded migrations in the connected Supabase project. The connected-service changes so far are the Vercel custom-domain attachment and Supabase Auth site/redirect configuration; see [DNS setup](docs/production-dns-setup.md).
 
 ## Architecture
 
@@ -61,7 +61,7 @@ A migration/seed write is target-gated. Local apply requires a loopback database
 
 `supabase/migrations/202611160001_initial_schema.sql` creates the application schema and scoped RLS/policies; `202611160002_payment_atomicity.sql` adds the payment event ledger and atomic settlement functions. `supabase/seed.sql` contains only idempotent role/permission grants, inactive launch zones, public FAQs and basic settings—no legacy records, uploaded files, demo identities or sample financial data. The guarded seed command can bootstrap the first production Super Administrator only during an explicitly approved production seed operation.
 
-The checked-in migrations and seed are not yet applied to the connected Supabase project. The user has approved this schema/seed after backup confirmation and final schema review; apply only through the guarded, checksum-tracked process. The current read-only check found no application tables, Auth users, Storage buckets/objects or migration history, but do not treat an empty migration ledger alone as proof that any project's data are empty.
+The checked-in migrations and seed are not yet applied to the connected Supabase project. The user's approval was conditional on a verified backup and final schema/security review; those gates are not confirmed complete here. Reconfirm explicitly immediately before any production SQL, and apply only through the guarded, checksum-tracked process. The current read-only check found no application tables, Auth users, Storage buckets/objects or migration history, but do not treat an empty migration ledger alone as proof that any project's data are empty.
 
 ## Production configuration overview
 
