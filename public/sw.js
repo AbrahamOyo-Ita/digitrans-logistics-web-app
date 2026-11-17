@@ -1,4 +1,4 @@
-const CACHE_NAME='digitrans-shell-v1';
+const CACHE_NAME='digitrans-shell-v2';
 const SHELL=['/','/offline.html','/manifest.webmanifest','/favicon.svg','/icon-192.png','/icon-512.png'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));

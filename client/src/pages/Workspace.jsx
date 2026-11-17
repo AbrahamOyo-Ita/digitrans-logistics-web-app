@@ -1,5 +1,6 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import Icon from '../components/Icon';
+import Brand from '../components/Brand';
 import {api} from '../lib/api';
 import WorkspaceContent from './WorkspaceContent';
 
@@ -19,7 +20,6 @@ function navFor(role){
  return [{key:'overview',label:'Operations overview'},{key:'deliveries',label:'Delivery operations'},{key:'booking',label:'Manual booking'},{key:'riders',label:'Rider management'},{key:'vendors',label:'Vendor management'},{key:'customers',label:'Accounts & verification'},{key:'waybills',label:'Waybills'},{key:'market',label:'Market Runs'},{key:'finance',label:'Finance & settlements'},{key:'investments',label:'Investments'},{key:'pricing',label:'Pricing & service areas'},{key:'website',label:'Public website'},{key:'support',label:'Support requests'},{key:'contact',label:'Public enquiries'},{key:'audit',label:'Audit history'},{key:'team',label:'Admin users'}];
 }
 const pathFor=(role,key)=>`${basePath[role]||'/ops'}${key==='overview'?'':`/${key}`}`;
-function Brand({onClick}){return <button onClick={onClick} className="flex items-center gap-2.5 text-left"><span className="grid h-10 w-10 place-items-center rounded-[13px] bg-brand-800 text-gold-400"><span className="font-display text-xl font-black">D</span></span><span><span className="block text-[15px] font-extrabold leading-4 text-ink">DigiTrans</span><span className="mt-1 block text-[9px] font-bold uppercase tracking-[.18em] text-slate-400">Logistics</span></span></button>}
 
 export default function Workspace({user,navigate,onLogout,showToast}){
  const [mobileOpen,setMobileOpen]=useState(false),[notifications,setNotifications]=useState([]),[notificationsOpen,setNotificationsOpen]=useState(false),[unread,setUnread]=useState(0);
