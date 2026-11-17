@@ -3,14 +3,14 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import db,{migrate} from './db.js';
-import { publicDir } from './uploads.js';
-import { getAllowedOrigins, normalizeOrigin, validateRuntimeConfig } from './config.js';
-import { seedBase } from './seed.js';
-import { notify } from './auth.js';
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import {fileURLToPath} from 'node:url';
+import db from './db.js';
+import {getAllowedOrigins,normalizeOrigin,validateRuntimeConfig} from './config.js';
+import {refreshExpiredSession,notify} from './auth.js';
+import {assertApplicationReady} from './readiness.js';
 import authRouter from './routes/auth.js';
 import customerRouter from './routes/customer.js';
 import riderRouter from './routes/rider.js';
@@ -27,13 +27,12 @@ const __dirname=path.dirname(fileURLToPath(import.meta.url));
 const app=express();
 const isProduction=process.env.NODE_ENV==='production';
 validateRuntimeConfig();
+await assertApplicationReady();
 const allowedOrigins=getAllowedOrigins();
 const proxySetting=String(process.env.TRUST_PROXY??'1').trim().toLowerCase();
 const trustProxy=proxySetting==='false'?false:/^\d+$/.test(proxySetting)?Number(proxySetting):proxySetting.includes(',')?proxySetting.split(',').map(value=>value.trim()):proxySetting;
 app.disable('x-powered-by');
 app.set('trust proxy',trustProxy);
-migrate();
-seedBase({demo:!isProduction&&process.env.DISABLE_DEMO_SEED!=='true'});
 
 app.use(cors({
   origin(origin,callback){
@@ -53,11 +52,11 @@ app.use(helmet({
   crossOriginResourcePolicy:false,
   frameguard:isProduction?{action:'deny'}:false,
 }));
-app.use('/uploads/public',express.static(publicDir,{fallthrough:false,maxAge:isProduction?'7d':0,immutable:isProduction,setHeaders(res){res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Content-Security-Policy',"default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox");}}));
 app.use('/api/payments/paystack/webhook',express.raw({type:'application/json',limit:'1mb'}));
 app.use(express.json({limit:'1mb'}));
 app.use(express.urlencoded({extended:false,limit:'1mb'}));
 app.use(cookieParser());
+app.use('/api',refreshExpiredSession);
 app.use('/api',(req,res,next)=>{res.setHeader('Cache-Control','no-store');next();});
 
 const authLimit=rateLimit({windowMs:15*60*1000,limit:20,standardHeaders:'draft-7',legacyHeaders:false,message:{error:'Too many attempts. Wait a few minutes and try again.'}});
@@ -102,24 +101,33 @@ if(isProduction&&fs.existsSync(dist)){
   app.get('/',(_req,res)=>res.status(200).json({service:'DigiTrans API',preview:'Run the Vite web client on port 5173.'}));
 }
 
-function advanceScheduledDeliveries(){
-  const rows=db.prepare("SELECT id,reference,customer_id,status FROM deliveries WHERE timing='scheduled' AND status='pending_confirmation' AND scheduled_at IS NOT NULL AND datetime(scheduled_at)<=datetime('now')").all();
-  for(const d of rows){
-    const advance=db.transaction(()=>{
-      const result=db.prepare("UPDATE deliveries SET status='awaiting_assignment',updated_at=datetime('now') WHERE id=? AND status='pending_confirmation'").run(d.id);
-      if(result.changes)db.prepare('INSERT INTO delivery_status_history (id,delivery_id,prev_status,new_status,actor_role,notes) VALUES (?,?,?,?,?,?)').run(cryptoId(),d.id,d.status,'awaiting_assignment','system','Scheduled dispatch window opened');
-      return result.changes;
-    });
-    try{if(advance()&&d.customer_id)notify(d.customer_id,'Scheduled delivery is in the queue',`Delivery ${d.reference} is now ready for dispatch.`,'delivery',d.id);}catch(e){console.error('scheduled delivery advance failed',e.message);}
-  }
+let advancingScheduledDeliveries=false;
+async function advanceScheduledDeliveries(){
+  if(advancingScheduledDeliveries)return;
+  advancingScheduledDeliveries=true;
+  try{
+    const rows=await db.prepare("SELECT id,reference,customer_id,status FROM public.deliveries WHERE timing='scheduled' AND status='pending_confirmation' AND scheduled_at IS NOT NULL AND scheduled_at<=now()").all();
+    for(const delivery of rows){
+      const advance=db.transaction(async()=>{
+        const result=await db.prepare("UPDATE public.deliveries SET status='awaiting_assignment',updated_at=now() WHERE id=? AND status='pending_confirmation'").run(delivery.id);
+        if(result.changes)await db.prepare('INSERT INTO public.delivery_status_history (id,delivery_id,prev_status,new_status,actor_role,notes) VALUES (?,?,?,?,?,?)').run(crypto.randomUUID(),delivery.id,delivery.status,'awaiting_assignment','system','Scheduled dispatch window opened');
+        return result.changes;
+      });
+      try{if((await advance())&&delivery.customer_id)await notify(delivery.customer_id,'Scheduled delivery is in the queue',`Delivery ${delivery.reference} is now ready for dispatch.`,'delivery',delivery.id);}
+      catch(error){console.error('scheduled delivery advance failed',error.message);}
+    }
+  }finally{advancingScheduledDeliveries=false;}
 }
-function cryptoId(){return globalThis.crypto.randomUUID();}
-advanceScheduledDeliveries();
-const scheduler=setInterval(advanceScheduledDeliveries,30_000);
-const cleanup=setInterval(()=>{try{db.prepare("DELETE FROM sessions WHERE expires_at<datetime('now') OR revoked=1").run();db.prepare("DELETE FROM password_resets WHERE expires_at<datetime('now') OR used=1").run();}catch(e){console.error('session cleanup failed',e.message);}},60*60*1000);
+try{await advanceScheduledDeliveries();}catch(error){console.error('scheduled delivery scan failed',error.message);}
+const scheduler=setInterval(()=>advanceScheduledDeliveries().catch(error=>console.error('scheduled delivery scan failed',error.message)),30_000);
 
 const port=Number(process.env.PORT||3001),host=process.env.HOST||'0.0.0.0';
 const server=app.listen(port,host,()=>console.log(`DigiTrans API listening on http://${host}:${port} (${isProduction?'production':'development'})`));
-function shutdown(){clearInterval(scheduler);clearInterval(cleanup);server.close(()=>{try{db.close();}catch{}process.exit(0);});setTimeout(()=>process.exit(1),5000).unref();}
+let shuttingDown=false;
+function shutdown(){
+  if(shuttingDown)return;shuttingDown=true;clearInterval(scheduler);
+  const forced=setTimeout(()=>process.exit(1),10_000);forced.unref();
+  server.close(async()=>{try{await db.close();clearTimeout(forced);process.exit(0);}catch(error){console.error('Database pool shutdown failed:',error.message);process.exit(1);}});
+}
 process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);
 export default app;

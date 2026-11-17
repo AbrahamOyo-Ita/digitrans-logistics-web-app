@@ -8,16 +8,18 @@ export function haversineKm(lat1, lng1, lat2, lng2) {
   return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-export function getActivePricing() {
-  return db.prepare(`SELECT * FROM pricing_versions ORDER BY created_at DESC LIMIT 1`).get();
+export async function getActivePricing() {
+  return await db.prepare(`SELECT * FROM pricing_versions ORDER BY created_at DESC LIMIT 1`).get();
 }
 
-export function calculateDeliveryFee({ pickupLat, pickupLng, dropoffLat, dropoffLng, timing, isStudent, isVendor, zone }) {
-  const pricing = getActivePricing();
+export async function calculateDeliveryFee(
+  { pickupLat, pickupLng, dropoffLat, dropoffLng, timing, isStudent, isVendor, zone }
+) {
+  const pricing = await getActivePricing();
   if (!pricing) throw new Error('No pricing configured');
   // Validate zone
   if (zone) {
-    const z = db.prepare(`SELECT * FROM service_zones WHERE name=? AND active=1`).get(zone);
+    const z = await db.prepare(`SELECT * FROM service_zones WHERE name=? AND active=1`).get(zone);
     if (!z) throw new Error('Unsupported service area');
   }
   let distanceKm = haversineKm(pickupLat, pickupLng, dropoffLat, dropoffLng);
@@ -56,9 +58,9 @@ export function calculateDeliveryFee({ pickupLat, pickupLng, dropoffLat, dropoff
   return { fee, distanceKm, breakdown, pricing };
 }
 
-export function calculateWaybillFee({ origin, destination, weight, category }) {
+export async function calculateWaybillFee({ origin, destination, weight, category }) {
   const band = weight < 5 ? 'below_5kg' : weight <= 10 ? '5_10kg' : 'above_10kg';
-  const row = db.prepare(`SELECT * FROM waybill_pricing WHERE origin=? AND destination=? AND weight_band=? LIMIT 1`).get(origin, destination, band);
+  const row = await db.prepare(`SELECT * FROM waybill_pricing WHERE origin=? AND destination=? AND weight_band=? LIMIT 1`).get(origin, destination, band);
   if (!row) throw new Error('No waybill pricing for route');
   return { fee: row.price, band, pricing: row };
 }

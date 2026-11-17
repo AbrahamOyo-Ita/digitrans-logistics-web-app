@@ -59,15 +59,15 @@ export default function App(){
  };
  const logout=async()=>{try{await api('/auth/logout',{method:'POST'});}catch{}setUser(null);setAuthState('ready');navigate('/',{replace:true});showToast({title:'Signed out',message:'Your session has been closed.'});};
  const path=location.pathname.replace(/\/+$/,'')||'/';
- const search=new URLSearchParams(location.search);const authMode=path==='/register'?'register':path==='/forgot-password'?'forgot':path==='/reset-password'?'reset':'login';
- const isAuth=['/login','/register','/forgot-password','/reset-password'].includes(path);
+ const search=new URLSearchParams(location.search);const authMode=path==='/register'?'register':path==='/forgot-password'?'forgot':path==='/reset-password'?'reset':path==='/auth/verify'?'verify':'login';
+ const isAuth=['/login','/register','/forgot-password','/reset-password','/auth/verify'].includes(path);
  const workspace=isWorkspacePath(path);
  let view;
  if(authState==='loading'&&workspace)view=<div className="min-h-screen bg-[#f6f8f6]"><Loading label="Restoring your secure session…"/></div>;
  else if(workspace&&!user)view=<div className="min-h-screen bg-[#f6f8f6]"><Loading label="Opening sign-in…"/></div>;
- else if(user&&isAuth)view=<div className="min-h-screen bg-[#f6f8f6]"><Loading label="Opening your workspace…"/></div>;
+ else if(user&&isAuth&&path!=='/auth/verify')view=<div className="min-h-screen bg-[#f6f8f6]"><Loading label="Opening your workspace…"/></div>;
  else if(workspace&&user)view=<Workspace key={user.id} user={user} navigate={navigate} onLogout={logout} showToast={showToast}/>;
- else if(isAuth)view=<AuthPage key={`${path}${location.search}`} mode={authMode} navigate={navigate} onAuthenticated={onAuthenticated} initialRole={search.get('role')||'customer'} resetToken={search.get('token')||''}/>;
+ else if(isAuth)view=<AuthPage key={`${path}${location.search}`} mode={authMode} navigate={navigate} onAuthenticated={onAuthenticated} initialRole={search.get('role')||'customer'} resetToken={search.get('token')||''} resetEmail={search.get('email')||''} verificationEmail={search.get('email')||''} verificationToken={search.get('token')||search.get('token_hash')||''}/>;
  else view=<PublicSite key={path} page={path} navigate={navigate} onLogin={onLogin} user={user}/>;
  return <>{view}<Toast toast={toast} onClose={()=>setToast(null)}/></>;
 }
