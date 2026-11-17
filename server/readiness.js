@@ -1,0 +1,39 @@
+import {query,healthcheck} from './postgres.js';
+import {listMigrationFiles} from '../scripts/apply-supabase-migrations.js';
+
+export async function assertApplicationReady({env=process.env,migrationsLoader=listMigrationFiles}={}){
+  await healthcheck();
+  const expected=await migrationsLoader();
+  let applied;
+  try{
+    applied=await query('SELECT version,filename,checksum FROM digitrans_meta.schema_migrations');
+  }catch{
+    throw new Error('DigiTrans database migrations are not recorded. Review the migration plan and apply the checked-in migrations to the intended target before starting the API.');
+  }
+  const records=new Map(applied.rows.map(row=>[row.version,row]));
+  for(const migration of expected){
+    const record=records.get(migration.version);
+    if(!record||record.filename!==migration.filename||record.checksum!==migration.checksum){
+      throw new Error(`DigiTrans database migration ${migration.version} is missing or has a different checksum. Start the API only after the reviewed migration set is applied.`);
+    }
+  }
+  let catalogue;
+  try{
+    catalogue=await query(`SELECT
+      (SELECT count(*) FROM public.roles) AS roles,
+      (SELECT count(*) FROM public.permissions) AS permissions,
+      (SELECT count(*) FROM public.role_permissions WHERE role_id='super_admin') AS super_admin_grants,
+      (SELECT count(*) FROM public.faqs) AS faqs`);
+  }catch{
+    throw new Error('DigiTrans catalogue seed is missing or incomplete. Review the target and run the guarded Supabase seed command.');
+  }
+  const counts=catalogue.rows[0];
+  if(Number(counts.roles)<11||Number(counts.permissions)<23||Number(counts.super_admin_grants)<23||Number(counts.faqs)<1){
+    throw new Error('DigiTrans base catalogue is incomplete. Review the target and run the guarded Supabase seed command.');
+  }
+  if(env.NODE_ENV==='production'){
+    const admin=await query("SELECT id FROM public.users WHERE role='super_admin' AND status='active' LIMIT 1");
+    if(!admin.rowCount)throw new Error('Production startup requires an active Super Administrator. Run the guarded seed command with the approved bootstrap credentials or resolve the existing account.');
+  }
+  return {migrations:expected.length,catalogue:'ready'};
+}
