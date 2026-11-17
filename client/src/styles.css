@@ -1,28 +1,76 @@
+@import '@fontsource-variable/inter/index.css';
+@import '@fontsource-variable/inter-tight/index.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#15251c;background:#fff;font-synthesis:none;text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;font-optical-sizing:auto}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth;scroll-padding-top:5rem}
-body{margin:0;min-width:320px;min-height:100vh}
-button,input,select,textarea{font:inherit}
-button{cursor:pointer}
-button:disabled{cursor:not-allowed}
-::selection{background:#c4dfca;color:#102519}
-:focus-visible{outline:3px solid rgba(74,147,96,.5);outline-offset:2px}
-
-@layer components{
- .nav-link{@apply text-[13px] font-semibold text-slate-500 transition hover:text-brand-800}
- .nav-active{@apply text-brand-800}
- .eyebrow{@apply text-[10px] font-bold uppercase tracking-[.17em] text-brand-600}
- .section-heading{@apply mt-2 font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl}
- .footer-title{@apply mb-4 text-[10px] font-bold uppercase tracking-[.17em] text-gold-300}
- .footer-link{@apply block py-1.5 text-left text-xs text-white/60 transition hover:text-white}
- .custom-scroll{scrollbar-width:thin;scrollbar-color:#cbd5cf transparent}
+:root {
+  font-family: 'Inter Variable', Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #0b1b2b;
+  background: #fff;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-optical-sizing: auto;
+  --color-navy: #0b1b2b;
+  --color-navy-700: #102337;
+  --color-navy-600: #17304a;
+  --color-paper: #f7f8f8;
+  --color-line: #e3e6e8;
+  --color-line-strong: #cfd5d9;
+  --color-cyan: #0e7c8b;
+  --shadow-panel: 0 2px 4px rgba(11,27,43,.04), 0 24px 60px -32px rgba(11,27,43,.45);
 }
-.hero-grid{background-image:linear-gradient(rgba(40,95,60,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(40,95,60,.06) 1px,transparent 1px);background-size:40px 40px}
-.route-line{background:linear-gradient(90deg,transparent 0,transparent 8%,rgba(255,202,102,.28) 8%,rgba(255,202,102,.28) 92%,transparent 92%)}
-input[type="date"]::-webkit-calendar-picker-indicator{opacity:.65;cursor:pointer}
-input[type="number"]{font-variant-numeric:tabular-nums}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 5rem; -webkit-text-size-adjust: 100%; }
+body { margin: 0; min-width: 320px; min-height: 100vh; background: #fff; }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+::selection { background: rgba(14,124,139,.16); color: #0b1b2b; }
+h1, h2, h3, h4 { font-family: 'Inter Tight Variable', 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif; text-wrap: balance; }
+p { text-wrap: pretty; }
+:focus-visible { outline: 2px solid #0e7c8b; outline-offset: 3px; }
+
+@layer components {
+  .container-x { @apply mx-auto w-full max-w-[1240px] px-5 md:px-10; }
+  .display-1 { @apply font-display text-[clamp(2.7rem,5.4vw,4.25rem)] font-semibold leading-[1.03] tracking-[-.04em]; }
+  .display-2 { @apply font-display text-[clamp(1.9rem,3.2vw,2.75rem)] font-semibold leading-[1.08] tracking-[-.035em]; }
+  .display-3 { @apply font-display text-[clamp(1.3rem,1.7vw,1.5rem)] font-semibold leading-[1.22] tracking-[-.025em]; }
+  .lede { @apply text-[clamp(1rem,1.1vw,1.125rem)] leading-[1.7] text-slate-ink; }
+  .body-sm { @apply text-[.9375rem] leading-[1.7] text-slate-ink; }
+  .section { @apply py-[clamp(4.5rem,7vw,7rem)]; }
+  .section-tight { @apply py-[clamp(3rem,5vw,4.5rem)]; }
+  .eyebrow { @apply inline-flex items-center gap-2 text-[.6875rem] font-semibold uppercase tracking-[.16em] text-cyan; }
+  .eyebrow-light { color: rgba(141,195,202,.95); }
+  .pill { @apply inline-flex min-h-12 items-center justify-center gap-2 whitespace-nowrap rounded-full border px-6 py-3 text-[.9375rem] font-medium leading-none tracking-[-.005em] transition-colors duration-200; }
+  .pill-sm { @apply min-h-[42px] px-[1.15rem] py-[.55rem] text-sm; }
+  .pill-cyan { @apply border-cyan bg-cyan text-white hover:border-cyan-600 hover:bg-cyan-600; }
+  .pill-navy { @apply border-navy bg-navy text-white hover:border-navy-600 hover:bg-navy-600; }
+  .pill-white { @apply border-white bg-white text-navy hover:bg-white/90; }
+  .pill-line { @apply border-line-strong bg-white text-navy hover:border-navy; }
+  .pill-ghost { @apply border-white/35 bg-white/[.08] text-white hover:border-white/60 hover:bg-white/[.16]; }
+  .field { @apply min-h-12 w-full appearance-none rounded-[4px] border border-line-strong bg-white px-3.5 py-2.5 text-[.9375rem] text-navy outline-none transition placeholder:text-[#98a4b0] hover:border-[#b6c0c8] focus:border-cyan focus:ring-[3px] focus:ring-cyan/15; }
+  .field-dark { @apply border-white/25 bg-white/[.04] text-white placeholder:text-white/45 hover:border-white/40 focus:border-white/75 focus:ring-0; }
+  .field-pill { @apply rounded-full px-5; }
+  .link-underline { @apply inline-flex items-center gap-1.5 border-b border-line-strong pb-[.2rem] text-[.9375rem] font-medium text-navy transition-colors hover:border-navy; }
+  .surface { @apply rounded-[14px] border border-line bg-white shadow-card; }
+  .surface-flat { @apply rounded-[14px] border border-line bg-white; }
+  .surface-dark { @apply rounded-[14px] bg-navy text-white; }
+  .band { @apply bg-navy text-white; }
+  .nav-link { @apply py-2 text-[.875rem] text-slate-ink transition-colors hover:text-navy; }
+  .nav-active { @apply text-navy; }
+  .footer-title { @apply mb-4 text-[.6875rem] font-medium uppercase tracking-[.16em] text-white/65; }
+  .footer-link { @apply block py-1.5 text-left text-[.8125rem] text-white/55 transition-colors hover:text-white; }
+  .custom-scroll { scrollbar-width: thin; scrollbar-color: #cbd5d9 transparent; }
+}
+
+.hero-overlay { background: linear-gradient(90deg, rgba(11,27,43,.96) 0%, rgba(11,27,43,.86) 42%, rgba(11,27,43,.18) 100%), linear-gradient(0deg, rgba(11,27,43,.48), transparent 55%); }
+.hero-grid { background-image: linear-gradient(rgba(14,124,139,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(14,124,139,.055) 1px,transparent 1px); background-size: 40px 40px; }
+.route-line { background: linear-gradient(90deg,transparent 0,transparent 8%,rgba(141,195,202,.42) 8%,rgba(141,195,202,.42) 92%,transparent 92%); }
+input[type='date']::-webkit-calendar-picker-indicator { opacity: .65; cursor: pointer; }
+input[type='number'] { font-variant-numeric: tabular-nums; }
+[aria-invalid='true'] { border-color: #b3392f !important; }
+@media (prefers-reduced-motion: reduce) { *,*::before,*::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
