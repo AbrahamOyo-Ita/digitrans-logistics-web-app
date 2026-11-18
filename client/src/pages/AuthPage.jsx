@@ -2,14 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import Icon from '../components/Icon';
 import Brand from '../components/Brand';
 import { api } from '../lib/api';
+import {PUBLIC_SIGNUP_ROLES} from '../../../shared/roles.js';
 
-const roles = [
-  ['customer', 'Customer'],
-  ['student', 'Student'],
-  ['rider', 'Rider'],
-  ['vendor', 'Business / Vendor'],
-  ['investor', 'Investor']
-];
+const roleLabels={customer:'Customer',student:'Student',rider:'Rider',vendor:'Business / Vendor',investor:'Investor'};
+const roles=PUBLIC_SIGNUP_ROLES.map(value=>[value,roleLabels[value]]);
 
 function GoogleIcon({ className = 'w-4 h-4' }) {
   return (

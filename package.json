@@ -11,7 +11,7 @@
     "start": "node --env-file=.env --env-file-if-exists=.env.production server/index.js",
     "seed": "node --env-file=.env scripts/seed-supabase.js",
     "db:seed": "node --env-file=.env scripts/seed-supabase.js",
-    "db:migrate": "node --env-file=.env scripts/apply-supabase-migrations.js",
+    "db:migrate": "node --env-file-if-exists=.env scripts/apply-supabase-migrations.js",
     "test": "node --test server/*.test.js"
   },
   "dependencies": {

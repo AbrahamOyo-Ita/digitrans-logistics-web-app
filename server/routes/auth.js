@@ -3,17 +3,22 @@ import {z} from 'zod';
 import db from '../db.js';
 import {createSession,loginSupabaseUser,registerSupabaseUser,sendSupabaseRecovery,verifySupabaseOtp,resetSupabasePassword,changeSupabasePassword,getSessionUser,revokeSession} from '../auth.js';
 import {isEmailConfigured,sendEmail} from '../email.js';
+import {createAuthEmailTemplate} from '../email-templates.js';
+import {buildUserIdentifierPredicate,normalizePhoneNumber} from '../phone.js';
 import {getSessionCookieOptions} from '../config.js';
+import {logger} from '../logger.js';
+import {getSupabaseAdmin} from '../supabase.js';
+import {PUBLIC_SIGNUP_ROLES} from '../../shared/roles.js';
 
 const router=asyncRouter();
 const sessionCookieOptions=getSessionCookieOptions();
 const registerSchema=z.object({
   fullName:z.string().trim().min(2).max(100),
   email:z.string().trim().email().max(180),
-  phone:z.string().trim().min(8).max(24),
+  phone:z.string().trim().min(8).max(24).regex(/^\+?[\d\s().-]+$/,'Enter a valid phone number').refine(value=>Boolean(normalizePhoneNumber(value)),'Enter a valid phone number'),
   password:z.string().min(8).max(128).regex(/[A-Z]/,'Password must include an uppercase letter').regex(/[a-z]/,'Password must include a lowercase letter').regex(/[0-9]/,'Password must include a number').regex(/[^A-Za-z0-9]/,'Password must include a special character'),
   confirmPassword:z.string(),
-  role:z.enum(['customer','student','rider','vendor','investor']).default('customer'),
+  role:z.enum(PUBLIC_SIGNUP_ROLES).default('customer'),
   acceptedTerms:z.literal(true),
   businessName:z.string().trim().min(2).max(120).optional(),
   category:z.string().trim().max(80).optional(),
@@ -60,7 +65,6 @@ function verificationUrl(req,{token,email,type}){
   const url=new URL(type==='recovery'?'/reset-password':'/auth/verify',appOrigin(req));
   url.searchParams.set('token',token);url.searchParams.set('email',email);return url;
 }
-function escaped(value){return String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');}
 async function saveAccount({authUser,d,phone,email,status}){
   const create=db.transaction(async()=>{
     await db.prepare('INSERT INTO public.users (id,email,phone,role,status) VALUES (?,?,?,?,?)').run(authUser.id,email,phone,d.role,status);
@@ -80,9 +84,10 @@ async function discardNewAccount(userId){
 router.post('/register',async(req,res)=>{
   const parsed=registerSchema.safeParse(req.body);
   if(!parsed.success)return res.status(400).json({error:'Please review the highlighted fields.',details:parsed.error.flatten().fieldErrors});
-  const d=parsed.data,email=d.email.toLowerCase(),phone=d.phone.trim();
+  const d=parsed.data,email=d.email.toLowerCase(),phone=normalizePhoneNumber(d.phone);
   if(process.env.NODE_ENV==='production'&&!isEmailConfigured())return res.status(503).json({error:'Account verification email is not configured yet. Please contact DigiTrans support.'});
-  if(await db.prepare('SELECT id FROM public.users WHERE lower(email)=? OR phone=?').get(email,phone))return res.status(409).json({error:'An account with this email or phone already exists.'});
+  const phonePredicate=buildUserIdentifierPredicate(phone,{emailColumn:'email',phoneColumn:'phone'});
+  if(await db.prepare(`SELECT id FROM public.users WHERE lower(email)=? OR ${phonePredicate.sql}`).get(email,...phonePredicate.params))return res.status(409).json({error:'An account with this email or phone already exists.'});
   const status=['customer','student'].includes(d.role)?'active':'pending_verification';
   let created;
   try{
@@ -98,10 +103,10 @@ router.post('/register',async(req,res)=>{
   let delivered=false;
   if(isEmailConfigured()){
     try{
-      await sendEmail({to:email,subject:'Verify your DigiTrans account',text:`Confirm your email address within 24 hours: ${verifyUrl.href}\n\nIf you did not create a DigiTrans account, ignore this message.`,html:`<p>Confirm your email address to continue setting up your DigiTrans account.</p><p><a href="${escaped(verifyUrl.href)}">Verify email address</a></p><p>If you did not create a DigiTrans account, ignore this message.</p>`});
+      await sendEmail({to:email,...createAuthEmailTemplate({kind:'verify',name:d.fullName,actionUrl:verifyUrl.href})});
       delivered=true;
     }catch(error){
-      console.error('Account verification email could not be delivered:',error.message);
+      logger.error('auth.verification_email_failed',{requestId:req.requestId,error});
       if(process.env.NODE_ENV==='production'){await discardNewAccount(created.user.id);return res.status(503).json({error:'Verification email could not be delivered. Please try again shortly.'});}
     }
   }
@@ -121,7 +126,7 @@ router.post('/verify-email',async(req,res)=>{
 
 router.post('/login',async(req,res)=>{
   const identifier=String(req.body?.identifier||req.body?.email||'').trim(),password=String(req.body?.password||'');
-  if(!identifier||!password)return res.status(400).json({error:'Enter your email address and password.'});
+  if(!identifier||!password)return res.status(400).json({error:'Enter your email or phone number and password.'});
   const result=await loginSupabaseUser(identifier,password);
   req.authSession=result.session;
   const session=await createSession(result.user.id,req);setSession(res,session);
@@ -141,16 +146,18 @@ router.post('/logout',async(req,res)=>{
 });
 
 router.post('/forgot-password',async(req,res)=>{
-  const identifier=String(req.body?.identifier||'').trim().toLowerCase(),generic={message:'If an account matches those details, recovery instructions will be sent.'};
+  const identifier=String(req.body?.identifier||'').trim(),generic={message:'If an account matches those details, recovery instructions will be sent.'};
   if(!identifier)return res.json(generic);
-  const row=await db.prepare('SELECT email FROM public.users WHERE lower(email)=? OR phone=?').get(identifier,identifier);
+  let identifierPredicate;
+  try{identifierPredicate=buildUserIdentifierPredicate(identifier,{emailColumn:'u.email',phoneColumn:'u.phone'});}catch{return res.json(generic);}
+  const row=await db.prepare(`SELECT u.email,p.full_name FROM public.users u LEFT JOIN public.profiles p ON p.user_id=u.id WHERE ${identifierPredicate.sql}`).get(...identifierPredicate.params);
   if(!row?.email)return res.json(generic);
   if(process.env.NODE_ENV==='production'&&!isEmailConfigured())return res.json(generic);
   try{
     const token=await sendSupabaseRecovery(row.email),url=verificationUrl(req,{token,email:row.email,type:'recovery'});
     if(!isEmailConfigured())return res.json({...generic,...(process.env.NODE_ENV!=='production'?{debugVerificationUrl:url.href}:{})});
-    await sendEmail({to:row.email,subject:'Reset your DigiTrans password',text:`Use this secure link to reset your DigiTrans password: ${url.href}\n\nIf you did not request this, ignore this email.`,html:`<p>We received a request to reset your DigiTrans password.</p><p><a href="${escaped(url.href)}">Reset your password</a></p><p>If you did not request this, ignore this email.</p>`});
-  }catch(error){console.error('Password recovery could not be completed:',error.message);}
+    await sendEmail({to:row.email,...createAuthEmailTemplate({kind:'recovery',name:row.full_name,actionUrl:url.href})});
+  }catch(error){logger.error('auth.password_recovery_failed',{requestId:req.requestId,error});}
   res.json(generic);
 });
 

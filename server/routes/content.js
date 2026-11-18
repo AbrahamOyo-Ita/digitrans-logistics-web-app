@@ -5,6 +5,7 @@ import { requireAuth, requirePermission, audit } from '../auth.js';
 import {publicSiteImageUpload} from '../uploads.js';
 import {uploadPublicSiteImage,deletePublicSiteImage} from '../storage.js';
 import { isEmailConfigured, sendEmail } from '../email.js';
+import {logger} from '../logger.js';
 
 const router=asyncRouter();
 const allowedSettings=['public_phone','public_email','public_address','public_about','public_home_hero_title','public_home_hero_text','public_service_areas','public_whatsapp'];
@@ -16,7 +17,7 @@ router.post('/public/contact',async(req,res)=>{
   const id=crypto.randomUUID();await db.prepare('INSERT INTO contact_messages (id,name,email,phone,category,message) VALUES (?,?,?,?,?,?)').run(id,name,email,phone||null,category.slice(0,80),message);
   if(process.env.CONTACT_RECIPIENT_EMAIL&&isEmailConfigured()){
     try{await sendEmail({to:process.env.CONTACT_RECIPIENT_EMAIL,replyTo:email,subject:`DigiTrans website enquiry · ${category.slice(0,80)}`,text:`From: ${name} <${email}>\nPhone: ${phone||'Not supplied'}\nCategory: ${category}\n\n${message}`});}
-    catch(error){console.error('Contact enquiry email could not be delivered:',error.message);}
+    catch(error){logger.error('contact.enquiry_email_failed',{requestId:req.requestId,error});}
   }
   res.status(201).json({message:'Your enquiry has been received. Our team will be in touch.'});
 });
@@ -58,13 +59,13 @@ router.patch('/ops/content/banners/:id',requireAuth,requirePermission('content.m
   const active=d.active===undefined?b.active:(d.active==='true'||d.active===true?1:0);
   try{await db.prepare('UPDATE public.banners SET heading=?,description=?,image_path=?,link=?,start_date=?,end_date=?,active=?,sort_order=? WHERE id=?').run(heading,description,image,link||null,d.startDate??b.start_date,d.endDate??b.end_date,active,Number(d.sortOrder??b.sort_order)||0,b.id);}
   catch(error){if(req.file&&image)try{await deletePublicSiteImage(image,{authorized:true});}catch{}throw error;}
-  if(req.file&&b.image_path)try{await deletePublicSiteImage(b.image_path,{authorized:true});}catch(error){console.warn('Replaced public banner image cleanup failed:',error.message);}
+  if(req.file&&b.image_path)try{await deletePublicSiteImage(b.image_path,{authorized:true});}catch(error){logger.warn('storage.replaced_banner_cleanup_failed',{requestId:req.requestId,error});}
   await audit(req.user,'banner.updated','banner',b.id,b,{heading,active},null,req.ip);res.json({ok:true});
 });
 router.delete('/ops/content/banners/:id',requireAuth,requirePermission('content.manage'),async (req, res) => {
   const b=await db.prepare('SELECT * FROM banners WHERE id=?').get(req.params.id);if(!b)return res.status(404).json({error:'Banner not found.'});
   await db.prepare('DELETE FROM public.banners WHERE id=?').run(b.id);
-  if(b.image_path)try{await deletePublicSiteImage(b.image_path,{authorized:true});}catch(error){console.warn('Deleted banner image cleanup failed:',error.message);}
+  if(b.image_path)try{await deletePublicSiteImage(b.image_path,{authorized:true});}catch(error){logger.warn('storage.deleted_banner_cleanup_failed',{requestId:req.requestId,error});}
   await audit(req.user,'banner.deleted','banner',b.id,b,null,'Removed from public website',req.ip);res.json({ok:true});
 });
 router.get('/ops/content/faqs',requireAuth,requirePermission('content.manage'),async (_req, res) => res.json({faqs:await db.prepare('SELECT * FROM faqs ORDER BY sort_order,created_at').all()}));

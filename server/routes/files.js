@@ -4,6 +4,7 @@ import db from '../db.js';
 import {requireAuth,requireRole,requirePermission} from '../auth.js';
 import {documentUpload,imageUpload} from '../uploads.js';
 import {PRIVATE_BUCKETS,uploadPrivateObject,uploadPrivateImage,createPrivateSignedUrl,deletePrivateObject} from '../storage.js';
+import {logger} from '../logger.js';
 
 const router=asyncRouter();
 const id=()=>crypto.randomUUID();
@@ -21,7 +22,7 @@ function uploadMiddleware(upload){
 function objectOwner(path){return String(path||'').split('/')[0]||'';}
 async function removeIfPresent(bucket,path,ownerId){
   if(!path)return;
-  try{await deletePrivateObject(bucket,path,{authorized:true,ownerId});}catch(error){console.warn('Unused storage object cleanup failed:',error.message);}
+  try{await deletePrivateObject(bucket,path,{authorized:true,ownerId});}catch(error){logger.warn('storage.orphan_cleanup_failed',{bucket,error});}
 }
 async function storeDocument({req,res,bucket,table,ownerColumn,docType,allowedTypes}){
   if(!req.file)return res.status(400).json({error:'Choose a document to upload.'});
