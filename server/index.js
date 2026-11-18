@@ -2,7 +2,7 @@ import express from 'express';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
-import rateLimit,{ipKeyGenerator} from 'express-rate-limit';
+import rateLimit from 'express-rate-limit';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -63,7 +63,7 @@ app.use(cookieParser());
 app.use('/api',refreshExpiredSession);
 app.use('/api',(req,res,next)=>{res.setHeader('Cache-Control','no-store');next();});
 
-const authLimit=rateLimit({windowMs:15*60*1000,limit:5,standardHeaders:'draft-7',legacyHeaders:false,keyGenerator:req=>`${ipKeyGenerator(req.ip)}:${String(req.body?.identifier||req.body?.email||'').trim().toLowerCase()}`,message:{error:'Too many authentication attempts. Please wait 15 minutes and try again.'}});
+const authLimit=rateLimit({windowMs:15*60*1000,limit:5,standardHeaders:'draft-7',legacyHeaders:false,keyGenerator:req=>`${req.ip}:${String(req.body?.identifier||req.body?.email||'').trim().toLowerCase()}`,message:{error:'Too many authentication attempts. Please wait 15 minutes and try again.'}});
 const publicContactLimit=rateLimit({windowMs:15*60*1000,limit:5,standardHeaders:'draft-7',legacyHeaders:false,message:{error:'Too many enquiries. Please try again later.'}});
 const publicTrackingLimit=rateLimit({windowMs:60*1000,limit:60,standardHeaders:'draft-7',legacyHeaders:false,message:{error:'Too many tracking lookups. Please try again shortly.'}});
 app.use('/api/auth/login',authLimit);
