@@ -7,6 +7,7 @@ RUN npm ci --omit=dev
 
 COPY server ./server
 COPY shared ./shared
+COPY scripts ./scripts
 COPY dist ./dist
 
 ENV NODE_ENV=production
