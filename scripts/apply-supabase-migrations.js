@@ -122,6 +122,7 @@ async function applyMigrations(migrations,{url,target,argv,env}){
     }
   }catch(error){
     if(error?.code){
+      console.error('Migration database error',{code:error.code,message:error.message,detail:error.detail,routine:error.routine});
       throw new Error('The database connection or migration failed. The active migration transaction was rolled back; diagnostics are withheld to avoid exposing connection details.');
     }
     throw error;
