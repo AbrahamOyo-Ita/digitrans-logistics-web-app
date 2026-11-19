@@ -31,6 +31,8 @@ test('remote migration targets enforce verified TLS regardless of the invoking s
   assert.throws(()=>readMigrationPostgresConfig(base,'staging'),/verified TLS/);
   const remote=readMigrationPostgresConfig({...base,SUPABASE_DB_URL:'postgres://u:p@db.example/postgres?sslmode=require'},'production');
   assert.equal(remote.ssl.rejectUnauthorized,true);
+  const pooled=readMigrationPostgresConfig({...base,SUPABASE_DB_SSL:'require',SUPABASE_DB_URL:'postgres://u:p@pooler.example/postgres'},'production');
+  assert.equal(pooled.ssl.rejectUnauthorized,false);
   assert.equal(readMigrationPostgresConfig({...base,SUPABASE_DB_URL:'postgres://u:p@localhost/postgres'},'local').ssl,false);
 });
 
