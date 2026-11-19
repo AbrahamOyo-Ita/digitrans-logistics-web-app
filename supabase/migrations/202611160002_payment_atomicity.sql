@@ -196,7 +196,7 @@ BEGIN
   IF v_payment.user_id IS NOT NULL THEN
     INSERT INTO public.notifications(id,user_id,title,message,type,related_id)
       VALUES (gen_random_uuid()::text,v_payment.user_id,
-        CASE WHEN v_capacity_review THEN 'Payment received - review in progress' ELSE 'Payment confirmed' END,
+        CASE WHEN v_capacity_review THEN 'Payment received — review in progress' ELSE 'Payment confirmed' END,
         CASE WHEN v_capacity_review
           THEN 'Payment reference '||v_payment.reference||' was received and requires review.'
           ELSE 'Payment reference '||v_payment.reference||' was verified.' END,

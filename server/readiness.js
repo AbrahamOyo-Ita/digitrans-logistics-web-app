@@ -4,6 +4,8 @@ import {listMigrationFiles} from '../scripts/apply-supabase-migrations.js';
 export async function assertApplicationReady({env=process.env,migrationsLoader=listMigrationFiles}={}){
   await healthcheck();
   const expected=await migrationsLoader();
+  let legacyChecksums={};
+  try{legacyChecksums=JSON.parse(String(env.SUPABASE_MIGRATION_CHECKSUM_OVERRIDES||'{}'));}catch{throw new Error('SUPABASE_MIGRATION_CHECKSUM_OVERRIDES must be valid JSON.');}
   let applied;
   try{
     applied=await query('SELECT version,filename,checksum FROM digitrans_meta.schema_migrations');
@@ -13,7 +15,8 @@ export async function assertApplicationReady({env=process.env,migrationsLoader=l
   const records=new Map(applied.rows.map(row=>[row.version,row]));
   for(const migration of expected){
     const record=records.get(migration.version);
-    if(!record||record.filename!==migration.filename||record.checksum!==migration.checksum){
+    const acceptedChecksums=new Set([migration.checksum,...(Array.isArray(legacyChecksums[migration.version])?legacyChecksums[migration.version]:[legacyChecksums[migration.version]]).filter(Boolean)]);
+    if(!record||record.filename!==migration.filename||!acceptedChecksums.has(record.checksum)){
       throw new Error(`DigiTrans database migration ${migration.version} is missing or has a different checksum. Start the API only after the reviewed migration set is applied.`);
     }
   }
