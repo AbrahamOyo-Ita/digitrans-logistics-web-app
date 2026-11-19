@@ -78,7 +78,19 @@ export async function query(text,values=[]){
   try{
     const client=currentTransaction();
     return client?await client.query(text,values):await getPool().query(text,values);
-  }catch(error){throw normalizeDatabaseError(error);}
+  }catch(error){
+    // Keep production logs useful for operators without ever logging connection
+    // strings, query values, or other credential-bearing data.
+    console.error('PostgreSQL query failed',{
+      name:error?.name,
+      code:error?.code,
+      errno:error?.errno,
+      message:error?.message,
+      detail:error?.detail,
+      routine:error?.routine,
+    });
+    throw normalizeDatabaseError(error);
+  }
 }
 
 export async function queryOne(text,values=[]){
