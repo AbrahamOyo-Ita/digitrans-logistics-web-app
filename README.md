@@ -1,8 +1,8 @@
 # DigiTrans Logistics
 
-DigiTrans is a Calabar-focused logistics platform with a React/Vite web client and a long-running Express API. The target architecture keeps the API on a Node host and uses Supabase Auth, PostgreSQL, and Storage. The server-side API is asynchronous; there is no SQLite or local-file persistence fallback.
+DigiTrans is a Calabar-focused logistics platform with a React/Vite web client and a long-running native Node.js HTTP API. The target architecture keeps the API on a Node host and uses Supabase Auth, PostgreSQL, and Storage. The server-side API is asynchronous; there is no SQLite or local-file persistence fallback.
 
-> **Release status - not cut over.** This branch contains the PostgreSQL schema, guarded migration/seed tooling, Express/PostgreSQL integration, Supabase Auth and Storage code, and atomic Paystack settlement. The migrations and seed have **not** been applied to the connected Supabase project, and the API has not been smoke-tested against deployed Supabase. The Vercel project now has `www.digitransdelivery.com` attached, but Vercel reports its DNS as misconfigured; no API origin is configured and the latest production build failed because `VITE_API_BASE_URL` is missing. Do not treat this branch as production-ready.
+> **Release status - not cut over.** This branch contains the PostgreSQL schema, guarded migration/seed tooling, native Node.js/Supabase integration, Supabase Auth and Storage code, and atomic Paystack settlement. The migrations and seed have **not** been applied to the connected Supabase project, and the API has not been smoke-tested against deployed Supabase. The Vercel project now has `www.digitransdelivery.com` attached, but Vercel reports its DNS as misconfigured; no API origin is configured and the latest production build failed because `VITE_API_BASE_URL` is missing. Do not treat this branch as production-ready.
 >
 > **Fresh launch decision:** do not import legacy SQLite rows or local upload files. This does not authorize deleting the legacy database/files. The Vercel change so far is attaching the requested `www` domain. Supabase Auth's site URL and redirect allow-list now match that domain; no Supabase schema, seed, user, or Storage changes have been made.
 
@@ -10,7 +10,7 @@ DigiTrans is a Calabar-focused logistics platform with a React/Vite web client a
 
 - Node.js 22.12+ and npm
 - A **separate local Supabase development environment** for end-to-end local testing, or an explicitly isolated test project
-- A Node host for the production Express API; Vercel is for the static frontend only
+- A Node host for the production native HTTP API; Vercel is for the static frontend only
 
 ## Local development
 
@@ -50,11 +50,11 @@ A migration/seed write is target-gated. Local apply requires a loopback database
 
 ## Architecture
 
-- **Frontend:** React, Vite, PWA shell. Vercel serves static assets/SPA routes only. Set the Vercel build variable `VITE_API_BASE_URL=https://api.digitransdelivery.com` only after the Express API is live at that HTTPS origin. The API host must allow both `https://digitransdelivery.com` and `https://www.digitransdelivery.com` in `CLIENT_ORIGINS`.
-- **API:** long-running Express process on a Node host. Scheduled delivery advancement stays in the Node service; the API is not ported to Edge Functions.
+- **Frontend:** React, Vite, PWA shell. Vercel serves static assets/SPA routes only. Set the Vercel build variable `VITE_API_BASE_URL=https://api.digitransdelivery.com` only after the native Node.js API is live at that HTTPS origin. The API host must allow both `https://digitransdelivery.com` and `https://www.digitransdelivery.com` in `CLIENT_ORIGINS`.
+- **API:** long-running native Node.js HTTP process on a Node host. Scheduled delivery advancement stays in the Node service; the API is not ported to Edge Functions.
 - **Database:** Supabase PostgreSQL via a server-only `pg` pool and async repository adapter. Database migrations are versioned under `supabase/migrations/`; API startup checks recorded checksums and seed readiness but does not mutate schema.
 - **Authentication:** Supabase Auth owns credentials, email verification, recovery, sessions and refresh. App roles/statuses stay in `public.users` and permissions in the seeded role catalog. Session cookies are HTTP-only; configure `SESSION_COOKIE_SAME_SITE=none` and `Secure` when the frontend and API are cross-site.
-- **Files:** Multer buffers uploads in memory; validated private documents/proof/receipts and public site images go to Supabase Storage. Private files are served through an authorization check and short-lived signed URLs. No local upload directories are used.
+- **Files:** Native multipart parsing buffers uploads in memory; validated private documents/proof/receipts and public site images go to Supabase Storage. Private files are served through an authorization check and short-lived signed URLs. No local upload directories are used.
 - **Payments:** Paystack checkout/verification/webhooks call a versioned Postgres RPC for atomic, idempotent settlement. A browser redirect alone never confirms payment.
 
 ## Fresh-launch schema and seed

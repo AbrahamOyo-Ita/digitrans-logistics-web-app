@@ -1,8 +1,3 @@
-import express from 'express';
-import helmet from 'helmet';
-import cookieParser from 'cookie-parser';
-import cors from 'cors';
-import rateLimit from 'express-rate-limit';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -10,9 +5,10 @@ import {fileURLToPath} from 'node:url';
 import db from './db.js';
 import {logger} from './logger.js';
 import {createRequestLoggingMiddleware} from './request-logging.js';
-import {getAllowedOrigins,normalizeOrigin,validateRuntimeConfig} from './config.js';
+import {getAllowedOrigins,validateRuntimeConfig} from './config.js';
 import {refreshExpiredSession,notify} from './auth.js';
 import {assertApplicationReady} from './readiness.js';
+import {createApp,bodyParser,corsMiddleware,securityHeaders,rateLimit,serveStatic} from './native-http.js';
 import authRouter from './routes/auth.js';
 import customerRouter from './routes/customer.js';
 import riderRouter from './routes/rider.js';
@@ -26,7 +22,7 @@ import filesRouter from './routes/files.js';
 import paymentsRouter from './routes/payments.js';
 
 const __dirname=path.dirname(fileURLToPath(import.meta.url));
-const app=express();
+const app=createApp();
 const isProduction=process.env.NODE_ENV==='production';
 validateRuntimeConfig();
 await assertApplicationReady();
@@ -37,35 +33,15 @@ app.disable('x-powered-by');
 app.set('trust proxy',trustProxy);
 app.use(createRequestLoggingMiddleware({logger}));
 
-app.use(cors({
-  origin(origin,callback){
-    if(!origin)return callback(null,false);
-    try{
-      const normalized=normalizeOrigin(origin,{production:isProduction,label:'Request Origin'});
-      if(allowedOrigins.has(normalized))return callback(null,origin);
-      if(!isProduction&&new URL(origin).hostname.endsWith('.e2b.app'))return callback(null,origin);
-    }catch{}
-    const error=new Error('Origin not allowed by CORS.');error.status=403;return callback(error);
-  },
-  credentials:true,
-  exposedHeaders:['X-Request-ID'],
-  maxAge:600,
-}));
-app.use(helmet({
-  contentSecurityPolicy:{directives:{defaultSrc:["'self'"],scriptSrc:["'self'"],styleSrc:["'self'","'unsafe-inline'"],imgSrc:["'self'","data:"],fontSrc:["'self'","data:"],connectSrc:["'self'"],objectSrc:["'none'"],baseUri:["'self'"],formAction:["'self'"],frameAncestors:isProduction?["'none'"]:['*']}},
-  crossOriginResourcePolicy:false,
-  frameguard:isProduction?{action:'deny'}:false,
-}));
-app.use('/api/payments/paystack/webhook',express.raw({type:'application/json',limit:'1mb'}));
-app.use(express.json({limit:'1mb'}));
-app.use(express.urlencoded({extended:false,limit:'1mb'}));
-app.use(cookieParser());
+app.use(corsMiddleware({allowedOrigins,isProduction}));
+app.use(securityHeaders({isProduction}));
+app.use(bodyParser());
 app.use('/api',refreshExpiredSession);
 app.use('/api',(req,res,next)=>{res.setHeader('Cache-Control','no-store');next();});
 
-const authLimit=rateLimit({windowMs:15*60*1000,limit:5,standardHeaders:'draft-7',legacyHeaders:false,keyGenerator:req=>`${req.ip}:${String(req.body?.identifier||req.body?.email||'').trim().toLowerCase()}`,message:{error:'Too many authentication attempts. Please wait 15 minutes and try again.'}});
-const publicContactLimit=rateLimit({windowMs:15*60*1000,limit:5,standardHeaders:'draft-7',legacyHeaders:false,message:{error:'Too many enquiries. Please try again later.'}});
-const publicTrackingLimit=rateLimit({windowMs:60*1000,limit:60,standardHeaders:'draft-7',legacyHeaders:false,message:{error:'Too many tracking lookups. Please try again shortly.'}});
+const authLimit=rateLimit({windowMs:15*60*1000,limit:5,keyGenerator:req=>`${req.ip}:${String(req.body?.identifier||req.body?.email||'').trim().toLowerCase()}`,message:{error:'Too many authentication attempts. Please wait 15 minutes and try again.'}});
+const publicContactLimit=rateLimit({windowMs:15*60*1000,limit:5,message:{error:'Too many enquiries. Please try again later.'}});
+const publicTrackingLimit=rateLimit({windowMs:60*1000,limit:60,message:{error:'Too many tracking lookups. Please try again shortly.'}});
 app.use('/api/auth/login',authLimit);
 app.use('/api/auth/register',authLimit);
 app.use('/api/auth/forgot-password',authLimit);
@@ -96,7 +72,7 @@ app.use((err,req,res,_next)=>{
 
 const dist=path.join(__dirname,'..','dist');
 if(isProduction&&fs.existsSync(dist)){
-  app.use(express.static(dist,{maxAge:'1h',etag:true}));
+  app.use(serveStatic(dist));
   app.get('*',(req,res)=>{
     if(req.path.startsWith('/api/')||req.path.startsWith('/uploads/'))return res.status(404).send('Not found');
     res.sendFile(path.join(dist,'index.html'));

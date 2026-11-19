@@ -6,7 +6,7 @@
 
 ## Executive summary
 
-DigiTrans is a multi-role logistics and operations app for Calabar, Cross River State. The UI is React/Vite; the API remains a long-running Express service on a Node host. The target backend is Supabase Auth, PostgreSQL and Storage. The API is not being moved to Edge Functions.
+DigiTrans is a multi-role logistics and operations app for Calabar, Cross River State. The UI is React/Vite; the API is a long-running native Node.js HTTP service on a Node host. The target backend is Supabase Auth, PostgreSQL and Storage. The API is not being moved to Edge Functions.
 
 The user approved a fresh launch: no legacy SQLite rows/files are imported or deleted. The two checked-in migrations and safe seed are still unapplied. A read-only review found no public app tables, Auth users, Storage buckets/objects, Storage policies, or migration history in the connected Supabase project; the services are healthy. Supabase Auth has now been configured to use `https://www.digitransdelivery.com` with a same-origin redirect allow-list. An empty migration ledger alone is not proof of an empty project.
 
@@ -24,11 +24,11 @@ The user approved a fresh launch: no legacy SQLite rows/files are imported or de
 ### Backend migration
 
 - `server/db.js` now uses the async PostgreSQL pool and transaction layer; there is no `sql.js`/SQLite dependency or local database fallback. API route query calls have been converted to async PostgreSQL usage and native PostgreSQL date/interval expressions.
-- `server/postgres.js` configures the Node `pg` pool, verified TLS, safe error mapping, safe `BIGINT` reads, async transactions and nested savepoints. `server/async-router.js` forwards async Express errors.
+- `server/postgres.js` configures the Node `pg` pool, verified TLS, safe error mapping, safe `BIGINT` reads, async transactions and nested savepoints. `server/async-router.js` forwards async route errors.
 - Supabase Auth now owns credentials, email verification, recovery, login, refresh and sign-out. App role/status data and authorization remain in the server-owned PostgreSQL user/permission catalogue. Session cookies are HTTP-only.
-- Multer uses memory buffers only. Documents, proof photos and receipts use private Supabase Storage buckets; banner images use the public site-assets bucket. Private-file routes check record ownership/permissions before creating a short-lived signed URL. Local upload directories/static upload serving have been removed.
+- Native multipart parsing uses memory buffers only. Documents, proof photos and receipts use private Supabase Storage buckets; banner images use the public site-assets bucket. Private-file routes check record ownership/permissions before creating a short-lived signed URL. Local upload directories/static upload serving have been removed.
 - Paystack initialization/verification remains server-side; signed webhook and verified transaction success/failure use atomic Postgres RPCs with provider event identity/hash, row locking, state/amount/reference validation, ledger, notification and audit updates.
-- API startup is read-only for schema/data. It checks the current migration checksums and catalogue seed and then starts the Express service and scheduled delivery advance job. It does not auto-migrate or seed.
+- API startup is read-only for schema/data. It checks the current migration checksums and catalogue seed and then starts the Node.js service and scheduled delivery advance job. It does not auto-migrate or seed.
 
 ### Versioned database code
 

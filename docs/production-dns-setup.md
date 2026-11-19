@@ -31,7 +31,7 @@ The Vercel DNS check also listed `cname.vercel-dns.com.` as a fallback CNAME tar
 
 ## Still required before production deployment
 
-- Select a Node host and deploy the long-running Express API. Prefer `https://api.digitransdelivery.com` so it shares the same site with `https://www.digitransdelivery.com`; this is a suggested hostname, **not** an existing API service.
+- Select a Node host and deploy the long-running native Node.js HTTP API. Prefer `https://api.digitransdelivery.com` so it shares the same site with `https://www.digitransdelivery.com`; this is a suggested hostname, **not** an existing API service.
 - After the API is reachable, set Vercel's `VITE_API_BASE_URL=https://api.digitransdelivery.com` and set the Node service's `APP_URL=https://digitransdelivery.com` and `CLIENT_ORIGINS=https://digitransdelivery.com,https://www.digitransdelivery.com`. Configure `SESSION_COOKIE_SAME_SITE` consistently with the final host topology.
 - Add the API subdomain DNS target specified by the chosen Node host. It is not included above because no API provider/target was supplied.
 - Do not switch production traffic until the API, database migrations/seed, Auth redirect settings, Resend verification, and end-to-end smoke tests are complete.

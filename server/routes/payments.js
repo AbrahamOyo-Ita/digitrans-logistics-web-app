@@ -1,5 +1,4 @@
 import {asyncRouter} from '../async-router.js';
-import express from 'express';
 import crypto from 'crypto';
 import db from '../db.js';
 import { requireAuth, requireRole } from '../auth.js';
@@ -66,8 +65,8 @@ router.get('/payments',requireAuth,async (req, res) => {
   res.json({payments:rows});
 });
 
-router.post('/payments/paystack/webhook',express.raw({type:'application/json'}),async(req,res)=>{
-  const raw=Buffer.isBuffer(req.body)?req.body:Buffer.from('');
+router.post('/payments/paystack/webhook',async(req,res)=>{
+  const raw=Buffer.isBuffer(req.rawBody)?req.rawBody:Buffer.from('');
   if(!verifyPaystackSignature(raw,req.get('x-paystack-signature')))return res.status(401).send('Invalid signature');
   let event;try{event=JSON.parse(raw.toString('utf8'));}catch{return res.status(400).send('Invalid event');}
   const data=event?.data,providerStatus=String(data?.status||'').toLowerCase();

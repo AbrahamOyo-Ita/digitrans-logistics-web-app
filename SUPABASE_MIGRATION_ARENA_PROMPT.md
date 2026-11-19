@@ -16,7 +16,7 @@ DigiTrans is a logistics and delivery platform with:
 - Deliveries, delivery assignments, status history, proof of delivery, tracking, pricing, service zones, market runs, waybills, parcels, payments, refunds, ratings, support tickets, contact messages, FAQs, banners, audit logs, and system settings.
 - Paystack payment initiation and verification.
 - Resend email integration.
-- A React/Vite frontend and an Express Node.js API.
+- A React/Vite frontend and a native Node.js HTTP API.
 
 The current backend is in `server/`. It imports `server/db.js`, which initializes `sql.js`, creates the SQLite schema, and exposes a synchronous wrapper with methods such as `prepare().get()`, `prepare().all()`, `prepare().run()`, `exec()`, and `transaction()`. Many route modules currently issue raw SQLite SQL through that wrapper.
 
@@ -68,7 +68,7 @@ The server client must use:
 
 Never expose the service-role/secret key to the browser, Vite, `VITE_*` variables, Git, logs, error responses, or client bundles.
 
-The browser may use Supabase Auth directly only if that is clearly useful and secure. Prefer keeping the existing Express API as the application boundary and using a server-side Supabase client for database and privileged operations. If Supabase Auth is used from the browser, use only the publishable/anon key and configure secure session handling correctly.
+The browser may use Supabase Auth directly only if that is clearly useful and secure. Keep the native Node.js API as the application boundary and use a server-side Supabase client for database and privileged operations. If Supabase Auth is used from the browser, use only the publishable/anon key and configure secure session handling correctly.
 
 ## Database migration requirements
 
@@ -113,7 +113,7 @@ Required behavior:
 - Email/password registration and login.
 - Email verification support.
 - Password reset using Supabase Auth recovery flows or secure server-managed equivalents.
-- Secure HTTP-only session handling where the Express API owns authentication.
+- Secure HTTP-only session handling where the Node.js API owns authentication.
 - Correct logout and session revocation behavior.
 - Rejection of disabled, rejected, or revoked accounts.
 - Preservation of application roles such as customer, student, rider, vendor, investor, operations, finance, support, and super admin.

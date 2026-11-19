@@ -2,7 +2,7 @@
 
 ## Decision and safety boundary
 
-The approved target is a fresh launch: keep the Express API on a long-running Node host; use Supabase PostgreSQL, Auth and Storage; do not import legacy SQLite rows or local upload files. This does **not** authorize deleting the old database or files. `www.digitransdelivery.com` has been attached to the existing Vercel project; its DNS is still misconfigured. Supabase Auth's site URL and redirect allow-list have been aligned to this domain, but no Supabase SQL/Storage changes have been made. No deployment has been triggered, and no API host is configured.
+The approved target is a fresh launch: keep the native Node.js HTTP API on a long-running Node host; use Supabase PostgreSQL, Auth and Storage; do not import legacy SQLite rows or local upload files. This does **not** authorize deleting the old database or files. `www.digitransdelivery.com` has been attached to the existing Vercel project; its DNS is still misconfigured. Supabase Auth's site URL and redirect allow-list have been aligned to this domain, but no Supabase SQL/Storage changes have been made. No deployment has been triggered, and no API host is configured.
 
 A current read-only review found Supabase Database/Auth/Storage/REST healthy, with zero public application tables, Auth users, Storage buckets/objects, Storage object policies, or migration-history rows. Supabase Auth is now configured with site URL `https://www.digitransdelivery.com` and the same-origin redirect pattern `https://www.digitransdelivery.com/**`; email signup remains enabled with confirmation required. The user's approval of the checked-in migrations and catalogue seed is conditional on a verified backup and final schema/security review; those gates remain outstanding, so the migrations and seed are unapplied. Reconfirm explicitly immediately before any production SQL. The empty project state is a useful preflight, not a substitute for verifying a backup.
 
@@ -11,9 +11,9 @@ A current read-only review found Supabase Database/Auth/Storage/REST healthy, wi
 ## Current code architecture
 
 - `server/db.js` is an async PostgreSQL adapter over `server/postgres.js`. It converts positional `?` parameters to PostgreSQL `$n`, maps booleans to the schema's `SMALLINT` 0/1 columns, and reports row counts. There is no SQLite runtime or file fallback.
-- API route handlers are async and registered through `server/async-router.js` so rejected promises reach Express error handling. `db.transaction()` awaits callbacks and uses `AsyncLocalStorage` to keep queries on the same `pg` client; nested operations use savepoints.
+- API route handlers are async and registered through the native Node router so rejected promises reach the centralized error handler. `db.transaction()` awaits callbacks and uses `AsyncLocalStorage` to keep queries on the same `pg` client; nested operations use savepoints.
 - `server/auth.js` and `server/routes/auth.js` use Supabase Auth for account creation, email verification, password login/recovery/change, refresh and sign-out. Role/status/permission authority is `public.users` and the role/permission tables. Browser passwords are not stored in app tables. HTTP-only cookies hold Supabase access/refresh tokens; cookie/CORS settings must match the actual frontend/API domains.
-- `server/storage.js` is called from the document/proof/receipt routes and public banner routes. Multer is memory-only; files are signature-checked and uploaded to allow-listed Supabase buckets. Private file access checks the owning record and role permission before returning a short-lived signed URL.
+- `server/storage.js` is called from the document/proof/receipt routes and public banner routes. Native multipart parsing keeps uploads in memory; files are signature-checked and uploaded to allow-listed Supabase buckets. Private file access checks the owning record and role permission before returning a short-lived signed URL.
 - Paystack webhook/verification settlement uses `server/payment-rpc.js` and a Postgres `SECURITY DEFINER` RPC. Signature verification occurs before webhook settlement; provider amount/reference/currency, event identity/hash, row locks and ledger/notification writes are handled atomically.
 - `server/index.js` leaves schema/data setup to the explicit CLI tools. It checks that the checked-in migration checksums and catalogue seed are present, then starts the Node API and scheduled delivery job. It does not apply migrations or seed data on startup.
 - `server/seed.js` and the `sql.js`/bcrypt dependencies were removed. The app no longer creates local SQLite files or local upload directories.
@@ -33,7 +33,7 @@ No data/file migrator is planned for this fresh launch. No legacy SQLite rows or
 
 ## Configuration
 
-See `.env.example`. The API requires server-only `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_DB_URL`. Production requires verified database TLS, an HTTPS `APP_URL`, configured origins/cookie settings, and Resend sender credentials for account verification/recovery. Never put the service-role key/database URL in Vite variables or browser code. The static Vercel frontend receives only `VITE_API_BASE_URL`; the Express API remains on Node.
+See `.env.example`. The API requires server-only `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_DB_URL`. Production requires verified database TLS, an HTTPS `APP_URL`, configured origins/cookie settings, and Resend sender credentials for account verification/recovery. Never put the service-role key/database URL in Vite variables or browser code. The static Vercel frontend receives only `VITE_API_BASE_URL`; the native Node.js API remains on Node.
 
 Typical migration commands are dry-run by default:
 
