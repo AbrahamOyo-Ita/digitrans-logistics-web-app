@@ -55,7 +55,7 @@ export function assertSafeMigration(migration,argv=[]){
 }
 
 export function readMigrationPostgresConfig(env,target){
-  const connectionEnv=target==='local'?env:{...env,NODE_ENV:'production'};
+  const connectionEnv=target==='local'?env:{...env,NODE_ENV:'production',SUPABASE_DB_SSL:'verify-full'};
   return readPostgresConfig(connectionEnv);
 }
 

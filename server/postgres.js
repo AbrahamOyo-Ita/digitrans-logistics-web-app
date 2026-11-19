@@ -29,13 +29,16 @@ export function readPostgresConfig(env=process.env){
   for(const sslOption of ['sslmode','sslcert','sslkey','sslrootcert','sslpassword','uselibpqcompat'])url.searchParams.delete(sslOption);
   const max=Number(env.SUPABASE_DB_POOL_MAX||10);
   if(!Number.isInteger(max)||max<1||max>50)throw new Error('SUPABASE_DB_POOL_MAX must be an integer from 1 to 50.');
+  const sslPreference=String(env.SUPABASE_DB_SSL||'verify-full').toLowerCase();
+  if(!['verify-full','require','disable'].includes(sslPreference))throw new Error('SUPABASE_DB_SSL must be verify-full, require, or disable.');
+  if(production&&sslPreference==='disable')throw new Error('SUPABASE_DB_SSL must require encrypted TLS in production.');
   return {
     connectionString:url.toString(),
     max,
     idleTimeoutMillis:30_000,
     connectionTimeoutMillis:10_000,
     application_name:'digitrans-api',
-    ...(env.SUPABASE_DB_SSL==='disable'&&!production?{ssl:false}:{ssl:{rejectUnauthorized:true}}),
+    ...(sslPreference==='disable'?{ssl:false}:{ssl:{rejectUnauthorized:sslPreference==='verify-full'}}),
   };
 }
 

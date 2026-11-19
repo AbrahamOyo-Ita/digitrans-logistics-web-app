@@ -32,6 +32,8 @@ test('Postgres config requires an explicit secure server connection and validate
   assert.throws(()=>readPostgresConfig({SUPABASE_DB_URL:'postgres://user:password@db.example/app?sslmode=no-verify',NODE_ENV:'production'}),/verified TLS/);
   const remote=readPostgresConfig({SUPABASE_DB_URL:'postgres://user:password@db.example/app?sslmode=require&application_name=custom',NODE_ENV:'production'});
   assert.equal(remote.ssl.rejectUnauthorized,true);
+  const pooled=readPostgresConfig({SUPABASE_DB_URL:'postgres://user:password@pooler.example/app',SUPABASE_DB_SSL:'require',NODE_ENV:'production'});
+  assert.equal(pooled.ssl.rejectUnauthorized,false);
   assert.ok(!remote.connectionString.includes('sslmode'));
   assert.ok(remote.connectionString.includes('application_name=custom'));
   assert.throws(()=>readPostgresConfig({SUPABASE_DB_URL:'postgres://user:password@localhost/app',SUPABASE_DB_POOL_MAX:'51'}),/from 1 to 50/);
