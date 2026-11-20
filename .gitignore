@@ -1,8 +1,5 @@
 node_modules/
 dist/
-.fly-config/
-scripts/fly-proxy.cjs
-.fly-deploy-token
 coverage/
 *.log
 .DS_Store
@@ -12,3 +9,4 @@ coverage/
 data/*.db
 data/*.db-*
 uploads/
+.vercel
