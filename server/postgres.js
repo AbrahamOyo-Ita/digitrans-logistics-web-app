@@ -35,7 +35,11 @@ export function readPostgresConfig(env=process.env){
   for(const sslOption of ['sslmode','sslcert','sslkey','sslrootcert','sslpassword','uselibpqcompat'])url.searchParams.delete(sslOption);
   const max=Number(env.SUPABASE_DB_POOL_MAX||10);
   if(!Number.isInteger(max)||max<1||max>50)throw new Error('SUPABASE_DB_POOL_MAX must be an integer from 1 to 50.');
-  const sslPreference=String(env.SUPABASE_DB_SSL||'verify-full').toLowerCase();
+  // Vercel bundles the function separately from the repository filesystem. Use
+  // encrypted transport there by default; a deployment can opt into strict
+  // certificate/hostname verification by setting SUPABASE_DB_SSL=verify-full
+  // together with SUPABASE_DB_CA.
+  const sslPreference=String(env.SUPABASE_DB_SSL||(env.VERCEL?'require':'verify-full')).toLowerCase();
   if(!['verify-full','require','disable'].includes(sslPreference))throw new Error('SUPABASE_DB_SSL must be verify-full, require, or disable.');
   if(production&&sslPreference==='disable')throw new Error('SUPABASE_DB_SSL must require encrypted TLS in production.');
   const ca=String(env.SUPABASE_DB_CA||bundledSupabaseCa).trim();
