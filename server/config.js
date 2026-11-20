@@ -5,7 +5,7 @@ const URL_PROTOCOLS=new Set(['http:','https:']);
 
 export function normalizeOrigin(value,{production=process.env.NODE_ENV==='production',label='origin'}={}){
   let url;
-  try{url=new URL(String(value||''));}catch{throw new Error(`${label} must be a valid absolute URL.`);}
+  try{url=new URL(String(value||'').trim());}catch{throw new Error(`${label} must be a valid absolute URL.`);}
   if(!URL_PROTOCOLS.has(url.protocol)||url.origin==='null'||url.username||url.password||url.pathname!=='/'||url.search||url.hash)throw new Error(`${label} must be an origin only, without credentials, a path, query, or fragment.`);
   if(production&&url.protocol!=='https:')throw new Error(`${label} must use HTTPS in production.`);
   return url.origin;
