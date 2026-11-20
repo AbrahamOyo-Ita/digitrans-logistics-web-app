@@ -33,7 +33,7 @@ export function readPostgresConfig(env=process.env){
   // Connection-string sslmode options can disable certificate/hostname checks. Strip them and
   // enforce the explicit TLS object below so the URL cannot override verification settings.
   for(const sslOption of ['sslmode','sslcert','sslkey','sslrootcert','sslpassword','uselibpqcompat'])url.searchParams.delete(sslOption);
-  const max=Number(env.SUPABASE_DB_POOL_MAX||10);
+  const max=Number(env.SUPABASE_DB_POOL_MAX||(env.VERCEL?'2':'10'));
   if(!Number.isInteger(max)||max<1||max>50)throw new Error('SUPABASE_DB_POOL_MAX must be an integer from 1 to 50.');
   // Vercel bundles the function separately from the repository filesystem. Use
   // encrypted transport there by default; a deployment can opt into strict
