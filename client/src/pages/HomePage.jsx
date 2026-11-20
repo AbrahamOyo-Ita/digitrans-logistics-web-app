@@ -55,7 +55,7 @@ function HomePage({content,navigate}){
   <div className="home-stage-atmosphere" aria-hidden="true"/>
   <div className="home-shell">
    <section className="home-hero" aria-labelledby="home-title">
-    <img className="home-hero-photo" src="/images/hero-coastal-logistics.jpg" alt="A container vessel travelling along the coast at first light" fetchPriority="high"/>
+    <img className="home-hero-photo" src="/images/hero-coastal-logistics.jpg" alt="A container vessel travelling along the coast at first light" fetchpriority="high"/>
     <div className="home-hero-shade" aria-hidden="true"/>
     <div className="home-hero-grid" aria-hidden="true"/>
     <div className="home-hero-content">

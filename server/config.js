@@ -15,6 +15,13 @@ export function getAllowedOrigins(env=process.env){
   const production=env.NODE_ENV==='production';
   const configured=[env.APP_URL,...String(env.CLIENT_ORIGINS||'').split(',')].map(value=>String(value||'').trim()).filter(Boolean);
   const origins=new Set(configured.map((value,index)=>normalizeOrigin(value,{production,label:index===0&&env.APP_URL?'APP_URL':'CLIENT_ORIGINS entry'})));
+  // The production site is served on both the apex and www hostnames. Keep
+  // both canonical origins allowed so cookies and auth requests work after a
+  // redirect or when a user enters either hostname directly.
+  if(production&&[...origins].some(origin=>['https://digitransdelivery.com','https://www.digitransdelivery.com'].includes(origin))){
+    origins.add('https://digitransdelivery.com');
+    origins.add('https://www.digitransdelivery.com');
+  }
   if(!production){origins.add('http://localhost:5173');origins.add('http://127.0.0.1:5173');}
   return origins;
 }
