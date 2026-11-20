@@ -23,6 +23,8 @@ export async function api(path,options={}){
   }catch(error){
     throw new ApiError('DigiTrans services are temporarily unavailable. Please try again shortly.',503,{cause:error?.name||'network_error'});
   }
+  const contentType=String(res.headers.get('content-type')||'').toLowerCase();
+  if(!contentType.includes('application/json'))throw new ApiError('DigiTrans account services are not connected to this deployment yet. Please try again shortly.',502,{contentType});
   let payload={};try{payload=await res.json();}catch{}
   if(!res.ok)throw new ApiError(payload.error||'Something went wrong. Please try again.',res.status,payload.details||null);
   return payload;
@@ -35,7 +37,10 @@ export async function startCheckout(serviceType,recordId){
 }
 export async function upload(path,file,fields={},fileField='file'){
   const form=new FormData();for(const [k,v] of Object.entries(fields))form.append(k,String(v));form.append(fileField,file);
-  const res=await fetch(apiUrl(path),{method:'POST',credentials:'include',body:form});let payload={};try{payload=await res.json();}catch{}
+  const res=await fetch(apiUrl(path),{method:'POST',credentials:'include',body:form});
+  const contentType=String(res.headers.get('content-type')||'').toLowerCase();
+  if(!contentType.includes('application/json'))throw new ApiError('DigiTrans upload services are not connected to this deployment yet.',502,{contentType});
+  let payload={};try{payload=await res.json();}catch{}
   if(!res.ok)throw new ApiError(payload.error||'Upload failed.',res.status);return payload;
 }
 export const money=(value,opts={})=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:0,...opts}).format(Number(value||0));

@@ -168,12 +168,11 @@ export default function AuthPage({
   };
 
   return (
-    <main className="min-h-screen w-full bg-[#0d1424] flex items-center justify-center p-3 sm:p-5 lg:p-7 relative font-sans selection:bg-blue-600 selection:text-white">
-      {/* Outer Card filling viewport */}
-      <div className="w-full max-w-[1360px] min-h-[calc(100vh-1.5rem)] sm:min-h-[calc(100vh-2.5rem)] lg:h-[calc(100vh-3.5rem)] bg-white rounded-[28px] sm:rounded-[36px] shadow-[0_30px_90px_rgba(0,0,0,0.55)] p-3 sm:p-4 lg:p-5 grid lg:grid-cols-[1.14fr_1fr] gap-6 lg:gap-8 overflow-hidden items-stretch">
+    <main className="min-h-[100dvh] w-full bg-[#f7f8f6] font-sans selection:bg-[#0e7c8b] selection:text-white">
+      <div className="grid min-h-[100dvh] w-full lg:grid-cols-[minmax(420px,.92fr)_minmax(520px,1.08fr)]">
         
         {/* Left Column: Atmospheric Visual Hero with Glassmorphism */}
-        <section className="relative isolate rounded-[24px] sm:rounded-[30px] overflow-hidden flex flex-col justify-between p-6 sm:p-8 lg:p-11 text-white min-h-[460px] lg:min-h-0 bg-gradient-to-br from-[#0e2c60] via-[#124294] to-[#0d6e8a] shadow-inner">
+        <section className="relative isolate flex min-h-[430px] flex-col justify-between overflow-hidden bg-[#092a35] p-6 text-white sm:p-8 lg:min-h-[100dvh] lg:p-12">
           {/* Real Brand Photograph */}
           <img
             src="/images/street-wide.jpg"
@@ -288,12 +287,13 @@ export default function AuthPage({
         </section>
 
         {/* Right Column: Clean, Spacious, Minimalist Form */}
-        <section className="flex flex-col justify-center px-3 sm:px-8 lg:px-10 py-4 sm:py-6 overflow-y-auto max-h-full">
-          <div className="w-full max-w-[440px] mx-auto py-2">
+        <section className="flex max-h-[100dvh] flex-col justify-center overflow-y-auto bg-[#f7f8f6] px-5 py-10 sm:px-10 lg:px-16">
+          <div className="mx-auto w-full max-w-[510px] py-2">
             
             {/* Header */}
-            <div className="text-center mb-6">
-              <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-slate-900">
+            <div className="mb-6">
+              <p className="mb-3 text-[11px] font-bold uppercase tracking-[.18em] text-[#0e7c8b]">DigiTrans account</p>
+              <h2 className="text-left font-display text-3xl font-bold tracking-tight text-[#102a33] sm:text-4xl">
                 {kind === 'login'
                   ? 'Welcome Back'
                   : kind === 'register'
@@ -304,7 +304,7 @@ export default function AuthPage({
                   ? 'New Password'
                   : 'Email Verification'}
               </h2>
-              <p className="text-xs sm:text-sm text-slate-500 mt-2">
+              <p className="mt-2 max-w-[42ch] text-left text-sm leading-6 text-slate-500">
                 {kind === 'login'
                   ? 'Please enter your account details to access your workspace.'
                   : kind === 'register'
