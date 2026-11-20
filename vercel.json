@@ -3,7 +3,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "crons": [
-    { "path": "/api/cron/scheduled-deliveries", "schedule": "*/5 * * * *" }
+    { "path": "/api/cron/scheduled-deliveries", "schedule": "0 0 * * *" }
   ],
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/[...path].js" },
