@@ -6,6 +6,7 @@
     { "path": "/api/cron/scheduled-deliveries", "schedule": "*/5 * * * *" }
   ],
   "routes": [
+    { "src": "/api/(.*)", "dest": "/api/[...path].js" },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
   ],
