@@ -6,7 +6,7 @@
 
 ## Executive summary
 
-DigiTrans is a multi-role logistics and operations app for Calabar, Cross River State. The UI is React/Vite; the API is a long-running native Node.js HTTP service on a Node host. The target backend is Supabase Auth, PostgreSQL and Storage. The API is not being moved to Edge Functions.
+DigiTrans is a multi-role logistics and operations app for Calabar, Cross River State. The UI is React/Vite; the API is native Node.js Vercel Functions. The target backend is Supabase Auth, PostgreSQL and Storage.
 
 The user approved a fresh launch: no legacy SQLite rows/files are imported or deleted. The two checked-in migrations and safe seed are still unapplied. A read-only review found no public app tables, Auth users, Storage buckets/objects, Storage policies, or migration history in the connected Supabase project; the services are healthy. Supabase Auth has now been configured to use `https://www.digitransdelivery.com` with a same-origin redirect allow-list. An empty migration ledger alone is not proof of an empty project.
 
@@ -58,7 +58,7 @@ These are code-level/offline validations only. No actual Auth email, live Storag
 4. **Files:** test actual PDF/JPEG/PNG/WebP uploads, path ownership, authorization for staff/customer/rider/vendor/student/investor/finance views, replacement/deletion and public banner delivery against Supabase Storage.
 5. **Payments:** run Paystack test-mode initialize, signed webhook, API verification, duplicate/reordered event, failure/success races, capacity review and finance reconciliation. Live credentials are not configured.
 6. **Scheduled jobs and scale:** validate job concurrency/idempotency if more than one Node instance may run. Confirm API health/readiness, timeouts, logging, monitoring, backups, restore and deployment rollback.
-7. **Deployment/content:** choose and configure the Node API host and public HTTPS API origin, then set Vercel's `VITE_API_BASE_URL`, API CORS/cookie policy and host secrets. `www.digitransdelivery.com` is attached in Vercel but needs the CNAME in [the DNS runbook](docs/production-dns-setup.md); TruHost DNS and Resend records have not been changed or verified. The latest Vercel production build failed because `VITE_API_BASE_URL` is missing. Replace inactive zones, unconfigured prices, support details, rider agreements, terms/privacy and investment content with the actual approved values.
+7. **Deployment/content:** deploy the Vite frontend and native Node.js `/api/*` handlers as one Vercel project, then configure Supabase, API CORS/cookie policy, Resend, Paystack, and other server-only secrets in Vercel. `www.digitransdelivery.com` is attached in Vercel but needs the CNAME in [the DNS runbook](docs/production-dns-setup.md); TruHost DNS and Resend records have not been changed or verified. Replace inactive zones, unconfigured prices, support details, rider agreements, terms/privacy and investment content with the actual approved values.
 
 ## Data and project safety
 

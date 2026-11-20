@@ -45,7 +45,7 @@ Preserve the existing HTTP API contract and frontend behavior wherever practical
 2. Replace custom password/session persistence with Supabase Auth where appropriate, while preserving the existing API routes and role model.
 3. Replace local upload persistence with Supabase Storage.
 4. Preserve existing business rules, route behavior, response shapes, role permissions, payment state transitions, audit logging, and scheduled jobs.
-5. Make the application safe for a long-running production API deployment and a separately deployed Vercel frontend.
+5. Make the application safe for Vercel Functions and a Vercel-served frontend sharing one origin.
 6. Remove production dependence on local files and local database paths.
 7. Provide an idempotent schema migration, seed process, environment templates, tests, and deployment documentation.
 

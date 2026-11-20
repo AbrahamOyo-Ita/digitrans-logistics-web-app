@@ -822,7 +822,7 @@ REVOKE INSERT, UPDATE, DELETE ON TABLE
   public.ratings
 FROM anon, authenticated;
 
--- Private files are accessed only through the Express API's server-only service-role client.
+-- Private files are accessed only through the server-side API's service-role client.
 -- There are intentionally no direct client policies for private object reads, uploads, updates, or deletes.
 INSERT INTO storage.buckets (id,name,public,file_size_limit,allowed_mime_types) VALUES
  ('identity-documents','identity-documents',false,10485760,ARRAY['application/pdf','image/jpeg','image/png','image/webp']),

@@ -2,7 +2,9 @@
 
 ## Decision and safety boundary
 
-The approved target is a fresh launch: keep the native Node.js HTTP API on a long-running Node host; use Supabase PostgreSQL, Auth and Storage; do not import legacy SQLite rows or local upload files. This does **not** authorize deleting the old database or files. `www.digitransdelivery.com` has been attached to the existing Vercel project; its DNS is still misconfigured. Supabase Auth's site URL and redirect allow-list have been aligned to this domain, but no Supabase SQL/Storage changes have been made. No deployment has been triggered, and no API host is configured.
+The production target is Vercel for the frontend and native Node.js `/api/*` Functions, with Supabase PostgreSQL, Auth and Storage. There is no separate API host in this architecture.
+
+The approved target is a fresh launch: run the native Node.js HTTP API as Vercel Functions; use Supabase PostgreSQL, Auth and Storage; do not import legacy SQLite rows or local upload files. This does **not** authorize deleting the old database or files. `www.digitransdelivery.com` has been attached to the existing Vercel project; its DNS is still misconfigured. Supabase Auth's site URL and redirect allow-list have been aligned to this domain, but no Supabase SQL/Storage changes have been made.
 
 A current read-only review found Supabase Database/Auth/Storage/REST healthy, with zero public application tables, Auth users, Storage buckets/objects, Storage object policies, or migration-history rows. Supabase Auth is now configured with site URL `https://www.digitransdelivery.com` and the same-origin redirect pattern `https://www.digitransdelivery.com/**`; email signup remains enabled with confirmation required. The user's approval of the checked-in migrations and catalogue seed is conditional on a verified backup and final schema/security review; those gates remain outstanding, so the migrations and seed are unapplied. Reconfirm explicitly immediately before any production SQL. The empty project state is a useful preflight, not a substitute for verifying a backup.
 
@@ -33,7 +35,7 @@ No data/file migrator is planned for this fresh launch. No legacy SQLite rows or
 
 ## Configuration
 
-See `.env.example`. The API requires server-only `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_DB_URL`. Production requires verified database TLS, an HTTPS `APP_URL`, configured origins/cookie settings, and Resend sender credentials for account verification/recovery. Never put the service-role key/database URL in Vite variables or browser code. The static Vercel frontend receives only `VITE_API_BASE_URL`; the native Node.js API remains on Node.
+See `.env.example`. The API requires server-only `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_DB_URL`. Production requires verified database TLS, an HTTPS `APP_URL`, configured origins/cookie settings, and Resend sender credentials for account verification/recovery. Never put the service-role key/database URL in Vite variables or browser code. The Vercel frontend calls the native Node.js handlers through the same-origin `/api` path, so `VITE_API_BASE_URL` should remain unset in production.
 
 Typical migration commands are dry-run by default:
 

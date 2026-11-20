@@ -4,7 +4,7 @@
 
 - `www.digitransdelivery.com` has been added to the existing Vercel project `digitrans-logistics-web-app`.
 - Vercel currently reports the domain as misconfigured. Its detected nameservers are `ns1.cloudoon.com`, `ns2.cloudoon.net`, and `ns3.cloudoon.org`; DNS is external and must be managed at TruHost.
-- The production API is expected at `https://api.digitransdelivery.com`; it must be reachable over HTTPS before the frontend can authenticate or load public content.
+- The production API is served by Vercel Functions under the same origin as the frontend (`/api/*`); no separate API hostname is required.
 - No TruHost or Resend connector is available in this session. The records below are documented from the values supplied by the domain owner; they have **not** been added to DNS or verified with Resend.
 
 ## Add these records at TruHost
@@ -31,7 +31,5 @@ The Vercel DNS check also listed `cname.vercel-dns.com.` as a fallback CNAME tar
 
 ## Still required before production deployment
 
-- Select a Node host and deploy the long-running native Node.js HTTP API. Prefer `https://api.digitransdelivery.com` so it shares the same site with `https://www.digitransdelivery.com`; this is a suggested hostname, **not** an existing API service.
-- After the API is reachable, set Vercel's `VITE_API_BASE_URL=https://api.digitransdelivery.com` and set the Node service's `APP_URL=https://digitransdelivery.com` and `CLIENT_ORIGINS=https://digitransdelivery.com,https://www.digitransdelivery.com`. Configure `SESSION_COOKIE_SAME_SITE` consistently with the final host topology.
-- Add the API subdomain DNS target specified by the chosen Node host. It is not included above because no API provider/target was supplied.
+- Deploy the Vite frontend and `/api/*` Vercel Functions from this repository. Set Vercel's `APP_URL` to the production site and include the production site in `CLIENT_ORIGINS`; leave `VITE_API_BASE_URL` unset so browser requests remain same-origin.
 - Do not switch production traffic until the API, database migrations/seed, Auth redirect settings, Resend verification, and end-to-end smoke tests are complete.

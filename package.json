@@ -4,11 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "node --env-file=.env --watch server/index.js",
+    "dev": "vite --host 0.0.0.0 --port 5173",
+    "dev:vercel": "vercel dev",
     "dev:client": "vite --host 0.0.0.0 --port 5173",
     "build": "vite build",
-    "start": "node --env-file=.env --env-file-if-exists=.env.production server/index.js",
     "seed": "node --env-file=.env scripts/seed-supabase.js",
     "db:seed": "node --env-file=.env scripts/seed-supabase.js",
     "db:migrate": "node --env-file-if-exists=.env scripts/apply-supabase-migrations.js",

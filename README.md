@@ -1,8 +1,8 @@
 # DigiTrans Logistics
 
-DigiTrans is a Calabar-focused logistics platform with a React/Vite web client and a long-running native Node.js HTTP API. The target architecture keeps the API on a Node host and uses Supabase Auth, PostgreSQL, and Storage. The server-side API is asynchronous; there is no SQLite or local-file persistence fallback.
+DigiTrans is a Calabar-focused logistics platform with a React/Vite web client and native Node.js Vercel Functions. The target architecture uses Vercel for the web app/API and Supabase for Auth, PostgreSQL, and Storage. The server-side API is asynchronous; there is no SQLite or local-file persistence fallback.
 
-> **Release status - not cut over.** This branch contains the PostgreSQL schema, guarded migration/seed tooling, native Node.js/Supabase integration, Supabase Auth and Storage code, and atomic Paystack settlement. The migrations and seed have **not** been applied to the connected Supabase project, and the API has not been smoke-tested against deployed Supabase. The Vercel project now has `www.digitransdelivery.com` attached, but Vercel reports its DNS as misconfigured; no API origin is configured and the latest production build failed because `VITE_API_BASE_URL` is missing. Do not treat this branch as production-ready.
+> **Release status - Vercel cutover.** This branch contains the PostgreSQL schema, guarded migration/seed tooling, native Node.js/Supabase integration, Supabase Auth and Storage code, atomic Paystack settlement, and Vercel Functions for `/api/*`. The browser and API share one Vercel origin; no separate API host is required. Confirm the connected Supabase project, Vercel environment variables, DNS, and production smoke tests before launch.
 >
 > **Fresh launch decision:** do not import legacy SQLite rows or local upload files. This does not authorize deleting the legacy database/files. The Vercel change so far is attaching the requested `www` domain. Supabase Auth's site URL and redirect allow-list now match that domain; no Supabase schema, seed, user, or Storage changes have been made.
 
@@ -10,7 +10,7 @@ DigiTrans is a Calabar-focused logistics platform with a React/Vite web client a
 
 - Node.js 22.12+ and npm
 - A **separate local Supabase development environment** for end-to-end local testing, or an explicitly isolated test project
-- A Node host for the production native HTTP API; Vercel is for the static frontend only
+- A Vercel project for the frontend and `/api/*` Functions, plus a Supabase project
 
 ## Local development
 
@@ -50,8 +50,8 @@ A migration/seed write is target-gated. Local apply requires a loopback database
 
 ## Architecture
 
-- **Frontend:** React, Vite, PWA shell. Vercel serves static assets/SPA routes only. Set the Vercel build variable `VITE_API_BASE_URL=https://api.digitransdelivery.com` only after the native Node.js API is live at that HTTPS origin. The API host must allow both `https://digitransdelivery.com` and `https://www.digitransdelivery.com` in `CLIENT_ORIGINS`.
-- **API:** long-running native Node.js HTTP process on a Node host. Scheduled delivery advancement stays in the Node service; the API is not ported to Edge Functions.
+- **Frontend/API:** React and Vite are served by Vercel. Native Node.js handlers run as Vercel Functions under `/api/*`, so production browser requests use the same origin and `VITE_API_BASE_URL` should remain unset. Supabase provides the database, Auth, and Storage services.
+- **API:** native Node.js Vercel Functions. Scheduled work must be invoked through Vercel request/cron execution; there is no separate API process.
 - **Database:** Supabase PostgreSQL via a server-only `pg` pool and async repository adapter. Database migrations are versioned under `supabase/migrations/`; API startup checks recorded checksums and seed readiness but does not mutate schema.
 - **Authentication:** Supabase Auth owns credentials, email verification, recovery, sessions and refresh. App roles/statuses stay in `public.users` and permissions in the seeded role catalog. Session cookies are HTTP-only; configure `SESSION_COOKIE_SAME_SITE=none` and `Secure` when the frontend and API are cross-site.
 - **Files:** Native multipart parsing buffers uploads in memory; validated private documents/proof/receipts and public site images go to Supabase Storage. Private files are served through an authorization check and short-lived signed URLs. No local upload directories are used.
@@ -71,7 +71,7 @@ See `.env.example`, `docs/supabase-migration.md`, and [the DNS setup runbook](do
 - HTTPS `APP_URL`, exact `CLIENT_ORIGINS`, and appropriate secure cookie policy.
 - `RESEND_API_KEY` and `RESEND_FROM_EMAIL` for signup verification and password recovery.
 - Optional Paystack secrets/callback once payment operations are approved.
-- A trusted `TRUST_PROXY` setting matching the actual Node host/reverse proxy.
+- A trusted `TRUST_PROXY` setting matching Vercel's proxy headers.
 
 Never expose the service-role key or database URL in Vite variables, browser code, logs or Git. The Vercel frontend and Node API are separate deployments. The API writes one-line JSON logs to stdout/stderr, attaches an opaque `X-Request-ID` to each response, and records method, path, status and duration without query strings or request bodies. Error details are sanitized and sensitive context fields are redacted; use the response request ID to correlate a support report with host logs.
 
