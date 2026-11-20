@@ -33,7 +33,7 @@ export function validateRuntimeConfig(env=process.env){
   }
   if(env.PAYMENT_CALLBACK_URL){
     let callbackUrl;
-    try{callbackUrl=new URL(env.PAYMENT_CALLBACK_URL);}catch{throw new Error('PAYMENT_CALLBACK_URL must be a valid absolute HTTPS URL.');}
+    try{callbackUrl=new URL(String(env.PAYMENT_CALLBACK_URL).trim());}catch{throw new Error('PAYMENT_CALLBACK_URL must be a valid absolute HTTPS URL.');}
     if(callbackUrl.protocol!=='https:'||callbackUrl.username||callbackUrl.password||callbackUrl.hash)throw new Error('PAYMENT_CALLBACK_URL must be a secure URL without credentials or a fragment.');
     if(env.APP_URL&&callbackUrl.origin!==normalizeOrigin(env.APP_URL,{production,label:'APP_URL'}))throw new Error('PAYMENT_CALLBACK_URL must use the same HTTPS origin as APP_URL.');
   }
