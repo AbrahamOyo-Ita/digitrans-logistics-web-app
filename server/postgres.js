@@ -1,5 +1,11 @@
 import {AsyncLocalStorage} from 'node:async_hooks';
+import fs from 'node:fs';
 import {Pool,types} from 'pg';
+
+const bundledSupabaseCa=(()=>{
+  try{return fs.readFileSync(new URL('../prod-ca-2021.crt',import.meta.url),'utf8').trim();}
+  catch{return '';}
+})();
 
 // Preserve the JavaScript-number API shape for exact whole-amount Postgres BIGINT columns.
 // Refuse unsafe values rather than silently losing precision when JSON serializes a response.
@@ -32,13 +38,14 @@ export function readPostgresConfig(env=process.env){
   const sslPreference=String(env.SUPABASE_DB_SSL||'verify-full').toLowerCase();
   if(!['verify-full','require','disable'].includes(sslPreference))throw new Error('SUPABASE_DB_SSL must be verify-full, require, or disable.');
   if(production&&sslPreference==='disable')throw new Error('SUPABASE_DB_SSL must require encrypted TLS in production.');
+  const ca=String(env.SUPABASE_DB_CA||bundledSupabaseCa).trim();
   return {
     connectionString:url.toString(),
     max,
     idleTimeoutMillis:30_000,
     connectionTimeoutMillis:10_000,
     application_name:'digitrans-api',
-    ...(sslPreference==='disable'?{ssl:false}:{ssl:{rejectUnauthorized:sslPreference==='verify-full'}}),
+    ...(sslPreference==='disable'?{ssl:false}:{ssl:{rejectUnauthorized:sslPreference==='verify-full',...(ca?{ca}:{} )}}),
   };
 }
 
