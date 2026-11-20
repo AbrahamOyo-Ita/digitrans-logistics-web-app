@@ -26,7 +26,7 @@ export default function App(){
   const next=typeof value==='string'?{title:value}:value||{};setToast({...next,id:Date.now()});
  },[]);
  useEffect(()=>{const pop=()=>setLocation(readLocation());window.addEventListener('popstate',pop);return()=>window.removeEventListener('popstate',pop);},[]);
- useEffect(()=>{let live=true;api('/auth/me').then(d=>{if(live){setUser(d.user);setAuthState('ready');}}).catch(()=>{if(live){setUser(null);setAuthState('ready');}});return()=>{live=false};},[]);
+ useEffect(()=>{let live=true;api('/auth/me').then(d=>{if(live){setUser(d.user||null);setAuthState('ready');}}).catch(()=>{if(live){setUser(null);setAuthState('ready');}});return()=>{live=false};},[]);
  useEffect(()=>{if(!toast)return;const timer=setTimeout(()=>setToast(null),4500);return()=>clearTimeout(timer);},[toast]);
  useEffect(()=>{
   if(authState!=='ready')return;

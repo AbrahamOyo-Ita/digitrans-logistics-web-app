@@ -135,7 +135,8 @@ router.post('/login',async(req,res)=>{
 
 async function currentUser(req){return await getSessionUser(req.cookies?.session);}
 router.get('/me',async(req,res)=>{
-  const user=await currentUser(req);if(!user)return res.status(401).json({error:'Unauthenticated'});
+  const user=await currentUser(req);
+  if(!user)return res.json({user:null});
   res.json({user:await publicProfile(user.id)});
 });
 router.post('/logout',async(req,res)=>{
