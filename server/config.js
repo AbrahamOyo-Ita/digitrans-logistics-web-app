@@ -41,7 +41,7 @@ export function validateRuntimeConfig(env=process.env){
 }
 
 export function getSessionCookieOptions(env=process.env){
-  const sameSite=String(env.SESSION_COOKIE_SAME_SITE||'lax').toLowerCase();
+  const sameSite=String(env.SESSION_COOKIE_SAME_SITE||'lax').trim().toLowerCase();
   if(!['lax','strict','none'].includes(sameSite))throw new Error('SESSION_COOKIE_SAME_SITE must be lax, strict, or none.');
   const secure=env.NODE_ENV==='production'||String(env.SESSION_COOKIE_SECURE||'').toLowerCase()==='true';
   if(sameSite==='none'&&!secure)throw new Error('SameSite=None cookies must also be Secure.');
