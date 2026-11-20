@@ -5,8 +5,9 @@
   "crons": [
     { "path": "/api/cron/scheduled-deliveries", "schedule": "*/5 * * * *" }
   ],
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ],
   "headers": [
     {
