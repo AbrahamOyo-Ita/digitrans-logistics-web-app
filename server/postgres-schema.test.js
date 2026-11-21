@@ -7,6 +7,7 @@ import {PGlite} from '@electric-sql/pglite';
 const migrationPaths=[
   fileURLToPath(new URL('../supabase/migrations/202611160001_initial_schema.sql',import.meta.url)),
   fileURLToPath(new URL('../supabase/migrations/202611160002_payment_atomicity.sql',import.meta.url)),
+  fileURLToPath(new URL('../supabase/migrations/202611160003_transactional_email_outbox.sql',import.meta.url)),
 ];
 const uid1='10000000-0000-4000-8000-000000000001';
 const uid2='10000000-0000-4000-8000-000000000002';
@@ -35,11 +36,11 @@ async function newTestDatabase(){
   return db;
 }
 
-test('Supabase migration creates 53 app tables with explicit RLS and preserves non-user text IDs',async t=>{
+test('Supabase migrations create 55 app tables with explicit RLS and preserve non-user text IDs',async t=>{
   const db=await newTestDatabase();t.after(()=>db.close());
   const tables=await db.query("SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename");
-  assert.equal(tables.rows.length,55);
-  assert.equal(tables.rows.filter(row=>row.tablename!=='unrelated_migration_sentinel').length,54);
+  assert.equal(tables.rows.length,56);
+  assert.equal(tables.rows.filter(row=>row.tablename!=='unrelated_migration_sentinel').length,55);
   const withoutRls=await db.query(`SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
     WHERE n.nspname='public' AND c.relkind='r' AND c.relname<>'unrelated_migration_sentinel' AND NOT c.relrowsecurity`);
   assert.deepEqual(withoutRls.rows,[]);
@@ -88,6 +89,7 @@ test('RLS limits direct client reads to the caller, staff permission, or public 
   assert.deepEqual(selfUsers.rows,[{id:uid1}]);
   const privateObjects=await db.query('SELECT name FROM storage.objects ORDER BY name');
   assert.deepEqual(privateObjects.rows,[{name:'banner-1/asset.png'}]);
+  await assert.rejects(db.query('SELECT id FROM public.transactional_email_outbox'),error=>error.code==='42501');
   const ownPrivateFileInsert=await db.query(`INSERT INTO storage.objects(bucket_id,name) VALUES ('rider-documents','${uid1}/new-file/file.pdf')`).then(()=>null,error=>error);
   assert.equal(ownPrivateFileInsert?.code,'42501');
   const directTableWrite=await db.query(`INSERT INTO public.addresses(user_id,address_line) VALUES ('${uid1}','Example address')`).then(()=>null,error=>error);

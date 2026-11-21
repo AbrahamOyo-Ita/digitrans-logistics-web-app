@@ -11,6 +11,7 @@ const root=fileURLToPath(new URL('..',import.meta.url));
 const migrationFiles=[
   'supabase/migrations/202611160001_initial_schema.sql',
   'supabase/migrations/202611160002_payment_atomicity.sql',
+  'supabase/migrations/202611160003_transactional_email_outbox.sql',
 ];
 
 async function newSchema(){
