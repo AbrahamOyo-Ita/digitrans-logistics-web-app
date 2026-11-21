@@ -17,6 +17,14 @@ export function authError(error){
   if(status===429)return Object.assign(new Error('Too many authentication requests. Please try again shortly.'),{status:429});
   return Object.assign(new Error('Authentication is temporarily unavailable.'),{status:503});
 }
+export function verificationError(error){
+  const status=Number(error?.status)||0;
+  const hint=`${String(error?.code||'')} ${String(error?.message||'')}`;
+  if([400,401,403].includes(status)||/(expired|invalid|token|otp)/i.test(hint)){
+    return Object.assign(new Error('This verification link is invalid or has expired. Request a new verification email and try again.'),{status:400});
+  }
+  return authError(error);
+}
 function assertPassword(password){
   const value=String(password||'');
   if(value.length<8||value.length>128||!/[A-Z]/.test(value)||!/[a-z]/.test(value)||!/[0-9]/.test(value)||!/[^A-Za-z0-9]/.test(value))throw Object.assign(new Error('Password must be 8–128 characters and include uppercase, lowercase, a number, and a special character.'),{status:400});
@@ -179,7 +187,7 @@ export async function sendSupabaseRecovery(email){
 export async function verifySupabaseOtp({email,token,type='signup'}={}){
   if(!['signup','recovery','email_change','magiclink'].includes(type))throw Object.assign(new Error('Unsupported verification type.'),{status:400});
   const {data,error}=await createSupabaseUserClient().auth.verifyOtp({token_hash:String(token||''),type});
-  if(error)throw authError(error);
+  if(error)throw verificationError(error);
   if(!data?.session||!data?.user)throw Object.assign(new Error('The verification link is invalid or expired.'),{status:400});
   const user=await loadAppUser(data.user.id);
   if(!user)throw Object.assign(new Error('Account setup could not be completed.'),{status:404});
@@ -189,6 +197,11 @@ export async function verifySupabaseOtp({email,token,type='signup'}={}){
     return {user,session:null,pending:true};
   }
   return {user,session:data.session};
+}
+
+export async function resendSupabaseSignup(email){
+  const {error}=await createSupabaseUserClient().auth.resend({type:'signup',email:String(email||'').trim().toLowerCase()});
+  if(error)throw verificationError(error);
 }
 
 export async function resolveLoginEmail(identifier,lookup=async predicate=>db.prepare(`SELECT email FROM public.users WHERE ${predicate.sql}`).get(...predicate.params)){

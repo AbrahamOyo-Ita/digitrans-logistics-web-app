@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {authError,resolveLoginEmail} from './auth.js';
+import {authError,verificationError,resolveLoginEmail} from './auth.js';
 import {APP_ROLES,PUBLIC_SIGNUP_ROLES,ROLE_HOME,isWorkspacePath} from '../shared/roles.js';
 
 test('every supported DigiTrans account role has a protected workspace destination',()=>{
@@ -23,6 +23,13 @@ test('Supabase sign-in errors return useful credential, verification and retry s
   assert.match(unverified.message,/verify your email/i);
   assert.equal(authError({status:429}).status,429);
   assert.equal(authError({status:503}).status,503);
+});
+
+test('verification token failures are reported as expired links, not outages',()=>{
+  const expired=verificationError({status:403,code:'otp_expired'});
+  assert.equal(expired.status,400);
+  assert.match(expired.message,/verification link is invalid or has expired/i);
+  assert.equal(verificationError({status:503}).status,503);
 });
 
 test('login identity resolves email and phone inputs to the same account email',async()=>{

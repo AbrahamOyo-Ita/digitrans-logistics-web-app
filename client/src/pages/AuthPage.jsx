@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Icon from '../components/Icon';
 import Brand from '../components/Brand';
 import { api } from '../lib/api';
@@ -34,12 +34,29 @@ export default function AuthPage({
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [verificationUrl, setVerificationUrl] = useState('');
+  const [verificationAttempt, setVerificationAttempt] = useState(0);
+  const [verificationState, setVerificationState] = useState('checking');
+  const [resendEmail, setResendEmail] = useState(verificationEmail);
+  const [resendBusy, setResendBusy] = useState(false);
+  const [resendMessage, setResendMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const verificationStarted = useRef(false);
   const params = new URLSearchParams(window.location.search);
   const next = params.get('next') || '/workspace';
+
+  const resendVerification = async () => {
+    setResendBusy(true);
+    setResendMessage('');
+    try {
+      const result = await api('/auth/resend-verification', { method: 'POST', body: { email: resendEmail.trim() } });
+      setResendMessage(result.message);
+    } catch (err) {
+      setResendMessage(err.message);
+    } finally {
+      setResendBusy(false);
+    }
+  };
 
   useEffect(() => {
     document.title = `${
@@ -56,42 +73,47 @@ export default function AuthPage({
   }, [kind]);
 
   useEffect(() => {
-    if (kind !== 'verify' || verificationStarted.current) return;
-    verificationStarted.current = true;
+    if (kind !== 'verify') return;
     let active = true;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 15000);
     const p = new URLSearchParams(window.location.search);
     const email = verificationEmail || p.get('email') || '';
     const token = verificationToken || p.get('token') || p.get('token_hash') || '';
     if (!email || !token) {
+      setVerificationState('error');
       setError('This verification link is incomplete. Request a new link or sign in.');
-      setKind('login');
       return;
     }
     setBusy(true);
+    setVerificationState('checking');
     setError('');
-    api('/auth/verify-email', { method: 'POST', body: { email, token } })
+    api('/auth/verify-email', { method: 'POST', body: { email, token }, signal: controller.signal })
       .then(result => {
         if (!active) return;
+        setVerificationState('success');
         if (result.pendingApproval) {
           setSuccess(result.message);
-          setKind('login');
           return;
         }
         onAuthenticated(result.user, next);
       })
       .catch(err => {
         if (active) {
-          setError(err.message);
-          setKind('login');
+          setVerificationState('error');
+          setError(err.name === 'AbortError' ? 'The verification service took too long to respond. Check your connection and try again.' : err.message);
         }
       })
       .finally(() => {
+        window.clearTimeout(timeout);
         if (active) setBusy(false);
       });
     return () => {
       active = false;
+      controller.abort();
+      window.clearTimeout(timeout);
     };
-  }, [kind, verificationEmail, verificationToken, onAuthenticated, next]);
+  }, [kind, verificationEmail, verificationToken, onAuthenticated, next, verificationAttempt]);
 
   const switchKind = target => {
     setError('');
@@ -155,8 +177,11 @@ export default function AuthPage({
         setKind('login');
         return;
       }
-    } catch (err) {
-      setError(err.message);
+      } catch (err) {
+      const fieldErrors = err?.details && typeof err.details === 'object'
+        ? Object.values(err.details).flat().filter(Boolean)
+        : [];
+      setError(fieldErrors.length ? fieldErrors.join(' ') : err.message);
     } finally {
       setBusy(false);
     }
@@ -345,8 +370,36 @@ export default function AuthPage({
             )}
 
             {kind === 'verify' ? (
-              <div className="py-8 text-center text-sm text-slate-600">
-                {busy ? 'Checking your email verification link…' : 'Email verification is complete.'}
+              <div className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,.08)] sm:p-8">
+                <div className="absolute -right-14 -top-14 h-36 w-36 rounded-full bg-cyan-100/70 blur-2xl" />
+                <div className="relative">
+                  <div className={`mx-auto grid h-20 w-20 place-items-center rounded-3xl ${verificationState === 'error' ? 'bg-rose-50 text-rose-600' : verificationState === 'success' ? 'bg-emerald-50 text-emerald-600' : 'bg-cyan-50 text-cyan-700'}`}>
+                    {verificationState === 'checking' && <span className="relative grid h-10 w-10 place-items-center"><span className="absolute inset-0 animate-ping rounded-full bg-cyan-300/40" /><Icon name="mail" size={28} /></span>}
+                    {verificationState === 'success' && <Icon name="check" size={30} />}
+                    {verificationState === 'error' && <Icon name="alert" size={30} />}
+                  </div>
+                  <p className="mt-6 text-center text-[11px] font-bold uppercase tracking-[.18em] text-cyan-700">Secure account check</p>
+                  <h3 className="mt-2 text-center font-display text-2xl font-bold tracking-tight text-[#102a33]">
+                    {verificationState === 'checking' ? 'Confirming your email' : verificationState === 'success' ? 'Email confirmed' : 'We need another try'}
+                  </h3>
+                  <p className="mx-auto mt-3 max-w-[38ch] text-center text-sm leading-6 text-slate-500">
+                    {verificationState === 'checking' ? 'We’re checking your secure link now. This usually takes a few seconds.' : verificationState === 'success' ? 'Your email is verified. Your DigiTrans account is ready for the next step.' : 'The verification service did not respond successfully. Your link is still safe to retry.'}
+                  </p>
+                  <div className="mx-auto mt-6 max-w-xs space-y-2">
+                    {verificationState === 'checking' && <div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full w-1/2 animate-[pulse_1.4s_ease-in-out_infinite] rounded-full bg-cyan-500" /></div>}
+                    {verificationState === 'error' && <>
+                      <button type="button" onClick={() => { setError(''); setVerificationAttempt(value => value + 1); }} className="w-full rounded-2xl bg-[#1d4ed8] px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:bg-[#1e40af]">Try verification again</button>
+                      <div className="border-t border-slate-100 pt-4">
+                        <label className="block text-left text-[11px] font-semibold text-slate-600">Need a fresh link?</label>
+                        <input value={resendEmail} onChange={event => setResendEmail(event.target.value)} type="email" placeholder="you@example.com" className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-cyan-500 focus:bg-white" />
+                        <button type="button" disabled={resendBusy || !resendEmail.trim()} onClick={resendVerification} className="mt-2 w-full rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-semibold text-cyan-800 transition hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-50">{resendBusy ? 'Requesting a fresh link…' : 'Send me a new link'}</button>
+                        {resendMessage && <p className="mt-2 text-left text-[11px] leading-5 text-slate-500">{resendMessage}</p>}
+                      </div>
+                    </>}
+                    {(verificationState === 'error' || verificationState === 'success') && <button type="button" onClick={() => switchKind('login')} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">Return to sign in</button>}
+                  </div>
+                  <p className="mt-6 text-center text-[11px] leading-5 text-slate-400">Keep this window open while the secure check completes.</p>
+                </div>
               </div>
             ) : (
               <form onSubmit={submit} className="space-y-4">
@@ -427,6 +480,38 @@ export default function AuthPage({
                         ))}
                       </div>
                     </div>
+
+                    {role === 'vendor' && (
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          Business name
+                        </label>
+                        <input
+                          name="businessName"
+                          type="text"
+                          required
+                          minLength={2}
+                          maxLength={120}
+                          placeholder="e.g. Calabar Fresh Foods"
+                          className="w-full bg-[#f4f5f8] hover:bg-[#edeff2] focus:bg-white border border-transparent focus:border-[#1d4ed8] focus:ring-4 focus:ring-blue-500/10 rounded-2xl px-4 py-3.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200"
+                        />
+                      </div>
+                    )}
+
+                    {role === 'student' && (
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          Institution <span className="font-normal text-slate-400">(optional)</span>
+                        </label>
+                        <input
+                          name="institution"
+                          type="text"
+                          maxLength={120}
+                          placeholder="e.g. University of Calabar"
+                          className="w-full bg-[#f4f5f8] hover:bg-[#edeff2] focus:bg-white border border-transparent focus:border-[#1d4ed8] focus:ring-4 focus:ring-blue-500/10 rounded-2xl px-4 py-3.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200"
+                        />
+                      </div>
+                    )}
 
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1.5">

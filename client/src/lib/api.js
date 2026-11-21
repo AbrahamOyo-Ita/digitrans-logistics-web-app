@@ -21,6 +21,7 @@ export async function api(path,options={}){
   try{
     res=await fetch(apiUrl(path),{credentials:'include',...options,headers,body:options.body&&!(options.body instanceof FormData)?JSON.stringify(options.body):options.body});
   }catch(error){
+    if(error?.name==='AbortError')throw new ApiError('The request took too long. Please try again.',504,{cause:'timeout'});
     throw new ApiError('DigiTrans services are temporarily unavailable. Please try again shortly.',503,{cause:error?.name||'network_error'});
   }
   const contentType=String(res.headers.get('content-type')||'').toLowerCase();

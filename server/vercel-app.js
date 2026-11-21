@@ -49,6 +49,7 @@ const publicTrackingLimit=rateLimit({windowMs:60*1000,limit:60,message:{error:'T
 app.use('/api/auth/login',authLimit);
 app.use('/api/auth/register',authLimit);
 app.use('/api/auth/forgot-password',authLimit);
+app.use('/api/auth/resend-verification',authLimit);
 app.use('/api/public/contact',publicContactLimit);
 app.use(['/api/track','/api/waybills/track'],publicTrackingLimit);
 app.get('/api/health',(_req,res)=>res.json({status:'ok',service:'DigiTrans Logistics',time:new Date().toISOString()}));

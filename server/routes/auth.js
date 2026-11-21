@@ -1,7 +1,7 @@
 import {asyncRouter} from '../async-router.js';
 import {z} from 'zod';
 import db from '../db.js';
-import {createSession,loginSupabaseUser,registerSupabaseUser,sendSupabaseRecovery,verifySupabaseOtp,resetSupabasePassword,changeSupabasePassword,getSessionUser,revokeSession} from '../auth.js';
+import {createSession,loginSupabaseUser,registerSupabaseUser,sendSupabaseRecovery,verifySupabaseOtp,resendSupabaseSignup,resetSupabasePassword,changeSupabasePassword,getSessionUser,revokeSession} from '../auth.js';
 import {isEmailConfigured,sendEmail} from '../email.js';
 import {createAuthEmailTemplate} from '../email-templates.js';
 import {buildUserIdentifierPredicate,normalizePhoneNumber} from '../phone.js';
@@ -83,7 +83,11 @@ async function discardNewAccount(userId){
 
 router.post('/register',async(req,res)=>{
   const parsed=registerSchema.safeParse(req.body);
-  if(!parsed.success)return res.status(400).json({error:'Please review the highlighted fields.',details:parsed.error.flatten().fieldErrors});
+  if(!parsed.success){
+    const details=parsed.error.flatten().fieldErrors;
+    const summary=Object.entries(details).flatMap(([field,messages])=>(messages||[]).map(message=>`${field}: ${message}`)).join(' ');
+    return res.status(400).json({error:summary||'Please review the highlighted fields.',details});
+  }
   const d=parsed.data,email=d.email.toLowerCase(),phone=normalizePhoneNumber(d.phone);
   if(process.env.NODE_ENV==='production'&&!isEmailConfigured())return res.status(503).json({error:'Account verification email is not configured yet. Please contact DigiTrans support.'});
   const phonePredicate=buildUserIdentifierPredicate(phone,{emailColumn:'email',phoneColumn:'phone'});
@@ -122,6 +126,16 @@ router.post('/verify-email',async(req,res)=>{
   req.authSession=result.session;
   const session=await createSession(result.user.id,req);setSession(res,session);
   res.json({verified:true,user:result.user,message:'Your email is verified. Welcome to DigiTrans.'});
+});
+
+router.post('/resend-verification',async(req,res)=>{
+  const email=String(req.body?.email||'').trim().toLowerCase();
+  const generic={message:'If that account is waiting for email verification, a fresh verification link has been requested.'};
+  if(!email||!z.string().email().safeParse(email).success)return res.json(generic);
+  const row=await db.prepare('SELECT id,email_verified FROM public.users WHERE lower(email)=?').get(email);
+  if(!row||row.email_verified)return res.json(generic);
+  await resendSupabaseSignup(email);
+  res.json(generic);
 });
 
 router.post('/login',async(req,res)=>{
