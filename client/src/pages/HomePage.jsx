@@ -1,6 +1,7 @@
 import React,{useEffect,useState} from 'react';
 import Icon from '../components/Icon';
 import ScrollReveal from '../components/ScrollReveal';
+import {Select} from '../components/UI';
 import {articles,services,testimonials,zones} from './publicContent';
 
 const heroSlides=[
@@ -45,7 +46,7 @@ function DispatchPanel({navigate}){
    <p className="dispatch-hint">Your latest handoff, in one tap.</p>
   </form>:<form className="dispatch-form" onSubmit={planDelivery}>
    <label className="dispatch-label" htmlFor="hero-route-origin">Pickup &amp; destination</label>
-   <div className="dispatch-route-fields"><label className="dispatch-select"><Icon name="pin" size={15}/><select id="hero-route-origin" value={origin} onChange={e=>setOrigin(e.target.value)}>{zones.map(zone=><option key={zone.id} value={zone.id}>{zone.name}</option>)}</select></label><span className="dispatch-route-separator" aria-hidden="true"><Icon name="arrow" size={14}/></span><label className="dispatch-select"><Icon name="globe" size={15}/><select aria-label="Drop-off zone" value={destination} onChange={e=>setDestination(e.target.value)}>{zones.map(zone=><option key={zone.id} value={zone.id}>{zone.name}</option>)}</select></label></div>
+   <div className="dispatch-route-fields"><label className="dispatch-select"><Icon name="pin" size={15}/><Select id="hero-route-origin" value={origin} onChange={e=>setOrigin(e.target.value)} className="dispatch-custom-select">{zones.map(zone=><option key={zone.id} value={zone.id}>{zone.name}</option>)}</Select></label><span className="dispatch-route-separator" aria-hidden="true"><Icon name="arrow" size={14}/></span><label className="dispatch-select"><Icon name="globe" size={15}/><Select aria-label="Drop-off zone" value={destination} onChange={e=>setDestination(e.target.value)} className="dispatch-custom-select">{zones.map(zone=><option key={zone.id} value={zone.id}>{zone.name}</option>)}</Select></label></div>
    <button className="dispatch-submit" type="submit">See my estimate<Icon name="arrow" size={15}/></button>
   </form>}
   </div>
