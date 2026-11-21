@@ -7,7 +7,7 @@
   },
   "crons": [
     { "path": "/api/cron/scheduled-deliveries", "schedule": "0 0 * * *" },
-    { "path": "/api/cron/transactional-emails", "schedule": "*/5 * * * *" }
+    { "path": "/api/cron/transactional-emails", "schedule": "0 0 * * *" }
   ],
   "routes": [
     { "src": "/api/cron/scheduled-deliveries", "dest": "/api/cron/scheduled-deliveries.js" },

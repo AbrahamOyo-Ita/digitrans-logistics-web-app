@@ -71,7 +71,7 @@ See `.env.example`, `docs/supabase-migration.md`, and [the DNS setup runbook](do
 - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and a TLS-verified `SUPABASE_DB_URL` in the host's secret store only.
 - HTTPS `APP_URL`, exact `CLIENT_ORIGINS`, and appropriate secure cookie policy.
 - A verified Resend sending domain, `RESEND_API_KEY`, and `RESEND_FROM_EMAIL` for account and lifecycle email. `APP_URL` must be the public HTTPS app origin so emails can load the original artwork and build safe links.
-- A long random `CRON_SECRET` shared with the Vercel deployment. The transactional-email worker runs every five minutes and allows a 30-second function duration; the Vercel plan or external scheduler must support both and send `Authorization: Bearer $CRON_SECRET`.
+- A long random `CRON_SECRET` shared with the Vercel deployment. The transactional-email worker runs daily on the Hobby plan and allows a 30-second function duration; a higher Vercel plan or external scheduler can be used for more frequent processing and should send `Authorization: Bearer $CRON_SECRET`.
 - Optional Paystack secrets/callback once payment operations are approved.
 - A trusted `TRUST_PROXY` setting matching Vercel's proxy headers.
 
