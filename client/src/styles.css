@@ -38,7 +38,7 @@ p { text-wrap: pretty; }
   .container-x { @apply mx-auto w-full max-w-[1240px] px-5 md:px-10; }
   .display-1 { @apply font-display text-[clamp(2.7rem,5.4vw,4.25rem)] font-semibold leading-[1.03] tracking-[-.04em]; }
   .display-2 { @apply font-display text-[clamp(1.9rem,3.2vw,2.75rem)] font-semibold leading-[1.08] tracking-[-.035em]; }
-  .display-3 { @apply font-display text-[clamp(1.3rem,1.7vw,1.5rem)] font-semibold leading-[1.22] tracking-[-.025em]; }
+  .display-3 { @apply font-display text-[clamp(1.3rem,1.7vw,1.5rem)] font-semibold leading-[1.28] tracking-[-.02em]; }
   .lede { @apply text-[clamp(1rem,1.1vw,1.125rem)] leading-[1.7] text-ink-slate; }
   .body-sm { @apply text-[.9375rem] leading-[1.7] text-ink-slate; }
   .section { @apply py-[clamp(4.5rem,7vw,7rem)]; }
