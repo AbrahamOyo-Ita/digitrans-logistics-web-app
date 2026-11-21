@@ -437,7 +437,7 @@ input[type='checkbox']:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba
   transition: background .25s ease, border-color .25s ease, box-shadow .25s ease;
 }
 .site-header-home {
-  position: absolute;
+  position: fixed;
   top: 22px;
   left: 50%;
   width: calc(100% - 272px);
