@@ -5,12 +5,12 @@ import {faqs as defaultFaqs,services,site,zones} from './publicContent';
 
 const primaryNav=[['Services','/services'],['Coverage','/coverage'],['Pricing','/pricing'],['Track','/track'],['About','/about'],['Contact','/contact']];
 const serviceLinks=[
- {label:'Standard delivery',href:'/services/standard-delivery',hint:'Same-day parcels across Calabar'},
- {label:'Market runs',href:'/services/market-runs',hint:'We shop Watt Market for you'},
- {label:'Waybills & parcels',href:'/services/waybills',hint:'Weight-priced, tracked to arrival'},
- {label:'Business & vendor',href:'/services/business-logistics',hint:'Contract dispatch and reporting'},
- {label:'Student delivery',href:'/services/student-delivery',hint:'Flat ₦500 campus rate'},
- {label:'Scheduled pickups',href:'/services/scheduled-pickups',hint:'Recurring runs, planned ahead'},
+ {label:'Standard delivery',href:'/services/standard-delivery',hint:'Same-day around Calabar',tag:'CITY',icon:'bike',tone:'coral'},
+ {label:'Market runs',href:'/services/market-runs',hint:'Watt Market, brought to you',tag:'LOCAL',icon:'bag',tone:'gold'},
+ {label:'Waybills & parcels',href:'/services/waybills',hint:'Tracked between cities',tag:'PARCEL',icon:'box',tone:'teal'},
+ {label:'Business & vendor',href:'/services/business-logistics',hint:'Dispatch that scales with you',tag:'BUSINESS',icon:'chart',tone:'navy'},
+ {label:'Student delivery',href:'/services/student-delivery',hint:'Flat ₦500 campus trips',tag:'STUDENT',icon:'user',tone:'mint'},
+ {label:'Scheduled pickups',href:'/services/scheduled-pickups',hint:'Choose a time that works',tag:'PLANNED',icon:'clock',tone:'blue'},
 ];
 
 export function SiteHeader({page,navigate,onLogin,user}){
@@ -73,11 +73,34 @@ export function SiteHeader({page,navigate,onLogin,user}){
       <button type="button" onFocus={()=>setServicesOpen(true)} onClick={()=>go(path)} onKeyDown={event=>{if(event.key==='Escape')setServicesOpen(false);}} aria-expanded={servicesOpen} aria-current={isActive(path)?'page':undefined} className={`site-nav-link site-nav-services-trigger ${isActive(path)?'is-active':''}`}>
        {label}<Icon name="down" size={13} className={servicesOpen?'is-open':''}/>
       </button>
-      {servicesOpen&&<div className="site-services-dropdown"><div className="site-services-dropdown-card">
-       <div className="site-services-dropdown-heading"><span>Services</span><small>Delivery that fits the trip</small></div>
-       <div className="site-services-grid">{serviceLinks.map(item=><button key={item.href} type="button" onClick={()=>go(item.href)} className="site-service-menu-link"><span>{item.label}<Icon name="arrow" size={14}/></span><small>{item.hint}</small></button>)}</div>
-       <button type="button" onClick={()=>go('/pricing')} className="site-services-dropdown-footer">Compare tariffs and services<Icon name="arrow" size={14}/></button>
-      </div></div>}
+      {servicesOpen&&<div id="site-services-dropdown" className="site-services-dropdown" role="region" aria-label="DigiTrans services">
+       <div className="site-services-dropdown-card">
+        <aside className="site-services-feature">
+         <img src="/images/hero-courier.jpg" alt="" aria-hidden="true"/>
+         <div className="site-services-feature-content">
+          <span className="site-services-feature-kicker"><i/>CALABAR · LOCALLY MOVING</span>
+          <div><p>YOUR DAY, IN MOTION</p><h3>Good routes.<br/>Right on time.</h3><small>From a quick local drop to a parcel headed farther, we’ll help you find your kind of run.</small></div>
+          <button type="button" onClick={()=>go('/quote')} className="site-services-feature-cta">Get a quote<Icon name="arrow" size={14}/></button>
+         </div>
+        </aside>
+        <div className="site-services-menu-main">
+         <div className="site-services-menu-heading">
+          <div><span>MADE FOR THE WAY YOU MOVE</span><h3>Find your kind of run.</h3></div>
+          <div className="site-services-menu-count"><Icon name="spark" size={14}/> 6 services</div>
+         </div>
+         <div className="site-services-grid">{serviceLinks.map(item=><button key={item.href} type="button" onClick={()=>go(item.href)} className="site-service-menu-link">
+          <span className={`site-service-menu-icon is-${item.tone}`}><Icon name={item.icon} size={18}/></span>
+          <span className="site-service-menu-copy"><span className="site-service-menu-title">{item.label}<small>{item.tag}</small></span><small>{item.hint}</small></span>
+          <span className="site-service-menu-arrow"><Icon name="arrow" size={14}/></span>
+         </button>)}</div>
+         <div className="site-services-menu-footer">
+          <span><Icon name="support" size={15}/><span>Not sure where to start?<b>Our local team can help.</b></span></span>
+          <a href={site.phoneHref}>Call dispatch<Icon name="arrow" size={13}/></a>
+          <button type="button" onClick={()=>go('/pricing')}>Compare rates<Icon name="arrow" size={13}/></button>
+         </div>
+        </div>
+       </div>
+      </div>}
      </div>:<button key={path} type="button" onClick={()=>go(path)} aria-current={isActive(path)?'page':undefined} className={`site-nav-link ${isActive(path)?'is-active':''}`}>{label}</button>)}
     </nav>
     <div className="site-header-actions">
