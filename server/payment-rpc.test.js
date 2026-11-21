@@ -8,6 +8,7 @@ import {PGlite} from '@electric-sql/pglite';
 const migrations=[
   fileURLToPath(new URL('../supabase/migrations/202611160001_initial_schema.sql',import.meta.url)),
   fileURLToPath(new URL('../supabase/migrations/202611160002_payment_atomicity.sql',import.meta.url)),
+  fileURLToPath(new URL('../supabase/migrations/202611160003_transactional_email_outbox.sql',import.meta.url)),
 ];
 const userId='20000000-0000-4000-8000-000000000001';
 const hash=value=>crypto.createHash('sha256').update(value).digest('hex');
@@ -70,6 +71,7 @@ test('verified Paystack settlement is atomic, capacity-aware, and idempotent und
   assert.equal((await db.query("SELECT payment_status FROM public.deliveries WHERE id='delivery-1'")).rows[0].payment_status,'successful');
   assert.equal(Number((await db.query("SELECT count(*)::int AS n FROM public.financial_ledger WHERE reference='LED-PAY-PAY-ONE'")).rows[0].n),1);
   assert.equal(Number((await db.query("SELECT count(*)::int AS n FROM public.notifications WHERE related_id='payment-1'")).rows[0].n),1);
+  assert.equal(Number((await db.query("SELECT count(*)::int AS n FROM public.transactional_email_outbox WHERE entity_id='payment-1' AND event_type='payment_confirmed'")).rows[0].n),1);
 
   await assert.rejects(db.query(`SELECT public.apply_verified_paystack_payment($1,$2,$3,$4,$5,$6,NULL,NULL)`,[
     'payment-2','PAY-TWO',12345,'NGN','bad-amount',hash('bad-amount-event'),
@@ -92,6 +94,8 @@ test('capacity overflow enters review without creating an investment and failed 
   assert.equal((await db.query("SELECT status FROM public.investment_applications WHERE id='application-1'")).rows[0].status,'under_review');
   assert.equal(Number((await db.query("SELECT count(*)::int AS n FROM public.investments WHERE application_id='application-1'")).rows[0].n),0);
   assert.equal(Number((await db.query("SELECT count(*)::int AS n FROM public.financial_ledger WHERE reference='LED-PAY-PAY-INVEST'")).rows[0].n),1);
+  assert.equal(Number((await db.query("SELECT count(*)::int AS n FROM public.transactional_email_outbox WHERE entity_id='payment-3' AND event_type='payment_review'")).rows[0].n),1);
+  assert.equal(Number((await db.query("SELECT count(*)::int AS n FROM public.transactional_email_outbox WHERE entity_id='payment-3' AND event_type='payment_confirmed'")).rows[0].n),0);
 
   await db.query('SET ROLE service_role');
   const successfulArgs=['payment-1','PAY-ONE',250000,'NGN','paystack-tx-before-failure',hash('success-before-failure')];
@@ -117,4 +121,5 @@ test('ordinary investment funding creates one investment, one projected earnings
   assert.equal(Number((await db.query("SELECT count(*)::int AS n FROM public.investment_earnings WHERE reference='PROJ-APP-ONE'")).rows[0].n),1);
   assert.equal(Number((await db.query("SELECT subscribed FROM public.opportunities WHERE id='opportunity-1'")).rows[0].subscribed),100);
   assert.equal(Number((await db.query("SELECT count(*)::int AS n FROM public.financial_ledger WHERE reference IN ('LED-PAY-PAY-INVEST','LED-PAY-INVEST')")).rows[0].n),2);
+  assert.equal(Number((await db.query("SELECT count(*)::int AS n FROM public.transactional_email_outbox WHERE entity_id='payment-3' AND event_type='payment_confirmed'")).rows[0].n),1);
 });

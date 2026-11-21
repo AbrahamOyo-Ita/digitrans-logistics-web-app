@@ -8,6 +8,7 @@ import {seedDatabase} from '../scripts/seed-supabase.js';
 const files=[
   fileURLToPath(new URL('../supabase/migrations/202611160001_initial_schema.sql',import.meta.url)),
   fileURLToPath(new URL('../supabase/migrations/202611160002_payment_atomicity.sql',import.meta.url)),
+  fileURLToPath(new URL('../supabase/migrations/202611160003_transactional_email_outbox.sql',import.meta.url)),
 ];
 const seedPath=fileURLToPath(new URL('../supabase/seed.sql',import.meta.url));
 

@@ -34,7 +34,7 @@ SUPABASE_DB_TARGET=local npm run db:seed -- --apply
 npm run dev
 ```
 
-The API refuses to start unless the expected checked-in migrations and base catalogue are already present. It never applies migrations or seeds on startup. If Resend is not configured in development, registration/recovery responses may include a local-only verification/reset link for testing; production never exposes those links.
+The API refuses to start unless the expected checked-in migrations and base catalogue are already present. It never applies migrations or seeds on startup. If Resend is not configured in development, registration/recovery responses may include a local-only verification/reset link for testing; production never exposes those links. Logistics lifecycle messages are written to a PostgreSQL outbox in the same transaction as the business event, then sent by a protected Vercel Cron job; configure and verify Resend before expecting actual delivery.
 
 ## Useful commands
 
@@ -56,10 +56,11 @@ A migration/seed write is target-gated. Local apply requires a loopback database
 - **Authentication:** Supabase Auth owns credentials, email verification, recovery, sessions and refresh. App roles/statuses stay in `public.users` and permissions in the seeded role catalog. Session cookies are HTTP-only; configure `SESSION_COOKIE_SAME_SITE=none` and `Secure` when the frontend and API are cross-site.
 - **Files:** Native multipart parsing buffers uploads in memory; validated private documents/proof/receipts and public site images go to Supabase Storage. Private files are served through an authorization check and short-lived signed URLs. No local upload directories are used.
 - **Payments:** Paystack checkout/verification/webhooks call a versioned Postgres RPC for atomic, idempotent settlement. A browser redirect alone never confirms payment.
+- **Transactional email:** Auth verification/recovery use responsive Resend templates. Delivery, rider assignment, payment, Market Run and waybill events are captured by database triggers in `transactional_email_outbox` and drained by a retryable, idempotent Vercel Cron worker.
 
 ## Fresh-launch schema and seed
 
-`supabase/migrations/202611160001_initial_schema.sql` creates the application schema and scoped RLS/policies; `202611160002_payment_atomicity.sql` adds the payment event ledger and atomic settlement functions. `supabase/seed.sql` contains only idempotent role/permission grants, inactive launch zones, public FAQs and basic settings-no legacy records, uploaded files, demo identities or sample financial data. The guarded seed command can bootstrap the first production Super Administrator only during an explicitly approved production seed operation.
+`supabase/migrations/202611160001_initial_schema.sql` creates the application schema and scoped RLS/policies; `202611160002_payment_atomicity.sql` adds the payment event ledger and atomic settlement functions; `202611160003_transactional_email_outbox.sql` adds the private email outbox and business-event triggers. `supabase/seed.sql` contains only idempotent role/permission grants, inactive launch zones, public FAQs and basic settings-no legacy records, uploaded files, demo identities or sample financial data. The guarded seed command can bootstrap the first production Super Administrator only during an explicitly approved production seed operation.
 
 The checked-in migrations and seed are not yet applied to the connected Supabase project. The user's approval was conditional on a verified backup and final schema/security review; those gates are not confirmed complete here. Reconfirm explicitly immediately before any production SQL, and apply only through the guarded, checksum-tracked process. The current read-only check found no application tables, Auth users, Storage buckets/objects or migration history, but do not treat an empty migration ledger alone as proof that any project's data are empty.
 
@@ -69,7 +70,8 @@ See `.env.example`, `docs/supabase-migration.md`, and [the DNS setup runbook](do
 
 - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and a TLS-verified `SUPABASE_DB_URL` in the host's secret store only.
 - HTTPS `APP_URL`, exact `CLIENT_ORIGINS`, and appropriate secure cookie policy.
-- `RESEND_API_KEY` and `RESEND_FROM_EMAIL` for signup verification and password recovery.
+- A verified Resend sending domain, `RESEND_API_KEY`, and `RESEND_FROM_EMAIL` for account and lifecycle email. `APP_URL` must be the public HTTPS app origin so emails can load the original artwork and build safe links.
+- A long random `CRON_SECRET` shared with the Vercel deployment. The transactional-email worker runs every five minutes and allows a 30-second function duration; the Vercel plan or external scheduler must support both and send `Authorization: Bearer $CRON_SECRET`.
 - Optional Paystack secrets/callback once payment operations are approved.
 - A trusted `TRUST_PROXY` setting matching Vercel's proxy headers.
 
@@ -77,6 +79,6 @@ Never expose the service-role key or database URL in Vite variables, browser cod
 
 ## Verification boundary and remaining work
 
-Offline checks cover SQL schema/RLS/payment behavior in PGlite, query-template preparation against the migration schema, unit/config tests, syntax, and the Vite build. They do **not** verify live Supabase Auth email delivery, real Storage bucket behavior, PostgREST RPC deployment, Paystack, production CORS/cookies, deployed job behavior, route-by-route business parity, operational monitoring, backups/restores, or production load/security.
+Offline checks cover SQL schema/RLS/payment/outbox behavior in PGlite, query-template preparation against the migration schema, unit/config tests, syntax, and the Vite build. They do **not** verify real Supabase Auth/Resend delivery, Resend domain verification, applied production migrations, Vercel Cron execution or plan limits, real Storage behavior, Paystack, production CORS/cookies, route-by-route business parity, operational monitoring, backups/restores, or production load/security.
 
 Before launch, complete a reviewed test on a separate disposable Supabase environment, verify every critical workflow and role authorization, confirm email and Storage behavior, test the payment webhook through the RPC, review concurrency/scheduled jobs, and finish deployment/rollback/backup planning. Do not declare production readiness until those checks pass.

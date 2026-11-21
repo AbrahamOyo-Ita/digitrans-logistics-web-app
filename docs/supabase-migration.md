@@ -24,6 +24,7 @@ A current read-only review found Supabase Database/Auth/Storage/REST healthy, wi
 
 - `supabase/migrations/202611160001_initial_schema.sql` defines 53 application tables. Supabase Auth UUIDs back app user IDs; remaining business identifiers are text. The schema defines RLS/read scopes and the server-side service-role write path. It defines the private/public Storage buckets/policies required by the code.
 - `supabase/migrations/202611160002_payment_atomicity.sql` adds `payment_provider_events` (54 app tables total) and atomic Paystack success/failure functions; function execution is restricted to `service_role`.
+- `supabase/migrations/202611160003_transactional_email_outbox.sql` adds the private transactional-email outbox (55 app tables total) and database triggers for delivery, rider assignment, payment, Market Run and waybill lifecycle events. The trigger writes commit atomically with the business update; a protected Vercel Cron worker sends and retries messages through Resend.
 - `supabase/seed.sql` is idempotent and seeds 11 roles, 23 permissions, 50 grants, inactive service zones, public FAQs and basic site settings. It creates no demo identities, password, delivery, investment, payment, or legacy file records.
 - `scripts/apply-supabase-migrations.js` defaults to dry-run/no connection and tracks checksums in `digitrans_meta.schema_migrations`, plus Supabase CLI history. It refuses staging/production without exact configured host/user identity and explicit command-line approval. Production also requires `SUPABASE_PRODUCTION_MIGRATION_APPROVAL=I_REVIEWED_BACKUP_AND_CUTOVER_PLAN`; destructive SQL has a separate `--allow-destructive` gate.
 - `scripts/seed-supabase.js` likewise defaults to dry-run/no connection, uses the target guard, and only bootstraps a production administrator when run as an explicitly approved seed operation with strong one-time credentials.
@@ -35,7 +36,7 @@ No data/file migrator is planned for this fresh launch. No legacy SQLite rows or
 
 ## Configuration
 
-See `.env.example`. The API requires server-only `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_DB_URL`. Production requires verified database TLS, an HTTPS `APP_URL`, configured origins/cookie settings, and Resend sender credentials for account verification/recovery. Never put the service-role key/database URL in Vite variables or browser code. The Vercel frontend calls the native Node.js handlers through the same-origin `/api` path, so `VITE_API_BASE_URL` should remain unset in production.
+See `.env.example`. The API requires server-only `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_DB_URL`. Production requires verified database TLS, an HTTPS `APP_URL`, configured origins/cookie settings, and Resend sender credentials for account and lifecycle email. The five-minute Vercel Cron worker also requires a long random `CRON_SECRET` matching the deployment environment and a plan or external scheduler that supports the five-minute cadence and 30-second function duration. Verify the Resend sending domain before expecting actual delivery. Never put the service-role key/database URL in Vite variables or browser code. The Vercel frontend calls the native Node.js handlers through the same-origin `/api` path, so `VITE_API_BASE_URL` should remain unset in production.
 
 Typical migration commands are dry-run by default:
 

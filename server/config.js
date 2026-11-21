@@ -34,7 +34,8 @@ export function validateRuntimeConfig(env=process.env){
   if(env.APP_URL)normalizeOrigin(env.APP_URL,{production,label:'APP_URL'});
   if(production){
     if(!env.APP_URL)throw new Error('APP_URL must be the public HTTPS origin in production.');
-    if(!String(env.RESEND_API_KEY||'').trim()||!String(env.RESEND_FROM_EMAIL||'').trim())throw new Error('RESEND_API_KEY and RESEND_FROM_EMAIL are required to deliver Auth verification and recovery links.');
+    if(!String(env.RESEND_API_KEY||'').trim()||!String(env.RESEND_FROM_EMAIL||'').trim())throw new Error('RESEND_API_KEY and RESEND_FROM_EMAIL are required to deliver transactional account and lifecycle email.');
+    if(String(env.CRON_SECRET||'').trim().length<32)throw new Error('CRON_SECRET must contain at least 32 characters to protect scheduled jobs.');
     const apiOrigin=String(env.CLIENT_ORIGINS||'').split(',').map(value=>value.trim()).filter(Boolean);
     for(const origin of apiOrigin)normalizeOrigin(origin,{production:true,label:'CLIENT_ORIGINS entry'});
   }

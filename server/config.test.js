@@ -7,7 +7,7 @@ const productionEnv={
   NODE_ENV:'production',APP_URL:'https://app.example.test',CLIENT_ORIGINS:'https://api-client.example.test',
   SUPABASE_URL:'https://project.supabase.co',SUPABASE_SERVICE_ROLE_KEY:serviceKey,
   SUPABASE_DB_URL:'postgresql://api_user:secret@db.example.test/postgres?sslmode=require',
-  RESEND_API_KEY:'re_test_key',RESEND_FROM_EMAIL:'DigiTrans <no-reply@example.test>',
+  RESEND_API_KEY:'re_test_key',RESEND_FROM_EMAIL:'DigiTrans <no-reply@example.test>',CRON_SECRET:'a'.repeat(40),
   PAYMENT_CALLBACK_URL:'https://app.example.test/payment/return',
 };
 
@@ -37,6 +37,7 @@ test('production requires verified HTTPS, auth-email configuration, and a same-o
   assert.throws(()=>validateRuntimeConfig({NODE_ENV:'production'}),/SUPABASE_DB_URL/);
   assert.doesNotThrow(()=>validateRuntimeConfig(productionEnv));
   assert.throws(()=>validateRuntimeConfig({...productionEnv,RESEND_API_KEY:''}),/RESEND_API_KEY/);
+  assert.throws(()=>validateRuntimeConfig({...productionEnv,CRON_SECRET:'too-short'}),/CRON_SECRET/);
   assert.throws(()=>validateRuntimeConfig({...productionEnv,PAYMENT_CALLBACK_URL:'https://other.example.test/payment/return'}),/same HTTPS origin/);
   assert.throws(()=>validateRuntimeConfig({...productionEnv,PAYMENT_CALLBACK_URL:'https://user:pass@app.example.test/payment/return'}),/without credentials/);
   assert.throws(()=>validateRuntimeConfig({...productionEnv,APP_URL:'http://app.example.test'}),/HTTPS/);

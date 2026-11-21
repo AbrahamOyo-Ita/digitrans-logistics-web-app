@@ -2,10 +2,16 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "functions": {
+    "api/cron/transactional-emails.js": { "maxDuration": 30 }
+  },
   "crons": [
-    { "path": "/api/cron/scheduled-deliveries", "schedule": "0 0 * * *" }
+    { "path": "/api/cron/scheduled-deliveries", "schedule": "0 0 * * *" },
+    { "path": "/api/cron/transactional-emails", "schedule": "*/5 * * * *" }
   ],
   "routes": [
+    { "src": "/api/cron/scheduled-deliveries", "dest": "/api/cron/scheduled-deliveries.js" },
+    { "src": "/api/cron/transactional-emails", "dest": "/api/cron/transactional-emails.js" },
     { "src": "/api/(.*)", "dest": "/api/[...path].js" },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
