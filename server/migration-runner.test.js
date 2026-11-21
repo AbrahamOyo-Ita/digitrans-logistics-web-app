@@ -47,7 +47,7 @@ test('destructive migrations require a separate explicit confirmation',()=>{
 
 test('migration plan is deterministic, checksum-addressed, and does not require a database URL',async()=>{
   const migrations=await listMigrationFiles();
-  assert.equal(migrations.length,4);
-  assert.deepEqual(migrations.map(item=>item.version),['202611160001','202611160002','202611160003','202611210001']);
+  assert.equal(migrations.length,5);
+  assert.deepEqual(migrations.map(item=>item.version),['202611160001','202611160002','202611160003','202611210001','202611210002']);
   for(const migration of migrations){assert.match(migration.checksum,/^[0-9a-f]{64}$/);assert.ok(migration.sql.length>100);}
 });

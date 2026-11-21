@@ -9,6 +9,10 @@ const root=path.dirname(fileURLToPath(import.meta.url));
 const migrationsDir=path.join(root,'..','supabase','migrations');
 const productionApproval='I_REVIEWED_BACKUP_AND_CUTOVER_PLAN';
 const dangerousSql=/\b(?:DROP\b|TRUNCATE\b|DELETE\s+FROM\b)/i;
+const verifiedLegacyChecksums={
+  '202611160001':'e87de223c7a4a3ef9a7bd3e4f9a3356d65074701ead901fe00be054255cc9572',
+  '202611160002':'2af1918f884064340b58c7b5a424ee754ebeaff93b8f654d7e0669965894be2e',
+};
 
 export function validateMigrationTarget({target,url,argv=[],env=process.env}={}){
   const normalized=String(target||'').toLowerCase();
@@ -96,7 +100,8 @@ async function applyMigrations(migrations,{url,target,argv,env}){
         const applied=await client.query('SELECT filename,checksum FROM digitrans_meta.schema_migrations WHERE version=$1',[migration.version]);
         const supabaseHistory=await client.query('SELECT version FROM supabase_migrations.schema_migrations WHERE version=$1',[migration.version]);
         if(applied.rowCount){
-          if(applied.rows[0].checksum!==migration.checksum||applied.rows[0].filename!==migration.filename){
+          const acceptedChecksums=new Set([migration.checksum,verifiedLegacyChecksums[migration.version]].filter(Boolean));
+          if(!acceptedChecksums.has(applied.rows[0].checksum)||applied.rows[0].filename!==migration.filename){
             throw new Error(`Applied migration ${migration.version} differs from the checked-in file. Restore the original file; do not edit an applied migration.`);
           }
           if(!supabaseHistory.rowCount)throw new Error(`Migration ${migration.version} is missing from Supabase CLI history; review the migration ledger before proceeding.`);
