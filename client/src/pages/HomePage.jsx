@@ -1,7 +1,15 @@
-import React,{useState} from 'react';
+import React,{useEffect,useState} from 'react';
 import Icon from '../components/Icon';
 import ScrollReveal from '../components/ScrollReveal';
 import {articles,services,testimonials,zones} from './publicContent';
+
+const heroSlides=[
+ {src:'/images/street-wide.jpg',alt:'A DigiTrans delivery rider on a cargo bike travelling through Calabar at dusk',caption:'Delivery bikes, built for the city',position:'center 52%'},
+ {src:'/images/hero-courier.jpg',alt:'A local bicycle courier with a parcel-ready cargo bike',caption:'Bicycle and cargo-bike couriers',position:'52% 58%'},
+ {src:'/images/depot.jpg',alt:'DigiTrans riders and their delivery fleet getting parcels ready at the depot',caption:'A local fleet, ready to move',position:'center 50%'},
+ {src:'/images/market-run.jpg',alt:'A market runner selecting fresh produce for a customer',caption:'Market runs around your day',position:'center 52%'},
+ {src:'/images/handover.jpg',alt:'A DigiTrans courier handing a parcel directly to a customer',caption:'Every handoff, handled with care',position:'center 50%'},
+];
 
 function DispatchPanel({navigate}){
  const [tab,setTab]=useState('track');
@@ -47,28 +55,64 @@ function DispatchPanel({navigate}){
 
 function HomePage({content,navigate}){
  const [reviewIndex,setReviewIndex]=useState(0);
+ const [slideIndex,setSlideIndex]=useState(0);
+ const [isPaused,setIsPaused]=useState(false);
+ const [isHovering,setIsHovering]=useState(false);
+ const [hasFocus,setHasFocus]=useState(false);
+ const [prefersReducedMotion,setPrefersReducedMotion]=useState(false);
+ const [pageVisible,setPageVisible]=useState(true);
  const review=testimonials[reviewIndex%testimonials.length];
  const featuredServices=services;
  const moveReview=direction=>setReviewIndex(index=>(index+direction+testimonials.length)%testimonials.length);
  const announcement=content?.banners?.[0];
+
+ useEffect(()=>{
+  const query=window.matchMedia?.('(prefers-reduced-motion: reduce)');
+  if(!query)return;
+  const update=()=>setPrefersReducedMotion(query.matches);
+  update();
+  query.addEventListener?.('change',update);
+  return()=>query.removeEventListener?.('change',update);
+ },[]);
+ useEffect(()=>{
+  const update=()=>setPageVisible(!document.hidden);
+  update();
+  document.addEventListener('visibilitychange',update);
+  return()=>document.removeEventListener('visibilitychange',update);
+ },[]);
+ useEffect(()=>{
+  if(isPaused||isHovering||hasFocus||prefersReducedMotion||!pageVisible)return;
+  const timer=window.setInterval(()=>setSlideIndex(index=>(index+1)%heroSlides.length),5000);
+  return()=>window.clearInterval(timer);
+ },[isPaused,isHovering,hasFocus,prefersReducedMotion,pageVisible,slideIndex]);
  return <section className="home-stage">
   <div className="home-stage-atmosphere" aria-hidden="true"/>
   <div className="home-shell">
-   <section className="home-hero" aria-labelledby="home-title">
-    <img className="home-hero-photo" src="/images/hero-coastal-logistics.jpg" alt="A container vessel travelling along the coast at first light" fetchpriority="high"/>
+   <section className="home-hero" role="region" aria-roledescription="carousel" aria-label="DigiTrans delivery services" aria-labelledby="home-title" onFocusCapture={()=>setHasFocus(true)} onBlurCapture={event=>{if(!event.currentTarget.contains(event.relatedTarget))setHasFocus(false);}}>
+    <div className="home-hero-photos">
+     {heroSlides.map((slide,index)=><img key={slide.src} className={`home-hero-photo ${index===slideIndex?'is-active':''}`} src={slide.src} alt={slide.alt} aria-hidden={index!==slideIndex} style={{objectPosition:slide.position}} fetchPriority={index===0?'high':undefined} loading={index===0?'eager':'lazy'} decoding="async"/>)}
+    </div>
     <div className="home-hero-shade" aria-hidden="true"/>
-    <div className="home-hero-grid" aria-hidden="true"/>
     <div className="home-hero-content">
      <div className="home-hero-copy">
-      <p className="home-kicker"><span className="home-kicker-dot"/>Calabar, in motion <span className="home-kicker-divider">/</span> Cross River State</p>
-      <h1 id="home-title">Move your day.<br/><span>We’ll move the rest.</span></h1>
-      <p className="home-hero-lede">Thoughtful delivery for the way Calabar lives and works — from one parcel across town to a market list, a business fleet or a waybill out of the city.</p>
+      <p className="home-kicker"><span className="home-kicker-dot"/>Calabar, Cross River State</p>
+      <h1 id="home-title">Calabar moves.<br/><span>We keep it moving.</span></h1>
+      <p className="home-hero-lede">From bicycle couriers and delivery bikes to market runs and business fleets, we make local logistics easier—with clear fares, riders who know the route and a dispatch desk that answers.</p>
       <div className="home-hero-actions"><button type="button" className="home-button home-button-primary" onClick={()=>navigate('/quote')}>Get a delivery quote<Icon name="arrow" size={16}/></button><button type="button" className="home-button home-button-quiet" onClick={()=>navigate('/services')}>Explore our services<Icon name="chevron" size={14}/></button></div>
-      <div className="home-hero-footnote"><span className="home-footnote-mark"><Icon name="pin" size={14}/></span><span>Local knowledge. Clear fares. A real dispatch desk.</span></div>
+      <div className="home-hero-footnote"><span className="home-footnote-mark"><Icon name="pin" size={14}/></span><span>Local riders. Clear fares. Every handoff tracked.</span></div>
      </div>
      <ScrollReveal className="home-dispatch-reveal" delay={160}><DispatchPanel navigate={navigate}/></ScrollReveal>
     </div>
-    <div className="home-hero-bottom"><span>Local roots <i/> Wider reach</span><span className="home-scroll-cue"><span/>Scroll to explore</span></div>
+    <div className="home-hero-bottom">
+     <div className="home-hero-local-note"><span className="home-hero-local-icon"><Icon name="pin" size={15}/></span><span><strong>Rooted in Calabar</strong><small>Routes known by name.</small></span></div>
+     <div className="home-carousel" onMouseEnter={()=>setIsHovering(true)} onMouseLeave={()=>setIsHovering(false)}>
+      <div className="home-carousel-caption"><span className="home-carousel-count">{String(slideIndex+1).padStart(2,'0')}<i>/</i>{String(heroSlides.length).padStart(2,'0')}</span><span className="home-carousel-label">{heroSlides[slideIndex].caption}</span></div>
+      <div className="home-carousel-controls" role="group" aria-label="Hero background photo controls">
+       <div className="home-carousel-dots">{heroSlides.map((slide,index)=><button key={slide.src} type="button" className={index===slideIndex?'is-active':''} aria-label={`Show photo ${index+1}: ${slide.caption}`} aria-pressed={index===slideIndex} onClick={()=>setSlideIndex(index)}><span/></button>)}</div>
+       {!prefersReducedMotion&&<button type="button" className="home-carousel-toggle" aria-label={isPaused?'Resume background photos':'Pause background photos'} aria-pressed={isPaused} onClick={()=>{setIsPaused(value=>!value);setHasFocus(false);}}><span aria-hidden="true"/></button>}
+      </div>
+     </div>
+    </div>
    </section>
 
    <div className="home-trust-strip"><div className="home-trust-intro"><span>Built around your day</span><p>Good logistics should feel effortless.</p></div><div className="home-trust-list"><span><Icon name="bike" size={17}/>Calabar-based riders</span><span><Icon name="spark" size={17}/>Fares before you book</span><span><Icon name="support" size={17}/>One desk that answers</span><span><Icon name="box" size={17}/>Every handoff tracked</span></div></div>

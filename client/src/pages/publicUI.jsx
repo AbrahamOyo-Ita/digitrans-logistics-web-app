@@ -1,4 +1,4 @@
-import React,{useEffect,useMemo,useState} from 'react';
+import React,{useEffect,useMemo,useRef,useState} from 'react';
 import Logo from '../components/Brand';
 import Icon from '../components/Icon';
 import {faqs as defaultFaqs,services,site,zones} from './publicContent';
@@ -14,36 +14,92 @@ const serviceLinks=[
 ];
 
 export function SiteHeader({page,navigate,onLogin,user}){
- const [open,setOpen]=useState(false),[servicesOpen,setServicesOpen]=useState(false),[scrolled,setScrolled]=useState(false);
+ const [open,setOpen]=useState(false);
+ const [servicesOpen,setServicesOpen]=useState(false);
+ const [scrolled,setScrolled]=useState(false);
+ const menuButtonRef=useRef(null);
+ const closeButtonRef=useRef(null);
+ const drawerRef=useRef(null);
+ const wasOpen=useRef(false);
  const isHome=page==='/';
- useEffect(()=>{const update=()=>setScrolled(window.scrollY>80);update();window.addEventListener('scroll',update,{passive:true});return()=>window.removeEventListener('scroll',update);},[]);
+
+ useEffect(()=>{
+  const update=()=>setScrolled(window.scrollY>18);
+  update();
+  window.addEventListener('scroll',update,{passive:true});
+  return()=>window.removeEventListener('scroll',update);
+ },[]);
  useEffect(()=>{setOpen(false);setServicesOpen(false);},[page]);
- useEffect(()=>{document.body.style.overflow=open?'hidden':'';return()=>{document.body.style.overflow='';};},[open]);
+ useEffect(()=>{
+  document.body.style.overflow=open?'hidden':'';
+  return()=>{document.body.style.overflow='';};
+ },[open]);
+ useEffect(()=>{
+  if(!open)return;
+  const handleMenuKeyDown=event=>{
+   if(event.key==='Escape'){
+    setOpen(false);
+    return;
+   }
+   if(event.key!=='Tab')return;
+   const items=drawerRef.current?.querySelectorAll('button:not([disabled]),a[href]');
+   if(!items?.length)return;
+   const first=items[0],last=items[items.length-1];
+   if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
+   else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+  };
+  window.addEventListener('keydown',handleMenuKeyDown);
+  return()=>window.removeEventListener('keydown',handleMenuKeyDown);
+ },[open]);
+ useEffect(()=>{
+  if(open){wasOpen.current=true;closeButtonRef.current?.focus();return;}
+  if(wasOpen.current){menuButtonRef.current?.focus();wasOpen.current=false;}
+ },[open]);
+
  const go=path=>{navigate(path);setOpen(false);setServicesOpen(false);};
+ const signIn=()=>{
+  if(user){go('/workspace');return;}
+  setOpen(false);
+  onLogin('/workspace');
+ };
  const isActive=path=>page===path||(path!=='/'&&page.startsWith(`${path}/`));
+
  return <>
-  <header className={`site-header z-50 transition-all duration-300 ${isHome?`site-header-home ${scrolled?'is-scrolled':''}`:`sticky top-0 border-b border-line bg-white ${scrolled?'shadow-[0_1px_20px_-8px_rgba(11,27,43,.28)]':''}`}`}>
-   <div className="container-x flex h-[4.5rem] items-center justify-between gap-4"><Logo navigate={navigate}/>
-    <nav className="hidden items-center gap-6 lg:flex" aria-label="Main">
-     {primaryNav.map(([label,path])=>label==='Services'?<div key={label} className="group relative" onMouseEnter={()=>setServicesOpen(true)} onMouseLeave={()=>setServicesOpen(false)}>
-      <button type="button" onFocus={()=>setServicesOpen(true)} onClick={()=>go(path)} aria-expanded={servicesOpen} className={`group/link relative py-2 text-[.875rem] transition-colors ${isActive(path)?'text-navy':'text-ink-slate hover:text-navy'} ${isHome?'home-nav-link':''}`}>{label}<span className={`absolute -bottom-0.5 left-0 h-px w-full origin-left transition-transform duration-200 ${isHome?'bg-white/80':'bg-navy'} ${isActive(path)?'scale-x-100':'scale-x-0 group-hover/link:scale-x-100'}`}/></button>
-      {servicesOpen&&<div className="absolute -left-6 top-full z-50 w-[38rem] pt-5"><div className="overflow-hidden rounded-2xl border border-line/80 bg-white shadow-2xl ring-1 ring-black/[0.04]"><div className="grid grid-cols-2">{serviceLinks.map(item=><button key={item.href} type="button" onClick={()=>go(item.href)} className="group/item border-b border-line px-5 py-4 text-left transition-colors odd:border-r hover:bg-paper"><span className="flex items-center justify-between gap-2 text-[.875rem] font-semibold text-navy group-hover/item:text-cyan transition-colors">{item.label}<Icon name="arrow" size={14} className="-translate-x-1 opacity-0 transition-all group-hover/item:translate-x-0 group-hover/item:opacity-100 text-cyan"/></span><span className="mt-1 block text-[.75rem] leading-relaxed text-muted">{item.hint}</span></button>)}</div><button type="button" onClick={()=>go('/pricing')} className="flex w-full items-center justify-between border-t border-line bg-paper/70 px-5 py-3 text-left text-[.8125rem] font-medium text-navy hover:bg-mist">Compare tariffs and services<Icon name="arrow" size={14}/></button></div></div>}
-     </div>:<button key={path} type="button" onClick={()=>go(path)} className={`group relative py-2 text-[.875rem] transition-colors ${isActive(path)?'text-navy':'text-ink-slate hover:text-navy'} ${isHome?'home-nav-link':''}`}>{label}<span className={`absolute -bottom-0.5 left-0 h-px w-full origin-left transition-transform duration-200 ${isHome?'bg-white/80':'bg-navy'} ${isActive(path)?'scale-x-100':'scale-x-0 group-hover:scale-x-100'}`}/></button>)}
+  <header className={`site-header ${isHome?'site-header-home':'site-header-public'} ${scrolled?'is-scrolled':''}`}>
+   <div className="site-header-inner">
+    <Logo navigate={navigate} className="site-header-brand"/>
+    <nav className="site-primary-nav" aria-label="Main navigation">
+     {primaryNav.map(([label,path])=>label==='Services'?<div key={label} className="site-nav-services" onMouseEnter={()=>setServicesOpen(true)} onMouseLeave={()=>setServicesOpen(false)} onBlur={event=>{if(!event.currentTarget.contains(event.relatedTarget))setServicesOpen(false);}}>
+      <button type="button" onFocus={()=>setServicesOpen(true)} onClick={()=>go(path)} onKeyDown={event=>{if(event.key==='Escape')setServicesOpen(false);}} aria-expanded={servicesOpen} aria-current={isActive(path)?'page':undefined} className={`site-nav-link site-nav-services-trigger ${isActive(path)?'is-active':''}`}>
+       {label}<Icon name="down" size={13} className={servicesOpen?'is-open':''}/>
+      </button>
+      {servicesOpen&&<div className="site-services-dropdown"><div className="site-services-dropdown-card">
+       <div className="site-services-dropdown-heading"><span>Services</span><small>Delivery that fits the trip</small></div>
+       <div className="site-services-grid">{serviceLinks.map(item=><button key={item.href} type="button" onClick={()=>go(item.href)} className="site-service-menu-link"><span>{item.label}<Icon name="arrow" size={14}/></span><small>{item.hint}</small></button>)}</div>
+       <button type="button" onClick={()=>go('/pricing')} className="site-services-dropdown-footer">Compare tariffs and services<Icon name="arrow" size={14}/></button>
+      </div></div>}
+     </div>:<button key={path} type="button" onClick={()=>go(path)} aria-current={isActive(path)?'page':undefined} className={`site-nav-link ${isActive(path)?'is-active':''}`}>{label}</button>)}
     </nav>
-    <div className="flex items-center gap-2 sm:gap-3"><a href={site.phoneHref} className={`hidden items-center gap-2 text-[.8125rem] font-medium text-ink-slate transition-colors hover:text-navy xl:inline-flex ${isHome?'home-header-contact':''}`}><Icon name="phone" size={14}/>{site.phone}</a><span aria-hidden className={`hidden h-4 w-px bg-line xl:block ${isHome?'home-header-separator':''}`}/><button type="button" onClick={()=>go('/track')} className={`hidden h-10 w-10 place-items-center text-ink-slate transition-colors hover:text-navy md:grid ${isHome?'home-header-icon':''}`} aria-label="Track a parcel"><Icon name="search" size={17}/></button><button type="button" onClick={()=>user?go('/workspace'):onLogin('/workspace')} className={`hidden px-1 py-2 text-[.8125rem] font-medium text-ink-slate transition-colors hover:text-cyan xl:inline-flex ${isHome?'home-header-link':''}`}>{user?'Workspace':'Sign in'}</button><button type="button" onClick={()=>go('/quote')} className={`pill pill-sm hidden sm:inline-flex ${isHome?'home-header-cta':'pill-cyan'}`}>Get a quote<Icon name="arrow" size={14}/></button><button type="button" onClick={()=>setOpen(true)} className={`-mr-2 grid h-11 w-11 place-items-center text-navy lg:hidden ${isHome?'home-header-menu':''}`} aria-label="Open menu" aria-expanded={open}><Icon name="menu" size={20}/></button></div>
+    <div className="site-header-actions">
+     <button type="button" onClick={signIn} className="site-header-signin">{user?'Workspace':'Sign in'}</button>
+     <button type="button" onClick={()=>go('/quote')} className="site-header-quote">Get a quote<Icon name="arrow" size={15}/></button>
+     <button ref={menuButtonRef} type="button" onClick={()=>setOpen(true)} className="site-header-menu-button" aria-label="Open menu" aria-expanded={open} aria-controls="site-mobile-drawer"><Icon name="menu" size={21}/></button>
+    </div>
    </div>
   </header>
-  <div className={`fixed inset-0 z-[60] lg:hidden ${open?'pointer-events-auto':'pointer-events-none'}`} aria-hidden={!open}>
-   <button type="button" aria-label="Close menu" onClick={()=>setOpen(false)} className={`absolute inset-0 bg-navy/35 transition-opacity duration-300 ${open?'opacity-100':'opacity-0'}`}/>
-   <aside className={`absolute inset-y-0 right-0 flex w-[min(26rem,94vw)] flex-col rounded-l-3xl bg-white shadow-2xl transition-transform duration-300 ease-out ${open?'translate-x-0':'translate-x-full'}`} role="dialog" aria-modal="true" aria-label="Site menu">
-    <div className="flex h-[4.5rem] items-center justify-between border-b border-line px-5"><Logo navigate={navigate}/><button type="button" onClick={()=>setOpen(false)} className="grid h-11 w-11 place-items-center rounded-full text-navy hover:bg-paper" aria-label="Close menu"><Icon name="close" size={20}/></button></div>
-    <div className="flex-1 overflow-y-auto px-5 py-6"><p className="text-[.6875rem] font-medium uppercase tracking-[.16em] text-muted">Services</p><div className="mt-3">{serviceLinks.map(item=><button key={item.href} type="button" onClick={()=>go(item.href)} className="flex w-full items-center justify-between border-b border-line py-3 text-left text-[.9375rem] text-navy">{item.label}<Icon name="arrow" size={15} className="text-muted"/></button>)}</div><p className="mt-8 text-[.6875rem] font-medium uppercase tracking-[.16em] text-muted">Company</p><div className="mt-3">{primaryNav.filter(([label])=>label!=='Services').map(([label,path])=><button key={path} type="button" onClick={()=>go(path)} className="flex w-full items-center justify-between border-b border-line py-3 text-left text-[.9375rem] text-navy">{label}<Icon name="arrow" size={15} className="text-muted"/></button>)}<button type="button" onClick={()=>user?go('/workspace'):(onLogin('/workspace'),setOpen(false))} className="flex w-full items-center justify-between border-b border-line py-3 text-left text-[.9375rem] text-navy">{user?'Workspace':'Sign in'}<Icon name="arrow" size={15} className="text-muted"/></button></div></div>
-    <div className="border-t border-line p-5"><button type="button" onClick={()=>go('/quote')} className="pill pill-cyan w-full">Get a quote<Icon name="arrow" size={15}/></button><a href={site.phoneHref} className="mt-3 flex items-center justify-center gap-2 text-[.8125rem] font-medium text-ink-slate"><Icon name="phone" size={14}/>{site.phone}</a></div>
+  <div className={`site-mobile-overlay ${open?'is-open':''}`} aria-hidden={!open}>
+   <button type="button" aria-label="Close menu" onClick={()=>setOpen(false)} className="site-mobile-backdrop" tabIndex={open?0:-1}/>
+   <aside ref={drawerRef} id="site-mobile-drawer" className="site-mobile-drawer" role="dialog" aria-modal="true" aria-label="Site menu">
+    <div className="site-mobile-header"><Logo navigate={navigate}/><button ref={closeButtonRef} type="button" onClick={()=>setOpen(false)} className="site-mobile-close" aria-label="Close menu"><Icon name="close" size={20}/></button></div>
+    <div className="site-mobile-content">
+     <p className="site-mobile-eyebrow">Explore DigiTrans</p>
+     <nav className="site-mobile-links" aria-label="Mobile navigation">{primaryNav.map(([label,path])=><button key={path} type="button" onClick={()=>go(path)} className={`site-mobile-link ${isActive(path)?'is-active':''}`}><span>{label}</span><Icon name="arrow" size={16}/></button>)}<button type="button" onClick={signIn} className="site-mobile-link"><span>{user?'Workspace':'Sign in'}</span><Icon name="arrow" size={16}/></button></nav>
+    </div>
+    <div className="site-mobile-footer"><button type="button" onClick={()=>go('/quote')} className="site-mobile-quote">Get a delivery quote<Icon name="arrow" size={16}/></button><a href={site.phoneHref} className="site-mobile-phone"><Icon name="phone" size={14}/>{site.phone}</a></div>
    </aside>
   </div>
  </>;
 }
-
 export function SiteFooter({navigate,onLogin,user}){
  const quick=[['Home','/'],['Services','/services'],['About','/about'],['Coverage','/coverage'],['Pricing','/pricing'],['Track a delivery','/track'],['Contact','/contact']];
  return <footer className="band"><div className="container-x"><div className="grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-[1.25fr_1fr_1fr_1.2fr] lg:gap-12">
