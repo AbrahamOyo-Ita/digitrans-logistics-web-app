@@ -95,11 +95,9 @@ function HomePage({content,navigate}){
     <div className="home-hero-shade" aria-hidden="true"/>
     <div className="home-hero-content">
      <div className="home-hero-copy">
-      <p className="home-kicker"><span className="home-kicker-dot"/>Calabar, Cross River State</p>
       <h1 id="home-title">Calabar moves.<br/><span>We keep it moving.</span></h1>
-      <p className="home-hero-lede">From bicycle couriers and delivery bikes to market runs and business fleets, we make local logistics easier—with clear fares, riders who know the route and a dispatch desk that answers.</p>
+      <p className="home-hero-lede">From bicycle couriers and delivery bikes to market runs and business fleets, we make local logistics easier - with clear fares, riders who know the route and a dispatch desk that answers.</p>
       <div className="home-hero-actions"><button type="button" className="home-button home-button-primary" onClick={()=>navigate('/quote')}>Get a delivery quote<Icon name="arrow" size={16}/></button><button type="button" className="home-button home-button-quiet" onClick={()=>navigate('/services')}>Explore our services<Icon name="chevron" size={14}/></button></div>
-      <div className="home-hero-footnote"><span className="home-footnote-mark"><Icon name="pin" size={14}/></span><span>Local riders. Clear fares. Every handoff tracked.</span></div>
      </div>
      <ScrollReveal className="home-dispatch-reveal" delay={160}><DispatchPanel navigate={navigate}/></ScrollReveal>
     </div>
@@ -121,7 +119,7 @@ function HomePage({content,navigate}){
 
    <section className="home-story-section">
     <div className="home-section-wrap home-story-grid">
-     <ScrollReveal className="home-story-copy"><p className="home-eyebrow">More than a delivery app</p><h2 className="home-section-title">A little more time<br/><em>for what matters.</em></h2><p className="home-section-lede">We bring the rider, the runner and the dispatch desk together — so you can send a parcel, shop a market or keep a business moving without chasing every handoff.</p><button type="button" className="home-text-link" onClick={()=>navigate('/about')}>Meet your local logistics team<Icon name="arrow" size={15}/></button><div className="home-story-note"><span className="home-note-icon"><Icon name="check" size={16}/></span><p><strong>Built for Calabar.</strong><br/>From Marian Road to the streets you know by name.</p></div></ScrollReveal>
+     <ScrollReveal className="home-story-copy"><p className="home-eyebrow">More than a delivery app</p><h2 className="home-section-title">A little more time<br/><em>for what matters.</em></h2><p className="home-section-lede">We bring the rider, the runner and the dispatch desk together - so you can send a parcel, shop a market or keep a business moving without chasing every handoff.</p><button type="button" className="home-text-link" onClick={()=>navigate('/about')}>Meet your local logistics team<Icon name="arrow" size={15}/></button><div className="home-story-note"><span className="home-note-icon"><Icon name="check" size={16}/></span><p><strong>Built for Calabar.</strong><br/>From Marian Road to the streets you know by name.</p></div></ScrollReveal>
      <ScrollReveal className="home-photo-collage" delay={130}>
       <div className="home-photo-tall"><img src="/images/hero-courier.jpg" alt="A DigiTrans rider ready to take a delivery across Calabar" loading="lazy"/><span className="home-photo-caption"><Icon name="bike" size={14}/>Your city. Your riders.</span></div>
       <div className="home-photo-stack"><div className="home-photo-short"><img src="/images/depot.jpg" alt="DigiTrans riders and dispatch team preparing deliveries" loading="lazy"/><span className="home-photo-overlay">Ready at the depot</span></div><div className="home-photo-short home-photo-market"><img src="/images/market-run.jpg" alt="A local market run being prepared" loading="lazy"/><span className="home-photo-overlay">Markets, made simpler</span></div></div>

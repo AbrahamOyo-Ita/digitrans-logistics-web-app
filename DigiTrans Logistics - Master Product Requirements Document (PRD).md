@@ -410,7 +410,7 @@ Commercial accounts allow local businesses (restaurants, eateries, bakeries, pha
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│ VENDOR DASHBOARD — "Calabar Fresh Bakes"              [ Create Order ]   │
+│ VENDOR DASHBOARD - "Calabar Fresh Bakes"              [ Create Order ]   │
 ├──────────────────────────────────────────────────────────────────────────┤
 │ Active Deliveries: 4  │ Completed Today: 18  │ Monthly Spend: ₦142,500   │
 ├──────────────────────────────────────────────────────────────────────────┤
