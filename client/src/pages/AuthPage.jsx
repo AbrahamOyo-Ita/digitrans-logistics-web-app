@@ -44,6 +44,18 @@ export default function AuthPage({
 
   const params = new URLSearchParams(window.location.search);
   const next = params.get('next') || '/workspace';
+  const oauthError = params.get('oauth_error');
+
+  useEffect(() => {
+    const messages = {
+      google_cancelled: 'Google sign-in was cancelled. You can try again or use your email and password.',
+      google_state_invalid: 'Google sign-in expired. Please try again.',
+      google_code_missing: 'Google sign-in could not be completed. Please try again.',
+      google_account_conflict: 'That Google email is linked to another account. Sign in with your existing account.',
+      google_failed: 'Google sign-in could not be completed. Please try again.'
+    };
+    if (oauthError) setError(messages[oauthError] || messages.google_failed);
+  }, [oauthError]);
 
   const resendVerification = async () => {
     setResendBusy(true);
@@ -190,7 +202,9 @@ export default function AuthPage({
 
   const handleGoogleAuth = () => {
     setError('');
-    setSuccess('Connecting to Google Single Sign-On… If this takes a moment, please sign in with your email or phone.');
+    setBusy(true);
+    const query = new URLSearchParams({ role, next });
+    window.location.assign(`/api/auth/google?${query.toString()}`);
   };
 
   return (

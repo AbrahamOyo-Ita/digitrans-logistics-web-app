@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import {asyncRouter} from '../async-router.js';
 import {z} from 'zod';
 import db from '../db.js';
@@ -7,7 +8,7 @@ import {createAuthEmailTemplate} from '../email-templates.js';
 import {buildUserIdentifierPredicate,normalizePhoneNumber} from '../phone.js';
 import {getSessionCookieOptions} from '../config.js';
 import {logger} from '../logger.js';
-import {getSupabaseAdmin} from '../supabase.js';
+import {getSupabaseAdmin,readSupabaseConfig} from '../supabase.js';
 import {PUBLIC_SIGNUP_ROLES} from '../../shared/roles.js';
 
 const router=asyncRouter();
@@ -65,6 +66,84 @@ function verificationUrl(req,{token,email,type}){
   const url=new URL(type==='recovery'?'/reset-password':'/auth/verify',appOrigin(req));
   url.searchParams.set('token',token);url.searchParams.set('email',email);return url;
 }
+
+const GOOGLE_STATE_COOKIE='google_oauth_state';
+const GOOGLE_VERIFIER_COOKIE='google_oauth_verifier';
+const GOOGLE_OAUTH_MAX_AGE=10*60;
+
+function safeAuthNext(value){
+  const candidate=String(value||'/workspace');
+  try{
+    const url=new URL(candidate,'http://localhost');
+    return url.origin==='http://localhost'&&url.pathname.startsWith('/')&&!url.pathname.startsWith('//')
+      ? `${url.pathname}${url.search}${url.hash}`:'/workspace';
+  }catch{return '/workspace';}
+}
+
+function oauthCookieOptions(path){
+  return {...sessionCookieOptions,path,maxAge:GOOGLE_OAUTH_MAX_AGE,sameSite:'lax'};
+}
+
+function encodeOAuthState(value){return Buffer.from(JSON.stringify(value)).toString('base64url');}
+function signOAuthState(value){
+  return crypto.createHmac('sha256',String(process.env.SUPABASE_SERVICE_ROLE_KEY||'')).update(value).digest('base64url');
+}
+function createOAuthState(payload){
+  const encoded=encodeOAuthState(payload);
+  return `${encoded}.${signOAuthState(encoded)}`;
+}
+function readOAuthState(value){
+  const [encoded,signature]=String(value||'').split('.');
+  if(!encoded||!signature)return null;
+  const expected=signOAuthState(encoded);
+  const left=Buffer.from(signature),right=Buffer.from(expected);
+  if(left.length!==right.length||!crypto.timingSafeEqual(left,right))return null;
+  try{return JSON.parse(Buffer.from(encoded,'base64url').toString('utf8'));}catch{return null;}
+}
+function createPkceVerifier(){return crypto.randomBytes(32).toString('base64url');}
+function createPkceChallenge(verifier){return crypto.createHash('sha256').update(verifier).digest('base64url');}
+function clearGoogleCookies(res){
+  res.clearCookie(GOOGLE_STATE_COOKIE,oauthCookieOptions('/api/auth/google'));
+  res.clearCookie(GOOGLE_VERIFIER_COOKIE,oauthCookieOptions('/api/auth/google'));
+}
+function googleFailure(req,res,code,next='/workspace'){
+  clearGoogleCookies(res);
+  const url=new URL('/login',appOrigin(req));
+  url.searchParams.set('next',safeAuthNext(next));
+  url.searchParams.set('oauth_error',code);
+  return res.redirect(302,url.href);
+}
+async function exchangeGoogleCode(code,verifier){
+  const {url,serviceKey}=readSupabaseConfig();
+  const response=await fetch(`${url}/auth/v1/token?grant_type=pkce`,{
+    method:'POST',headers:{apikey:serviceKey,Authorization:`Bearer ${serviceKey}`,'Content-Type':'application/json'},
+    body:JSON.stringify({auth_code:code,code_verifier:verifier}),
+  });
+  let payload={};try{payload=await response.json();}catch{}
+  if(!response.ok||!payload.access_token||!payload.user)throw Object.assign(new Error('Google sign-in could not be completed.'),{status:502});
+  return payload;
+}
+async function provisionGoogleUser(authUser,requestedRole){
+  const id=String(authUser?.id||'').trim(),email=String(authUser?.email||'').trim().toLowerCase();
+  if(!id||!email)throw Object.assign(new Error('Google did not return a usable account.'),{status:502});
+  const existing=await db.prepare('SELECT id,role,status FROM public.users WHERE id=? OR lower(email)=?').get(id,email);
+  if(existing){
+    if(existing.id!==id)throw Object.assign(new Error('An account already exists for this Google email. Sign in with your existing account.'),{status:409});
+    return existing;
+  }
+  const role=PUBLIC_SIGNUP_ROLES.includes(requestedRole)?requestedRole:'customer';
+  const status=['customer','student'].includes(role)?'active':'pending_verification';
+  const fullName=String(authUser.user_metadata?.full_name||authUser.user_metadata?.name||email.split('@')[0]).trim().slice(0,100)||'Google user';
+  await db.transaction(async()=>{
+    await db.prepare('INSERT INTO public.users (id,email,phone,role,status,email_verified) VALUES (?,?,?,?,?,1)').run(id,email,null,role,status);
+    await db.prepare('INSERT INTO public.profiles (user_id,full_name,address) VALUES (?,?,?)').run(id,fullName,null);
+    if(role==='student')await db.prepare('INSERT INTO public.student_profiles (user_id) VALUES (?)').run(id);
+    if(role==='rider')await db.prepare('INSERT INTO public.riders (user_id) VALUES (?)').run(id);
+    if(role==='vendor')await db.prepare('INSERT INTO public.vendors (user_id,business_name,contact_person) VALUES (?,?,?)').run(id,`${fullName}'s business`,fullName);
+    if(role==='investor')await db.prepare('INSERT INTO public.investors (user_id) VALUES (?)').run(id);
+  });
+  return {id,role,status};
+}
 async function saveAccount({authUser,d,phone,email,status}){
   const create=db.transaction(async()=>{
     await db.prepare('INSERT INTO public.users (id,email,phone,role,status) VALUES (?,?,?,?,?)').run(authUser.id,email,phone,d.role,status);
@@ -80,6 +159,56 @@ async function discardNewAccount(userId){
   try{await db.prepare('DELETE FROM public.users WHERE id=?').run(userId);}catch{}
   try{await getSupabaseAdmin().auth.admin.deleteUser(userId);}catch{}
 }
+
+router.get('/google',async(req,res)=>{
+  const verifier=createPkceVerifier();
+  const state=createOAuthState({
+    nonce:crypto.randomBytes(24).toString('base64url'),
+    role:String(req.query?.role||'customer'),
+    next:safeAuthNext(req.query?.next),
+  });
+  const {url}=readSupabaseConfig();
+  const callback=new URL('/api/auth/google/callback',appOrigin(req)).href;
+  const authorize=new URL('/auth/v1/authorize',url);
+  authorize.searchParams.set('provider','google');
+  authorize.searchParams.set('redirect_to',callback);
+  authorize.searchParams.set('state',state.split('.')[0]);
+  authorize.searchParams.set('code_challenge',createPkceChallenge(verifier));
+  authorize.searchParams.set('code_challenge_method','s256');
+  res.cookie(GOOGLE_STATE_COOKIE,state,oauthCookieOptions('/api/auth/google'));
+  res.cookie(GOOGLE_VERIFIER_COOKIE,verifier,oauthCookieOptions('/api/auth/google'));
+  res.redirect(302,authorize.href);
+});
+
+router.get('/google/callback',async(req,res)=>{
+  const signedState=readOAuthState(req.cookies?.[GOOGLE_STATE_COOKIE]);
+  const returnedState=String(req.query?.state||'');
+  const next=signedState?.next||'/workspace';
+  if(!signedState||!returnedState||returnedState!==encodeOAuthState({nonce:signedState.nonce,role:signedState.role,next:signedState.next})){
+    return googleFailure(req,res,'google_state_invalid',next);
+  }
+  if(req.query?.error)return googleFailure(req,res,'google_cancelled',next);
+  const code=String(req.query?.code||''),verifier=String(req.cookies?.[GOOGLE_VERIFIER_COOKIE]||'');
+  if(!code||!verifier)return googleFailure(req,res,'google_code_missing',next);
+  try{
+    const oauth=await exchangeGoogleCode(code,verifier);
+    await provisionGoogleUser(oauth.user,signedState.role);
+    req.authSession={
+      user:oauth.user,
+      access_token:oauth.access_token,
+      refresh_token:oauth.refresh_token,
+      expires_in:oauth.expires_in,
+      expires_at:oauth.expires_at,
+    };
+    const session=await createSession(oauth.user.id,req);
+    setSession(res,session);
+    clearGoogleCookies(res);
+    return res.redirect(302,new URL(safeAuthNext(next),appOrigin(req)).href);
+  }catch(error){
+    logger.error('auth.google_oauth_failed',{requestId:req.requestId,error});
+    return googleFailure(req,res,error?.status===409?'google_account_conflict':'google_failed',next);
+  }
+});
 
 router.post('/register',async(req,res)=>{
   const parsed=registerSchema.safeParse(req.body);
