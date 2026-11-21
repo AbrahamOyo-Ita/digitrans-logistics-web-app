@@ -1,5 +1,6 @@
 import React,{Children,isValidElement,useEffect,useId,useMemo,useRef,useState} from 'react';
 import Icon from './Icon';
+import EmptyIllustration from './EmptyIllustration';
 import {statusLabel} from '../lib/api';
 
 export function Button({children,variant='primary',size='md',icon,iconRight,loading=false,className='',type='button',...props}){
@@ -53,7 +54,39 @@ export function StatCard({label,value,change,icon='chart',tone='green',onClick})
  const tones={green:'bg-brand-50 text-brand-700',gold:'bg-gold-50 text-gold-700',blue:'bg-blue-50 text-blue-700',rose:'bg-rose-50 text-rose-700',purple:'bg-violet-50 text-violet-700'};
  return <button onClick={onClick} className={`w-full rounded-2xl border border-slate-200/80 bg-white p-5 text-left shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift ${onClick?'cursor-pointer':'cursor-default'}`}><div className="flex items-start justify-between"><span className="text-[11px] font-bold uppercase tracking-[.12em] text-slate-400">{label}</span><span className={`grid h-10 w-10 place-items-center rounded-xl ${tones[tone]||tones.green}`}><Icon name={icon}/></span></div><div className="mt-3 text-[26px] font-bold tracking-tight text-ink">{value??'-'}</div>{change&&<div className="mt-1 text-xs text-slate-400">{change}</div>}</button>
 }
-export function Empty({icon='box',title='Nothing here yet',description='Your activity will appear here when it is available.',action}){return <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-6 py-14 text-center"><span className="mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-brand-50 text-brand-700"><Icon name={icon} size={24}/></span><h3 className="text-sm font-bold text-ink">{title}</h3><p className="mt-1 max-w-sm text-xs leading-5 text-slate-500">{description}</p>{action&&<div className="mt-5">{action}</div>}</div>}
+const emptyVariantByIcon={truck:'delivery',box:'parcel',bike:'rider',bag:'market',wallet:'earnings',bell:'updates',chart:'insights',file:'documents',users:'people',shield:'documents',search:'search',support:'support',mail:'messages',clock:'schedule',pin:'search'};
+const emptyVariantByTitle=[[/waybill|parcel/i,'parcel'],[/audit/i,'activity'],[/application|applicant/i,'documents'],[/earning|withdrawal|settlement|payout/i,'earnings'],[/maturity/i,'schedule'],[/account/i,'people'],[/page not found|not found/i,'search']];
+const emptyKicker={delivery:'READY WHEN YOU ARE',market:'MADE FOR YOUR DAY',earnings:'YOUR NEXT MILE',updates:'ALL CAUGHT UP',insights:'ROOM TO GROW',documents:'SAFE & SECURE',people:'YOUR LOCAL NETWORK',search:'NOTHING MATCHED',support:'HERE TO HELP',messages:'INBOX CLEAR',schedule:'TIME TO PLAN',offline:'CONNECTION CHECK',parcel:'A LITTLE ROOM TO MOVE',rider:'READY FOR THE NEXT ROUTE',activity:'A CLEAR PAPER TRAIL'};
+export function Empty({icon='box',title='Nothing here yet',description='Your activity will appear here when it is available.',action,variant,compact=false,className=''}){
+ const titleVariant=emptyVariantByTitle.find(([pattern])=>pattern.test(title||''))?.[1];
+ const illustration=variant||titleVariant||emptyVariantByIcon[icon]||'parcel';
+ return <div className={`empty-state ${compact?'is-compact':''} ${className}`} role="status">
+  <div className="empty-state-art"><EmptyIllustration variant={illustration}/></div>
+  <div className="empty-state-copy"><p className="empty-state-kicker">{emptyKicker[illustration]||emptyKicker.parcel}</p><h3>{title}</h3><p>{description}</p></div>
+  {action&&<div className="empty-state-action">{action}</div>}
+ </div>;
+}
+
+export function ConnectionNotice(){
+ const [isOnline,setIsOnline]=useState(()=>typeof navigator==='undefined'||navigator.onLine);
+ const [requestFailed,setRequestFailed]=useState(false),[dismissed,setDismissed]=useState(false);
+ useEffect(()=>{
+  const updateOnline=()=>{const online=typeof navigator==='undefined'||navigator.onLine;setIsOnline(online);if(online){setRequestFailed(false);setDismissed(false);}};
+  const connectionFailed=()=>{setRequestFailed(true);setDismissed(false);};
+  const connectionRestored=()=>{setRequestFailed(false);setDismissed(false);};
+  window.addEventListener('online',updateOnline);window.addEventListener('offline',updateOnline);
+  window.addEventListener('digitrans:network-error',connectionFailed);window.addEventListener('digitrans:network-restored',connectionRestored);
+  return()=>{window.removeEventListener('online',updateOnline);window.removeEventListener('offline',updateOnline);window.removeEventListener('digitrans:network-error',connectionFailed);window.removeEventListener('digitrans:network-restored',connectionRestored);};
+ },[]);
+ if((isOnline&&!requestFailed)||dismissed)return null;
+ const offline=!isOnline;
+ return <aside className="connection-notice" role="status" aria-live="polite">
+  <div className="connection-notice-art"><EmptyIllustration variant="offline"/></div>
+  <div className="connection-notice-copy"><p>{offline?'CONNECTION LOST':'SERVICE CONNECTION'}</p><h2>{offline?'You’re offline.':'Can’t reach dispatch.'}</h2><span>{offline?'Check your internet connection, then retry to load live DigiTrans updates.':'We can’t reach DigiTrans right now. Check your connection, then try again.'}</span></div>
+  <button type="button" className="connection-notice-retry" onClick={()=>window.location.reload()}>Try again<Icon name="refresh" size={14}/></button>
+  <button type="button" className="connection-notice-close" onClick={()=>setDismissed(true)} aria-label="Dismiss connection notice"><Icon name="close" size={15}/></button>
+ </aside>;
+}
 export function Loading({label='Loading your workspace…'}){return <div className="flex min-h-[280px] flex-col items-center justify-center gap-3 text-slate-500"><span className="h-8 w-8 animate-spin rounded-full border-[3px] border-brand-200 border-t-brand-700"/><span className="text-xs font-medium">{label}</span></div>}
 export function Toast({toast,onClose}){if(!toast)return null;const success=toast.type!=='error';return <div className={`fixed bottom-5 right-5 z-[100] flex max-w-sm items-start gap-3 rounded-2xl border px-4 py-3.5 shadow-lift animate-float-in ${success?'border-emerald-200 bg-white':'border-rose-200 bg-white'}`} role="status"><span className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full ${success?'bg-emerald-50 text-emerald-700':'bg-rose-50 text-rose-700'}`}><Icon name={success?'check':'alert'} size={16}/></span><div className="flex-1"><p className="text-sm font-semibold text-ink">{toast.title|| (success?'All set':'Something went wrong')}</p><p className="mt-0.5 text-xs leading-5 text-slate-500">{toast.message}</p></div><button className="text-slate-400 hover:text-slate-700" onClick={onClose} aria-label="Close notification"><Icon name="close" size={16}/></button></div>}
 export function Modal({title,description,onClose,children,wide=false}){return <div className="fixed inset-0 z-[90] flex items-end justify-center bg-ink/45 p-0 backdrop-blur-sm sm:items-center sm:p-5" onMouseDown={e=>e.target===e.currentTarget&&onClose?.()}><div className={`max-h-[92vh] w-full overflow-auto rounded-t-3xl bg-white shadow-lift sm:rounded-3xl ${wide?'max-w-2xl':'max-w-lg'}`}><div className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur sm:px-7"><div><h2 className="text-lg font-bold text-ink">{title}</h2>{description&&<p className="mt-1 text-xs text-slate-500">{description}</p>}</div><button className="grid h-9 w-9 place-items-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-ink" onClick={onClose} aria-label="Close"><Icon name="close"/></button></div><div className="p-5 sm:p-7">{children}</div></div></div>}

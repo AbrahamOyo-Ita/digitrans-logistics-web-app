@@ -262,11 +262,8 @@ export default function AuthPage({
             </button>
           </div>
 
-          {/* Center Copy with Pill Badge */}
+          {/* Center Copy */}
           <div className="my-auto py-6 sm:py-8">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/20 text-xs font-semibold text-white shadow-sm mb-4">
-              <span>{kind === 'login' ? 'Calabar Dispatch Desk ⚡' : 'Join Us to Build 🚀'}</span>
-            </div>
             <h1 className="font-display text-3xl sm:text-4xl lg:text-[2.85rem] font-bold text-white tracking-tight leading-[1.15] mb-3">
               {kind === 'login'
                 ? 'Welcome Back'
