@@ -32,5 +32,5 @@ export default function PublicSite({page='/',navigate,onLogin,user}){
   if(descriptionTag)descriptionTag.setAttribute('content',description);
  },[page]);
  const book=target=>user?navigate(target):onLogin(target);
- return <div className="min-h-screen bg-white text-navy"><SiteHeader page={page} navigate={navigate} onLogin={onLogin} user={user}/><main id="main"><PublicPages page={page} content={content} navigate={navigate} onLogin={onLogin} user={user} book={book}/></main><SiteFooter navigate={navigate} onLogin={onLogin} user={user}/></div>;
+ return <div className="public-site min-h-screen bg-white text-navy"><SiteHeader page={page} navigate={navigate} onLogin={onLogin} user={user}/><main id="main"><PublicPages page={page} content={content} navigate={navigate} onLogin={onLogin} user={user} book={book}/></main><SiteFooter navigate={navigate} onLogin={onLogin} user={user}/></div>;
 }

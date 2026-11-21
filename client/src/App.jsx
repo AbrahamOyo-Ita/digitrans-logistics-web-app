@@ -3,7 +3,7 @@ import {api} from './lib/api';
 import PublicSite from './pages/PublicSite';
 import AuthPage from './pages/AuthPage';
 import Workspace from './pages/Workspace';
-import {Loading,Toast} from './components/UI';
+import {ConnectionNotice,Loading,Toast} from './components/UI';
 import {getRoleHome,isWorkspacePath,ROLE_PREFIX} from '../../shared/roles.js';
 
 const readLocation=()=>({pathname:window.location.pathname||'/',search:window.location.search,hash:window.location.hash});
@@ -67,5 +67,5 @@ export default function App(){
  else if(workspace&&user)view=<Workspace key={user.id} user={user} navigate={navigate} onLogout={logout} showToast={showToast}/>;
  else if(isAuth)view=<AuthPage key={`${path}${location.search}`} mode={authMode} navigate={navigate} onAuthenticated={onAuthenticated} initialRole={search.get('role')||'customer'} resetToken={search.get('token')||''} resetEmail={search.get('email')||''} verificationEmail={search.get('email')||''} verificationToken={search.get('token')||search.get('token_hash')||''}/>;
  else view=<PublicSite key={path} page={path} navigate={navigate} onLogin={onLogin} user={user}/>;
- return <>{view}<Toast toast={toast} onClose={()=>setToast(null)}/></>;
+ return <>{view}<Toast toast={toast} onClose={()=>setToast(null)}/><ConnectionNotice/></>;
 }
