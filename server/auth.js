@@ -186,7 +186,15 @@ export async function sendSupabaseRecovery(email){
 
 export async function verifySupabaseOtp({email,token,type='signup'}={}){
   if(!['signup','recovery','email_change','magiclink'].includes(type))throw Object.assign(new Error('Unsupported verification type.'),{status:400});
-  const {data,error}=await createSupabaseUserClient().auth.verifyOtp({token_hash:String(token||''),type});
+  const requestedType=type;
+  const candidates=requestedType==='magiclink'?['magiclink','email','signup']:
+    requestedType==='signup'?['signup','email','magiclink']:[requestedType];
+  let data,error;
+  for(const candidate of candidates){
+    const result=await createSupabaseUserClient().auth.verifyOtp({token_hash:String(token||''),type:candidate});
+    if(!result.error){data=result.data;error=null;break;}
+    error=result.error;
+  }
   if(error)throw verificationError(error);
   if(!data?.session||!data?.user)throw Object.assign(new Error('The verification link is invalid or expired.'),{status:400});
   const user=await loadAppUser(data.user.id);
