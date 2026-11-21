@@ -17,19 +17,12 @@ const serviceLinks=[
 export function SiteHeader({page,navigate,onLogin,user}){
  const [open,setOpen]=useState(false);
  const [servicesOpen,setServicesOpen]=useState(false);
- const [scrolled,setScrolled]=useState(false);
  const menuButtonRef=useRef(null);
  const closeButtonRef=useRef(null);
  const drawerRef=useRef(null);
  const wasOpen=useRef(false);
  const isHome=page==='/';
 
- useEffect(()=>{
-  const update=()=>setScrolled(window.scrollY>18);
-  update();
-  window.addEventListener('scroll',update,{passive:true});
-  return()=>window.removeEventListener('scroll',update);
- },[]);
  useEffect(()=>{setOpen(false);setServicesOpen(false);},[page]);
  useEffect(()=>{
   document.body.style.overflow=open?'hidden':'';
@@ -66,7 +59,7 @@ export function SiteHeader({page,navigate,onLogin,user}){
  const isActive=path=>page===path||(path!=='/'&&page.startsWith(`${path}/`));
 
  return <>
-  <header className={`site-header ${isHome?'site-header-home':'site-header-public'} ${scrolled?'is-scrolled':''}`}>
+  <header className={`site-header ${isHome?'site-header-home':'site-header-public'}`}>
    <div className="site-header-inner">
     <Logo navigate={navigate} className="site-header-brand"/>
     <nav className="site-primary-nav" aria-label="Main navigation">
