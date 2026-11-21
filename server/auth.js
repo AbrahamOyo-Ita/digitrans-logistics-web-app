@@ -200,8 +200,12 @@ export async function verifySupabaseOtp({email,token,type='signup'}={}){
 }
 
 export async function resendSupabaseSignup(email){
-  const {error}=await createSupabaseUserClient().auth.resend({type:'signup',email:String(email||'').trim().toLowerCase()});
+  const address=String(email||'').trim().toLowerCase();
+  const {data,error}=await getSupabaseAdmin().auth.admin.generateLink({type:'magiclink',email:address});
   if(error)throw verificationError(error);
+  const hashedToken=data?.properties?.hashed_token;
+  if(!hashedToken)throw Object.assign(new Error('Supabase Auth did not return a verification link.'),{status:503});
+  return {email:address,hashedToken};
 }
 
 export async function resolveLoginEmail(identifier,lookup=async predicate=>db.prepare(`SELECT email FROM public.users WHERE ${predicate.sql}`).get(...predicate.params)){

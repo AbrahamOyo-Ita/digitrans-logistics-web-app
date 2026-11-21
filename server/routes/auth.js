@@ -121,7 +121,9 @@ router.post('/register',async(req,res)=>{
 router.post('/verify-email',async(req,res)=>{
   const email=String(req.body?.email||'').trim().toLowerCase(),token=String(req.body?.token||'').trim();
   if(!email||!token)return res.status(400).json({error:'A verification email and token are required.'});
-  const result=await verifySupabaseOtp({email,token,type:'signup'});
+  const requestedType=String(req.body?.type||'signup');
+  const type=['signup','magiclink'].includes(requestedType)?requestedType:'signup';
+  const result=await verifySupabaseOtp({email,token,type});
   if(result.pending){clearSession(res);return res.json({verified:true,pendingApproval:true,user:result.user,message:'Your email is verified. Your application is waiting for operations review.'});}
   req.authSession=result.session;
   const session=await createSession(result.user.id,req);setSession(res,session);
@@ -132,9 +134,17 @@ router.post('/resend-verification',async(req,res)=>{
   const email=String(req.body?.email||'').trim().toLowerCase();
   const generic={message:'If that account is waiting for email verification, a fresh verification link has been requested.'};
   if(!email||!z.string().email().safeParse(email).success)return res.json(generic);
-  const row=await db.prepare('SELECT id,email_verified FROM public.users WHERE lower(email)=?').get(email);
+  const row=await db.prepare('SELECT u.id,u.email,u.email_verified,p.full_name FROM public.users u LEFT JOIN public.profiles p ON p.user_id=u.id WHERE lower(u.email)=?').get(email);
   if(!row||row.email_verified)return res.json(generic);
-  await resendSupabaseSignup(email);
+  try{
+    const generated=await resendSupabaseSignup(email);
+    const url=verificationUrl(req,{token:generated.hashedToken,email,type:'signup'});
+    url.searchParams.set('type','magiclink');
+    await sendEmail({to:email,...createAuthEmailTemplate({kind:'verify',name:row.full_name,actionUrl:url.href})});
+  }catch(error){
+    logger.error('auth.verification_resend_failed',{requestId:req.requestId,error});
+    return res.status(error?.status||503).json({error:'We could not send a new verification email right now. Please try again shortly.'});
+  }
   res.json(generic);
 });
 

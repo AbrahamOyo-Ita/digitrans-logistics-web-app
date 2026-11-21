@@ -80,6 +80,7 @@ export default function AuthPage({
     const p = new URLSearchParams(window.location.search);
     const email = verificationEmail || p.get('email') || '';
     const token = verificationToken || p.get('token') || p.get('token_hash') || '';
+    const type = ['signup', 'magiclink'].includes(p.get('type')) ? p.get('type') : 'signup';
     if (!email || !token) {
       setVerificationState('error');
       setError('This verification link is incomplete. Request a new link or sign in.');
@@ -88,7 +89,7 @@ export default function AuthPage({
     setBusy(true);
     setVerificationState('checking');
     setError('');
-    api('/auth/verify-email', { method: 'POST', body: { email, token }, signal: controller.signal })
+    api('/auth/verify-email', { method: 'POST', body: { email, token, type }, signal: controller.signal })
       .then(result => {
         if (!active) return;
         setVerificationState('success');
