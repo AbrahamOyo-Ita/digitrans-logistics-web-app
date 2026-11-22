@@ -9,7 +9,6 @@ const router=asyncRouter();
 const riderOnly=requireRole('rider');
 const id=()=>crypto.randomUUID();
 const ref=p=>`${p}-${new Date().toISOString().slice(0,10).replaceAll('-','')}-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
-const adminRoles=['super_admin','ops_officer','rider_manager'];
 const currentAgreement=async () => (await db.prepare("SELECT value FROM system_settings WHERE key='current_rider_agreement_version'").get())?.value || '';
 async function riderBalances(riderId) {
   const rows=await db.prepare(`SELECT e.id,e.rider_earnings,

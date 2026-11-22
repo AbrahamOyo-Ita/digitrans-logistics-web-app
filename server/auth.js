@@ -3,9 +3,10 @@ import db from './db.js';
 import {createSupabaseUserClient,getSupabaseAdmin} from './supabase.js';
 import {getSessionCookieOptions} from './config.js';
 import {buildUserIdentifierPredicate} from './phone.js';
-import {APP_ROLES} from '../shared/roles.js';
+import {APP_ROLES,ADMIN_ROLE_IDS} from '../shared/roles.js';
+import {auditJson,auditText,AUDIT_CHAIN_GENESIS,calculateAuditHash} from './audit.js';
 
-export const ADMIN_ROLES=['super_admin','ops_officer','finance_officer'];
+export const ADMIN_ROLES=ADMIN_ROLE_IDS;
 const ROLE_SET=new Set(APP_ROLES);
 
 export function authError(error){
@@ -119,7 +120,7 @@ export async function requireAuth(req,res,next){
   try{
     const user=await getSessionUser(req.cookies?.session);
     if(!user)return res.status(401).json({error:'Unauthenticated'});
-    req.user=user;next();
+    req.user={...user,requestId:req.requestId||null,userAgent:String(req.get?.('user-agent')||'').slice(0,300)};next();
   }catch(error){next(error);}
 }
 
@@ -135,21 +136,61 @@ export function requireAdmin(req,res,next){
   if(!ADMIN_ROLES.includes(req.user.role))return res.status(403).json({error:'Forbidden'});
   next();
 }
+export async function userHasPermission(user,key){
+  if(!user||!String(key||''))return false;
+  if(user.role==='super_admin')return true;
+  return Boolean(await db.prepare(`SELECT 1 FROM public.role_permissions rp
+    JOIN public.roles r ON r.id=rp.role_id JOIN public.permissions p ON p.id=rp.permission_id
+    WHERE r.id=? AND p.key=?`).get(user.role,String(key)));
+}
+
 export function requirePermission(key){
   return async (req,res,next)=>{
     try{
       if(!req.user)return res.status(401).json({error:'Unauthenticated'});
-      if(req.user.role==='super_admin')return next();
-      const allowed=await db.prepare('SELECT 1 FROM public.role_permissions rp JOIN public.roles r ON r.id=rp.role_id JOIN public.permissions p ON p.id=rp.permission_id WHERE r.name=? AND p.key=?').get(req.user.role,key);
-      if(!allowed)return res.status(403).json({error:'You do not have permission to perform this action.'});
+      if(!await userHasPermission(req.user,key))return res.status(403).json({error:'You do not have permission to perform this action.'});
       next();
     }catch(error){next(error);}
   };
 }
 
+export function requireAnyPermission(...keys){
+  const required=[...new Set(keys.flat().map(key=>String(key||'').trim()).filter(Boolean))];
+  if(!required.length)throw new TypeError('At least one permission is required.');
+  return async (req,res,next)=>{
+    try{
+      if(!req.user)return res.status(401).json({error:'Unauthenticated'});
+      for(const key of required)if(await userHasPermission(req.user,key))return next();
+      return res.status(403).json({error:'You do not have permission to perform this action.'});
+    }catch(error){next(error);}
+  };
+}
+
 export async function audit(actor,action,recordType,recordId,prev,nextValue,reason,ip){
-  await db.prepare('INSERT INTO public.audit_logs (id,actor_id,actor_role,action,record_type,record_id,prev_value,new_value,reason,ip) VALUES (?,?,?,?,?,?,?,?,?,?)')
-    .run(crypto.randomUUID(),actor?.id||null,actor?.role||'system',action,recordType,String(recordId),prev?JSON.stringify(prev):null,nextValue?JSON.stringify(nextValue):null,reason||null,ip||null);
+  const append=db.transaction(async()=>{
+    const head=await db.prepare('SELECT last_sequence,last_hash FROM public.audit_chain_heads WHERE id=1 FOR UPDATE').get();
+    if(!head)throw new Error('Audit chain head is unavailable.');
+    const event={
+      chain_sequence:Number(head.last_sequence)+1,id:crypto.randomUUID(),actor_id:actor?.id||null,
+      actor_role:String(actor?.role||'system').slice(0,80),actor_email:actor?.email?String(actor.email).trim().toLowerCase().slice(0,180):null,
+      actor_name:actor?.full_name?String(actor.full_name).trim().slice(0,120):null,
+      action:String(action||'unknown').slice(0,160),record_type:recordType?String(recordType).slice(0,120):null,
+      record_id:recordId==null?null:String(recordId).slice(0,240),prev_value:auditJson(prev),new_value:auditJson(nextValue),
+      reason:auditText(reason,2000),ip:ip?String(ip).slice(0,100):null,
+      request_id:actor?.requestId?String(actor.requestId).slice(0,100):null,
+      user_agent:auditText(actor?.userAgent,300),
+      created_at:new Date().toISOString(),previous_hash:String(head.last_hash||AUDIT_CHAIN_GENESIS),
+    };
+    event.entry_hash=calculateAuditHash(event);
+    await db.prepare(`INSERT INTO public.audit_logs
+      (id,actor_id,actor_role,actor_email,actor_name,action,record_type,record_id,prev_value,new_value,reason,ip,request_id,user_agent,created_at,chain_sequence,previous_hash,entry_hash)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+      .run(event.id,event.actor_id,event.actor_role,event.actor_email,event.actor_name,event.action,event.record_type,event.record_id,event.prev_value,event.new_value,event.reason,event.ip,event.request_id,event.user_agent,event.created_at,event.chain_sequence,event.previous_hash,event.entry_hash);
+    await db.prepare('UPDATE public.audit_chain_heads SET last_sequence=?,last_hash=?,updated_at=? WHERE id=1')
+      .run(event.chain_sequence,event.entry_hash,event.created_at);
+    return event;
+  });
+  return append();
 }
 export async function notify(userId,title,message,type='info',relatedId=null){
   if(!userId)return;
@@ -182,6 +223,77 @@ export async function sendSupabaseRecovery(email){
   const hashedToken=data.properties?.hashed_token;
   if(!hashedToken)throw Object.assign(new Error('Supabase Auth did not return a recovery link.'),{status:503});
   return hashedToken;
+}
+
+export async function createSupabasePendingAdmin({email,fullName,role}={}){
+  const address=String(email||'').trim().toLowerCase(),name=String(fullName||'').trim();
+  if(!ADMIN_ROLE_IDS.includes(role))throw Object.assign(new Error('Choose a supported administrative role.'),{status:400});
+  const admin=getSupabaseAdmin(),temporaryPassword=`${crypto.randomBytes(32).toString('base64url')}Aa1!`;
+  const {data,error}=await admin.auth.admin.createUser({
+    email:address,password:temporaryPassword,email_confirm:true,
+    user_metadata:{full_name:name},app_metadata:{role,status:'invited',session_version:crypto.randomUUID()},
+  });
+  if(error)throw authError(error);
+  try{return {user:data.user,token:await sendSupabaseRecovery(address)};}
+  catch(error){try{await admin.auth.admin.deleteUser(data.user.id);}catch{}throw error;}
+}
+
+export async function acceptAdminInvitation({invitationId,email,token,password,ip,requestId,userAgent}={},dependencies={}){
+  const database=dependencies.database||db;
+  const createUserClient=dependencies.createUserClient||createSupabaseUserClient;
+  const getAdminClient=dependencies.getAdminClient||getSupabaseAdmin;
+  const recordAudit=dependencies.audit||audit;
+  const now=dependencies.now||(()=>new Date());
+  const id=String(invitationId||''),address=String(email||'').trim().toLowerCase(),hashedToken=String(token||'').trim(),safePassword=assertPassword(password);
+  if(safePassword.length<12)throw Object.assign(new Error('Administrator passwords must be at least 12 characters long.'),{status:400});
+  if(!id||!address||!hashedToken)throw Object.assign(new Error('This invitation is invalid, expired, or already used. Ask a DigiTrans Super Administrator to resend it.'),{status:400});
+  const tokenDigest=crypto.createHash('sha256').update(hashedToken).digest('hex');
+  const invite=await database.prepare(`SELECT i.id,i.email,i.full_name,i.role,i.auth_user_id,i.status,t.expires_at,t.id token_id
+    FROM public.admin_invitations i JOIN public.admin_invitation_tokens t ON t.invitation_id=i.id
+    WHERE i.id=? AND lower(i.email)=? AND t.token_digest=? AND t.used_at IS NULL AND t.revoked_at IS NULL
+      AND t.expires_at>now() AND i.status IN ('pending','delivery_failed')`).get(id,address,tokenDigest);
+  const invalid=()=>Object.assign(new Error('This invitation is invalid, expired, or already used. Ask a DigiTrans Super Administrator to resend it.'),{status:400});
+  if(!invite)throw invalid();
+  let verification;
+  try{verification=await createUserClient().auth.verifyOtp({email:address,token_hash:hashedToken,type:'recovery'});}
+  catch{throw invalid();}
+  if(verification.error||!verification.data?.user||verification.data.user.id!==invite.auth_user_id)throw invalid();
+  const admin=getAdminClient(),lookup=await admin.auth.admin.getUserById(invite.auth_user_id);
+  if(lookup.error||!lookup.data?.user||lookup.data.user.app_metadata?.role!==invite.role||lookup.data.user.app_metadata?.status!=='invited')throw invalid();
+  const currentMetadata=lookup.data.user.app_metadata||{};
+  const activatedMetadata={...currentMetadata,role:invite.role,status:'active',session_version:crypto.randomUUID()};
+  const {error:updateError}=await admin.auth.admin.updateUserById(invite.auth_user_id,{
+    password:safePassword,email_confirm:true,
+    app_metadata:activatedMetadata,
+    user_metadata:{...(lookup.data.user.user_metadata||{}),full_name:invite.full_name},
+  });
+  if(updateError)throw authError(updateError);
+  try{
+    const activateInvitation=database.transaction(async()=>{
+      const locked=await database.prepare(`SELECT i.status,i.role,i.auth_user_id,t.used_at,t.revoked_at,t.expires_at
+        FROM public.admin_invitations i JOIN public.admin_invitation_tokens t ON t.invitation_id=i.id
+        WHERE i.id=? AND t.id=? FOR UPDATE`).get(id,invite.token_id);
+      if(!locked||!['pending','delivery_failed'].includes(locked.status)||locked.auth_user_id!==invite.auth_user_id||locked.role!==invite.role||locked.used_at||locked.revoked_at||new Date(locked.expires_at)<=now())throw invalid();
+      const activate=await database.prepare(`UPDATE public.users SET status='active',email_verified=1,updated_at=now()
+        WHERE id=? AND role=? AND status='pending_verification'`).run(invite.auth_user_id,invite.role);
+      if(activate.changes!==1)throw invalid();
+      const used=await database.prepare('UPDATE public.admin_invitation_tokens SET used_at=now() WHERE id=? AND used_at IS NULL AND revoked_at IS NULL').run(invite.token_id);
+      if(used.changes!==1)throw invalid();
+      await database.prepare("UPDATE public.admin_invitation_tokens SET revoked_at=now() WHERE invitation_id=? AND id<>? AND used_at IS NULL AND revoked_at IS NULL").run(id,invite.token_id);
+      await database.prepare("UPDATE public.admin_invitations SET status='accepted',accepted_at=now(),updated_at=now() WHERE id=?").run(id);
+      await recordAudit({id:invite.auth_user_id,role:invite.role,email:address,full_name:invite.full_name,requestId,userAgent},'admin.invitation_accepted','admin_invitation',id,{status:invite.status},{status:'accepted',role:invite.role},'Invitee set their password.',ip);
+    });
+    await activateInvitation();
+  }catch(error){
+    try{
+      const latest=await admin.auth.admin.getUserById(invite.auth_user_id),metadata=latest.data?.user?.app_metadata||{};
+      if(!latest.error&&metadata.session_version===activatedMetadata.session_version&&metadata.status==='active'){
+        await admin.auth.admin.updateUserById(invite.auth_user_id,{app_metadata:{...currentMetadata,status:'invited',session_version:crypto.randomUUID()}});
+      }
+    }catch{}
+    throw error;
+  }
+  return {email:address,role:invite.role,fullName:invite.full_name};
 }
 
 export async function verifySupabaseOtp({email,token,type='signup'}={}){

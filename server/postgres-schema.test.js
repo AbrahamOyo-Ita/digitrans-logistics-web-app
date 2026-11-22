@@ -8,6 +8,7 @@ const migrationPaths=[
   fileURLToPath(new URL('../supabase/migrations/202611160001_initial_schema.sql',import.meta.url)),
   fileURLToPath(new URL('../supabase/migrations/202611160002_payment_atomicity.sql',import.meta.url)),
   fileURLToPath(new URL('../supabase/migrations/202611160003_transactional_email_outbox.sql',import.meta.url)),
+  fileURLToPath(new URL('../supabase/migrations/202611220001_admin_invites_rbac_audit.sql',import.meta.url)),
 ];
 const uid1='10000000-0000-4000-8000-000000000001';
 const uid2='10000000-0000-4000-8000-000000000002';
@@ -36,11 +37,11 @@ async function newTestDatabase(){
   return db;
 }
 
-test('Supabase migrations create 55 app tables with explicit RLS and preserve non-user text IDs',async t=>{
+test('Supabase migrations create the versioned app schema with explicit RLS and preserve non-user text IDs',async t=>{
   const db=await newTestDatabase();t.after(()=>db.close());
   const tables=await db.query("SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename");
-  assert.equal(tables.rows.length,56);
-  assert.equal(tables.rows.filter(row=>row.tablename!=='unrelated_migration_sentinel').length,55);
+  assert.equal(tables.rows.length,59);
+  assert.equal(tables.rows.filter(row=>row.tablename!=='unrelated_migration_sentinel').length,58);
   const withoutRls=await db.query(`SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
     WHERE n.nspname='public' AND c.relkind='r' AND c.relname<>'unrelated_migration_sentinel' AND NOT c.relrowsecurity`);
   assert.deepEqual(withoutRls.rows,[]);
@@ -64,6 +65,25 @@ test('Supabase migrations create 55 app tables with explicit RLS and preserve no
   assert.deepEqual(privateBucket.rows,[{public:false}]);
   const privatePolicies=await db.query("SELECT policyname FROM pg_policies WHERE schemaname='storage' AND tablename='objects' AND policyname LIKE 'digitrans_private_%'");
   assert.deepEqual(privatePolicies.rows,[]);
+});
+
+test('admin invitations remain server-only and the audit chain is append-only',async t=>{
+  const db=await newTestDatabase();t.after(()=>db.close());
+  const access=await db.query(`SELECT
+    has_table_privilege('anon','public.admin_invitations','SELECT') AS anon_invites,
+    has_table_privilege('authenticated','public.admin_invitation_tokens','SELECT') AS user_tokens,
+    has_table_privilege('service_role','public.admin_invitations','INSERT') AS service_invite_insert,
+    has_table_privilege('service_role','public.audit_logs','SELECT') AS service_audit_read,
+    has_table_privilege('service_role','public.audit_logs','INSERT') AS service_audit_insert,
+    has_table_privilege('service_role','public.audit_logs','UPDATE') AS service_audit_update,
+    has_table_privilege('service_role','public.audit_logs','DELETE') AS service_audit_delete,
+    has_table_privilege('service_role','public.audit_logs','TRUNCATE') AS service_audit_truncate,
+    (SELECT is_nullable FROM information_schema.columns WHERE table_schema='public' AND table_name='users' AND column_name='phone') AS phone_nullable`);
+  assert.deepEqual(access.rows,[{anon_invites:false,user_tokens:false,service_invite_insert:true,service_audit_read:true,service_audit_insert:true,service_audit_update:false,service_audit_delete:false,service_audit_truncate:false,phone_nullable:'YES'}]);
+  await db.query("INSERT INTO public.audit_logs(id,action) VALUES ('audit-row','test.created')");
+  await assert.rejects(db.query("UPDATE public.audit_logs SET action='tampered' WHERE id='audit-row'"),error=>error.code==='55000');
+  await assert.rejects(db.query("DELETE FROM public.audit_logs WHERE id='audit-row'"),error=>error.code==='55000');
+  await assert.rejects(db.query('TRUNCATE TABLE public.audit_logs'),error=>error.code==='55000');
 });
 
 test('RLS limits direct client reads to the caller, staff permission, or public catalogue',async t=>{

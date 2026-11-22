@@ -1,11 +1,11 @@
 import {asyncRouter} from '../async-router.js';
 import crypto from 'crypto';
 import db from '../db.js';
-import { requireAuth, requirePermission, notify, audit } from '../auth.js';
+import { requireAuth, requirePermission, userHasPermission, notify, audit } from '../auth.js';
 
 const router=asyncRouter();
 const ref=p=>`${p}-${new Date().toISOString().slice(0,10).replaceAll('-','')}-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
-const canManageSupport=async user => user.role==='super_admin'||!!(await db.prepare(`SELECT 1 FROM role_permissions rp JOIN roles r ON r.id=rp.role_id JOIN permissions p ON p.id=rp.permission_id WHERE r.name=? AND p.key='support.manage'`).get(user.role));
+const canManageSupport=user=>userHasPermission(user,'support.manage');
 
 router.get('/notifications',requireAuth,async (req, res) => {
   const rows=await db.prepare('SELECT id,title,message,type,related_id,is_read,created_at FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 100').all(req.user.id);
@@ -26,7 +26,7 @@ router.post('/support',requireAuth,async (req, res) => {
     const owns=(await db.prepare(`SELECT 1 FROM deliveries WHERE id=? AND (customer_id=? OR vendor_id=?)`).get(relatedId,req.user.id,req.user.id))
       || (await db.prepare('SELECT 1 FROM waybills WHERE id=? AND customer_id=?').get(relatedId,req.user.id))
       || (await db.prepare('SELECT 1 FROM market_runs WHERE id=? AND customer_id=?').get(relatedId,req.user.id));
-    if(!owns&&!['super_admin','ops_officer','rider_manager','vendor_manager'].includes(req.user.role))return res.status(404).json({error:'Related record not found.'});
+    if(!owns&&!await canManageSupport(req.user))return res.status(404).json({error:'Related record not found.'});
   }
   const id=crypto.randomUUID(),reference=ref('SUP');
   await db.prepare('INSERT INTO support_tickets (id,reference,requester_id,category,description,related_id) VALUES (?,?,?,?,?,?)').run(id,reference,req.user.id,category,description,relatedId);

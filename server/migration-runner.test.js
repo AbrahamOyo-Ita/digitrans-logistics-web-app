@@ -43,11 +43,14 @@ test('destructive migrations require a separate explicit confirmation',()=>{
     assert.doesNotThrow(()=>assertSafeMigration(migration,['--allow-destructive']));
   }
   assert.doesNotThrow(()=>assertSafeMigration({filename:'safe.sql',sql:'CREATE TABLE public.example(id text);'}));
+  assert.doesNotThrow(()=>assertSafeMigration({filename:'nullable_phone.sql',sql:'ALTER TABLE public.users ALTER COLUMN phone DROP NOT NULL;'}));
+  assert.throws(()=>assertSafeMigration({filename:'truncate_privilege.sql',sql:'TRUNCATE public.audit_logs;'}),/--allow-destructive/);
+  assert.doesNotThrow(()=>assertSafeMigration({filename:'audit_grants.sql',sql:'REVOKE ALL PRIVILEGES ON TABLE public.audit_logs FROM service_role;'}));
 });
 
 test('migration plan is deterministic, checksum-addressed, and does not require a database URL',async()=>{
   const migrations=await listMigrationFiles();
-  assert.equal(migrations.length,4);
-  assert.deepEqual(migrations.map(item=>item.version),['202611160001','202611160002','202611160003','202611210001']);
-  for(const migration of migrations){assert.match(migration.checksum,/^[0-9a-f]{64}$/);assert.ok(migration.sql.length>100);}
+  assert.equal(migrations.length,5);
+  assert.deepEqual(migrations.map(item=>item.version),['202611160001','202611160002','202611160003','202611210001','202611220001']);
+  for(const migration of migrations){assert.match(migration.checksum,/^[0-9a-f]{64}$/);assert.ok(migration.sql.length>100);assert.doesNotThrow(()=>assertSafeMigration(migration));}
 });

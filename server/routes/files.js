@@ -1,17 +1,13 @@
 import {asyncRouter} from '../async-router.js';
 import crypto from 'node:crypto';
 import db from '../db.js';
-import {requireAuth,requireRole,requirePermission} from '../auth.js';
+import {requireAuth,requireRole,requirePermission,userHasPermission} from '../auth.js';
 import {documentUpload,imageUpload} from '../uploads.js';
 import {PRIVATE_BUCKETS,uploadPrivateObject,uploadPrivateImage,createPrivateSignedUrl,deletePrivateObject} from '../storage.js';
 import {logger} from '../logger.js';
 
 const router=asyncRouter();
 const id=()=>crypto.randomUUID();
-async function permissionFor(user,permission){
-  if(user.role==='super_admin')return true;
-  return !!(await db.prepare('SELECT 1 FROM public.role_permissions rp JOIN public.roles r ON r.id=rp.role_id JOIN public.permissions p ON p.id=rp.permission_id WHERE r.name=? AND p.key=?').get(user.role,permission));
-}
 function uploadError(err,res){
   if(err?.code==='LIMIT_FILE_SIZE')return res.status(413).json({error:'The file is too large. Choose a smaller file.'});
   return res.status(400).json({error:err?.message||'Unable to upload this file.'});
@@ -77,12 +73,12 @@ router.get('/private-files/:fileId',requireAuth,async(req,res)=>{
   const key=req.params.fileId;
   let row,storagePath,bucket,ownerId,allowed=false;
   row=await db.prepare('SELECT id,rider_id,file_path FROM public.rider_documents WHERE id=?').get(key);
-  if(row){storagePath=row.file_path;bucket=PRIVATE_BUCKETS.rider;ownerId=row.rider_id;allowed=req.user.id===row.rider_id||await permissionFor(req.user,'riders.review');}
-  if(!row){row=await db.prepare('SELECT id,vendor_id,file_path FROM public.vendor_documents WHERE id=?').get(key);if(row){storagePath=row.file_path;bucket=PRIVATE_BUCKETS.vendor;ownerId=row.vendor_id;allowed=req.user.id===row.vendor_id||await permissionFor(req.user,'vendors.review');}}
-  if(!row){row=await db.prepare('SELECT id,user_id,file_path FROM public.student_documents WHERE id=?').get(key);if(row){storagePath=row.file_path;bucket=PRIVATE_BUCKETS.identity;ownerId=row.user_id;allowed=req.user.id===row.user_id||await permissionFor(req.user,'students.review');}}
-  if(!row){row=await db.prepare('SELECT id,investor_id,file_path FROM public.investor_documents WHERE id=?').get(key);if(row){storagePath=row.file_path;bucket=PRIVATE_BUCKETS.investor;ownerId=row.investor_id;allowed=req.user.id===row.investor_id||await permissionFor(req.user,'investments.manage');}}
-  if(!row){row=await db.prepare(`SELECT p.id,p.photo_path,d.customer_id,d.vendor_id,da.rider_id FROM public.delivery_proof p JOIN public.deliveries d ON d.id=p.delivery_id LEFT JOIN public.delivery_assignments da ON da.delivery_id=d.id AND da.status IN ('accepted','completed') WHERE p.id=?`).get(key);if(row?.photo_path){storagePath=row.photo_path;bucket=PRIVATE_BUCKETS.deliveryProof;ownerId=row.rider_id||objectOwner(storagePath);allowed=req.user.id===row.customer_id||req.user.id===row.vendor_id||req.user.id===row.rider_id||await permissionFor(req.user,'deliveries.read');}}
-  if(!row){row=await db.prepare('SELECT e.id,e.receipt_path,m.customer_id FROM public.market_run_expenses e JOIN public.market_runs m ON m.id=e.market_run_id WHERE e.id=?').get(key);if(row?.receipt_path){storagePath=row.receipt_path;bucket=PRIVATE_BUCKETS.marketRunReceipt;ownerId=objectOwner(storagePath);allowed=req.user.id===row.customer_id||await permissionFor(req.user,'market_runs.manage')||await permissionFor(req.user,'finance.read');}}
+  if(row){storagePath=row.file_path;bucket=PRIVATE_BUCKETS.rider;ownerId=row.rider_id;allowed=req.user.id===row.rider_id||await userHasPermission(req.user,'riders.review');}
+  if(!row){row=await db.prepare('SELECT id,vendor_id,file_path FROM public.vendor_documents WHERE id=?').get(key);if(row){storagePath=row.file_path;bucket=PRIVATE_BUCKETS.vendor;ownerId=row.vendor_id;allowed=req.user.id===row.vendor_id||await userHasPermission(req.user,'vendors.review');}}
+  if(!row){row=await db.prepare('SELECT id,user_id,file_path FROM public.student_documents WHERE id=?').get(key);if(row){storagePath=row.file_path;bucket=PRIVATE_BUCKETS.identity;ownerId=row.user_id;allowed=req.user.id===row.user_id||await userHasPermission(req.user,'students.review');}}
+  if(!row){row=await db.prepare('SELECT id,investor_id,file_path FROM public.investor_documents WHERE id=?').get(key);if(row){storagePath=row.file_path;bucket=PRIVATE_BUCKETS.investor;ownerId=row.investor_id;allowed=req.user.id===row.investor_id||await userHasPermission(req.user,'investments.read');}}
+  if(!row){row=await db.prepare(`SELECT p.id,p.photo_path,d.customer_id,d.vendor_id,da.rider_id FROM public.delivery_proof p JOIN public.deliveries d ON d.id=p.delivery_id LEFT JOIN public.delivery_assignments da ON da.delivery_id=d.id AND da.status IN ('accepted','completed') WHERE p.id=?`).get(key);if(row?.photo_path){storagePath=row.photo_path;bucket=PRIVATE_BUCKETS.deliveryProof;ownerId=row.rider_id||objectOwner(storagePath);allowed=req.user.id===row.customer_id||req.user.id===row.vendor_id||req.user.id===row.rider_id||await userHasPermission(req.user,'deliveries.read');}}
+  if(!row){row=await db.prepare('SELECT e.id,e.receipt_path,m.customer_id FROM public.market_run_expenses e JOIN public.market_runs m ON m.id=e.market_run_id WHERE e.id=?').get(key);if(row?.receipt_path){storagePath=row.receipt_path;bucket=PRIVATE_BUCKETS.marketRunReceipt;ownerId=objectOwner(storagePath);allowed=req.user.id===row.customer_id||await userHasPermission(req.user,'market_runs.manage')||await userHasPermission(req.user,'finance.read');}}
   if(!allowed||!storagePath||!bucket)return res.status(404).json({error:'File not found.'});
   const {signedUrl}=await createPrivateSignedUrl(bucket,storagePath,{authorized:true,ownerId,expiresIn:900});
   res.setHeader('Cache-Control','private, no-store');res.setHeader('Referrer-Policy','no-referrer');

@@ -1,8 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createAuthEmailTemplate,createTransactionalEmailTemplate} from './email-templates.js';
+import {createAdminInviteEmailTemplate,createAuthEmailTemplate,createTransactionalEmailTemplate} from './email-templates.js';
 
 const appUrl='https://www.digitransdelivery.com';
+
+test('administrator invite email describes the assigned position and sends a secure personal-password button',()=>{
+  const invite=createAdminInviteEmailTemplate({name:'<img src=x onerror=alert(1)>',email:'new.admin@example.test',role:'finance_officer',actionUrl:'https://www.digitransdelivery.com/admin/invite#invite=one&token=private'});
+  assert.equal(invite.subject,'You’re invited to join DigiTrans Logistics');
+  assert.match(invite.html,/Administrator invitation/);
+  assert.match(invite.html,/Finance Officer/);
+  assert.match(invite.html,/Set my password/);
+  assert.match(invite.html,/new\.admin@example\.test/);
+  assert.match(invite.html,/&lt;img src=x onerror=alert\(1\)&gt;/);
+  assert.doesNotMatch(invite.html,/<img src=x onerror=/);
+  assert.match(invite.text,/create a password known only to you/i);
+  assert.match(invite.text,/https:\/\/www\.digitransdelivery\.com\/admin\/invite#invite=one&token=private/);
+  assert.throws(()=>createAdminInviteEmailTemplate({role:'unknown',actionUrl:'javascript:alert(1)'}),/HTTP or HTTPS/);
+});
 
 test('verification email includes branded original illustration and plain-text fallback',()=>{
   const message=createAuthEmailTemplate({kind:'verify',name:'Amina Example',actionUrl:'https://www.digitransdelivery.com/auth/verify?token=abc&email=amina%40example.test'});

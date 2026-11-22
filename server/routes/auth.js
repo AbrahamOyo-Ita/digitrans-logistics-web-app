@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import {asyncRouter} from '../async-router.js';
 import {z} from 'zod';
 import db from '../db.js';
-import {createSession,loginSupabaseUser,registerSupabaseUser,sendSupabaseRecovery,verifySupabaseOtp,resendSupabaseSignup,resetSupabasePassword,changeSupabasePassword,getSessionUser,revokeSession} from '../auth.js';
+import {createSession,loginSupabaseUser,registerSupabaseUser,sendSupabaseRecovery,verifySupabaseOtp,resendSupabaseSignup,resetSupabasePassword,changeSupabasePassword,getSessionUser,revokeSession,acceptAdminInvitation} from '../auth.js';
 import {isEmailConfigured,sendEmail} from '../email.js';
 import {createAuthEmailTemplate} from '../email-templates.js';
 import {buildUserIdentifierPredicate,normalizePhoneNumber} from '../phone.js';
@@ -28,6 +28,10 @@ const registerSchema=z.object({
   address:z.string().trim().max(300).optional(),
 }).refine(d=>d.password===d.confirmPassword,{path:['confirmPassword'],message:'Passwords do not match'})
   .refine(d=>d.role!=='vendor'||!!d.businessName,{path:['businessName'],message:'Business name is required'});
+const adminInviteSchema=z.object({
+  invitationId:z.string().uuid(),email:z.string().trim().email().max(180),token:z.string().trim().min(16).max(512),
+  password:z.string().min(12).max(128).regex(/[A-Z]/).regex(/[a-z]/).regex(/[0-9]/).regex(/[^A-Za-z0-9]/),confirmPassword:z.string(),
+}).refine(d=>d.password===d.confirmPassword,{path:['confirmPassword'],message:'Passwords do not match'});
 
 function setSession(res,session){
   const cookie={...sessionCookieOptions};
@@ -54,6 +58,9 @@ async function publicProfile(userId){
   if(user.role==='vendor'){user.approval_status=user.vendor_approval_status;user.rejection_reason=user.vendor_rejection_reason;}
   if(user.role==='investor'){user.address=user.investor_address;}
   if(user.role==='student')user.verification_status=user.student_verification_status;
+  const roleInfo=await db.prepare('SELECT description FROM public.roles WHERE id=?').get(user.role);
+  user.role_label=roleInfo?.description||user.role;
+  user.permissions=(await db.prepare(`SELECT p.key FROM public.role_permissions rp JOIN public.permissions p ON p.id=rp.permission_id WHERE rp.role_id=? ORDER BY p.key`).all(user.role)).map(row=>row.key);
   delete user.investor_address;delete user.vendor_approval_status;delete user.vendor_rejection_reason;delete user.student_verification_status;
   return user;
 }
@@ -257,6 +264,18 @@ router.post('/verify-email',async(req,res)=>{
   req.authSession=result.session;
   const session=await createSession(result.user.id,req);setSession(res,session);
   res.json({verified:true,user:result.user,message:'Your email is verified. Welcome to DigiTrans.'});
+});
+
+router.post('/accept-admin-invite',async(req,res)=>{
+  const parsed=adminInviteSchema.safeParse(req.body||{});
+  if(!parsed.success)return res.status(400).json({error:'Use a valid invitation link and a 12-character password with uppercase, lowercase, a number and a symbol.'});
+  try{
+    const result=await acceptAdminInvitation({...parsed.data,ip:req.ip,requestId:req.requestId,userAgent:String(req.get('user-agent')||'').slice(0,300)});
+    res.json({message:'Your password is set. Sign in to open your DigiTrans administrator workspace.',role:result.role});
+  }catch(error){
+    logger.warn('auth.admin_invitation_accept_failed',{requestId:req.requestId,status:error?.status||500});
+    res.status(error?.status||400).json({error:error?.status?error.message:'This invitation could not be completed. Ask a DigiTrans Super Administrator to send a fresh invite.'});
+  }
 });
 
 router.post('/resend-verification',async(req,res)=>{

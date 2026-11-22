@@ -1,40 +1,63 @@
 import {asyncRouter} from '../async-router.js';
 import crypto from 'crypto';
 import db from '../db.js';
-import {requireAuth,requirePermission,notify,audit,revokeAllSessions,createSupabaseActiveUser} from '../auth.js';
+import {requireAuth,requireRole,requirePermission,requireAnyPermission,userHasPermission,notify,audit,revokeAllSessions,createSupabasePendingAdmin,sendSupabaseRecovery} from '../auth.js';
 import {getSupabaseAdmin} from '../supabase.js';
+import {isEmailConfigured,sendEmail} from '../email.js';
+import {createAdminInviteEmailTemplate} from '../email-templates.js';
+import {sanitizeAuditRecord,verifyAuditHistory} from '../audit.js';
+import {ADMIN_ROLE_IDS,ADMIN_ROLE_LABELS} from '../../shared/roles.js';
+import {missingPermissionDependencies} from '../../shared/permissions.js';
 import { createDelivery } from './customer.js';
 import {logger} from '../logger.js';
-import {buildUserIdentifierPredicate,normalizePhoneNumber} from '../phone.js';
 
 const router=asyncRouter();
 const id=()=>crypto.randomUUID();
 const ref=p=>`${p}-${new Date().toISOString().slice(0,10).replaceAll('-','')}-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
+const adminRoleSlots=ADMIN_ROLE_IDS.map(()=>'?').join(',');
+function adminInvitationOrigin(){
+ let url;
+ try{url=new URL(String(process.env.APP_URL||''));}catch{throw new Error('A valid APP_URL is required for administrator invitations.');}
+ if(!['http:','https:'].includes(url.protocol)||url.username||url.password||url.pathname!=='/'||url.search||url.hash||(process.env.NODE_ENV==='production'&&url.protocol!=='https:')){
+  throw new Error('APP_URL must be a public HTTP(S) origin for administrator invitations.');
+ }
+ return url.origin;
+}
+function adminInvitationUrl(origin,{id:inviteId,email,role,token}){
+ const url=new URL('/admin/invite',origin);
+ url.hash=new URLSearchParams({invite:inviteId,email,role,token}).toString();
+ return url.href;
+}
+function auditDateFilter(value,end=false){
+ const date=String(value||'').trim();
+ if(!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(date))return null;
+ const parsed=new Date(`${date}T${end?'23:59:59.999':'00:00:00.000'}Z`);
+ return Number.isNaN(parsed.getTime())||parsed.toISOString().slice(0,10)!==date?null:parsed.toISOString();
+}
 
-router.get('/ops/dashboard',requireAuth,requirePermission('deliveries.read'),async (req, res) => {
-  const count=async (sql, ...args) => (await db.prepare(sql).get(...args))?.n||0;
-  const sum=async (sql, ...args) => (await db.prepare(sql).get(...args))?.n||0;
+router.get('/ops/dashboard',requireAuth,requirePermission('deliveries.read'),async (req,res)=>{
+  const count=async(sql,...args)=>(await db.prepare(sql).get(...args))?.n||0;
+  const sum=async(sql,...args)=>(await db.prepare(sql).get(...args))?.n||0;
+  const [users,riders,vendors,marketRuns,waybills,finance,investments,studentReview]=await Promise.all([
+    userHasPermission(req.user,'users.read'),userHasPermission(req.user,'riders.review'),userHasPermission(req.user,'vendors.review'),
+    userHasPermission(req.user,'market_runs.manage'),userHasPermission(req.user,'waybills.manage'),userHasPermission(req.user,'finance.read'),userHasPermission(req.user,'investments.read'),userHasPermission(req.user,'students.review'),
+  ]);
   const stats={
-    customers:await count("SELECT COUNT(*) n FROM users WHERE role IN ('customer','student')"),
-    activeCustomers:await count("SELECT COUNT(*) n FROM users WHERE role IN ('customer','student') AND status='active'"),
-    riders:await count("SELECT COUNT(*) n FROM riders"), approvedRiders:await count("SELECT COUNT(*) n FROM riders WHERE approval_status='approved'"), pendingRiders:await count("SELECT COUNT(*) n FROM riders WHERE approval_status='pending'"),
-    vendors:await count("SELECT COUNT(*) n FROM vendors"), pendingVendors:await count("SELECT COUNT(*) n FROM vendors WHERE approval_status='pending'"),
-    investors:await count("SELECT COUNT(*) n FROM investors"),
     activeDeliveries:await count("SELECT COUNT(*) n FROM deliveries WHERE status IN ('assigned','rider_accepted','rider_en_route_to_pickup','arrived_at_pickup','package_collected','in_transit','arrived_at_destination','out_for_delivery')"),
     pendingDeliveries:await count("SELECT COUNT(*) n FROM deliveries WHERE status IN ('pending_confirmation','awaiting_assignment')"),
     completedDeliveries:await count("SELECT COUNT(*) n FROM deliveries WHERE status='delivered'"),
     failedDeliveries:await count("SELECT COUNT(*) n FROM deliveries WHERE status='delivery_failed'"),
     scheduledDeliveries:await count("SELECT COUNT(*) n FROM deliveries WHERE timing='scheduled' AND status NOT IN ('delivered','cancelled','returned')"),
-    pendingMarketRuns:await count("SELECT COUNT(*) n FROM market_runs WHERE status IN ('submitted','under_review','awaiting_customer_approval')"),
-    activeMarketRuns:await count("SELECT COUNT(*) n FROM market_runs WHERE status NOT IN ('delivered','cancelled','rejected')"),
-    pendingWaybills:await count("SELECT COUNT(*) n FROM waybills WHERE status IN ('submitted','under_review','awaiting_parcel_dropoff')"),
-    dispatchedWaybills:await count("SELECT COUNT(*) n FROM waybills WHERE status IN ('dispatched','in_transit')"),
-    riderEarnings:await sum("SELECT COALESCE(SUM(rider_earnings),0) n FROM rider_earnings"),
-    outstandingSettlements:await sum("SELECT COALESCE(SUM(rider_earnings),0) n FROM rider_earnings WHERE settlement_status='pending'"),
-    pendingWithdrawals:await count("SELECT COUNT(*) n FROM withdrawal_requests WHERE status IN ('requested','under_review')"),
-    activeOpportunities:await count("SELECT COUNT(*) n FROM opportunities WHERE status='published'"),
   };
-  const recent=await db.prepare(`SELECT id,reference,manual_customer_name,recipient_name,status,fee,created_at FROM deliveries ORDER BY created_at DESC LIMIT 6`).all();
+  if(users){stats.customers=await count("SELECT COUNT(*) n FROM users WHERE role IN ('customer','student')");stats.activeCustomers=await count("SELECT COUNT(*) n FROM users WHERE role IN ('customer','student') AND status='active'");}
+  if(riders){stats.riders=await count('SELECT COUNT(*) n FROM riders');stats.approvedRiders=await count("SELECT COUNT(*) n FROM riders WHERE approval_status='approved'");stats.pendingRiders=await count("SELECT COUNT(*) n FROM riders WHERE approval_status='pending'");}
+  if(vendors){stats.vendors=await count('SELECT COUNT(*) n FROM vendors');stats.pendingVendors=await count("SELECT COUNT(*) n FROM vendors WHERE approval_status='pending'");}
+  if(marketRuns){stats.pendingMarketRuns=await count("SELECT COUNT(*) n FROM market_runs WHERE status IN ('submitted','under_review','awaiting_customer_approval')");stats.activeMarketRuns=await count("SELECT COUNT(*) n FROM market_runs WHERE status NOT IN ('delivered','cancelled','rejected')");}
+  if(waybills){stats.pendingWaybills=await count("SELECT COUNT(*) n FROM waybills WHERE status IN ('submitted','under_review','awaiting_parcel_dropoff')");stats.dispatchedWaybills=await count("SELECT COUNT(*) n FROM waybills WHERE status IN ('dispatched','in_transit')");}
+  if(finance){stats.riderEarnings=await sum('SELECT COALESCE(SUM(rider_earnings),0) n FROM rider_earnings');stats.outstandingSettlements=await sum("SELECT COALESCE(SUM(rider_earnings),0) n FROM rider_earnings WHERE settlement_status='pending'");stats.pendingWithdrawals=await count("SELECT COUNT(*) n FROM withdrawal_requests WHERE status IN ('requested','under_review')");}
+  if(investments){stats.investors=await count('SELECT COUNT(*) n FROM investors');stats.activeOpportunities=await count("SELECT COUNT(*) n FROM opportunities WHERE status='published'");}
+  if(studentReview)stats.pendingStudents=await count("SELECT COUNT(*) n FROM student_profiles WHERE verification_status='pending'");
+  const recent=await db.prepare('SELECT id,reference,manual_customer_name,recipient_name,status,fee,created_at FROM deliveries ORDER BY created_at DESC LIMIT 6').all();
   res.json({stats,recent});
 });
 
@@ -58,7 +81,7 @@ router.get('/ops/users',requireAuth,requirePermission('users.read'),async (req, 
   res.json({users:rows});
 });
 
-router.post('/ops/users/:userId/status',requireAuth,requirePermission('accounts.suspend'),async (req, res) => {
+router.post('/ops/users/:userId/status',requireAuth,requireAnyPermission('accounts.suspend','users.manage'),async (req, res) => {
   const status=String(req.body?.status||''), reason=String(req.body?.reason||'').trim();
   if(!['active','suspended','rejected','deactivated','archived'].includes(status))return res.status(400).json({error:'Unsupported account status.'});
   const u=await db.prepare('SELECT id,role,status FROM users WHERE id=?').get(req.params.userId);
@@ -66,12 +89,18 @@ router.post('/ops/users/:userId/status',requireAuth,requirePermission('accounts.
   if(u.role==='super_admin'&&req.user.role!=='super_admin')return res.status(403).json({error:'Only the Super Administrator can manage another Super Administrator.'});
   if(u.id===req.user.id)return res.status(400).json({error:'You cannot suspend your own account.'});
   const update=db.transaction(async () => {
+    if(u.role==='super_admin'&&status!=='active'){
+      const activeSuperAdmins=await db.prepare("SELECT id FROM public.users WHERE role='super_admin' AND status='active' ORDER BY id FOR UPDATE").all();
+      if(activeSuperAdmins.length<=1)throw Object.assign(new Error('At least one active Super Administrator must remain.'),{status:409});
+    }
+    const locked=await db.prepare('SELECT id,role,status FROM public.users WHERE id=? FOR UPDATE').get(u.id);
+    if(!locked||locked.role!==u.role||locked.status!==u.status)throw Object.assign(new Error('The account changed while this update was in progress. Refresh and retry.'),{status:409});
     await db.prepare("UPDATE users SET status=?,updated_at=now() WHERE id=?").run(status,u.id);
     if(status!=='active')await revokeAllSessions(u.id);
     if(u.role==='rider'&&status==='suspended')await db.prepare("UPDATE riders SET approval_status='suspended',availability='suspended',rejection_reason=? WHERE user_id=?").run(reason,u.id);
     if(u.role==='vendor'&&status==='suspended')await db.prepare("UPDATE vendors SET approval_status='suspended',rejection_reason=? WHERE user_id=?").run(reason,u.id);
   });
-  await update();
+  try{await update();}catch(error){if(error?.status)return res.status(error.status).json({error:error.message});throw error;}
   await notify(u.id,'Account status updated',reason||`Your account status is now ${status.replaceAll('_',' ')}.`,'account');
   await audit(req.user,'user.status_changed','user',u.id,{status:u.status},{status},reason,req.ip);
   res.json({id:u.id,status});
@@ -108,11 +137,11 @@ router.post('/ops/vendors/:id/decision',requireAuth,requirePermission('vendors.r
   res.json({status});
 });
 
-router.get('/ops/students',requireAuth,requirePermission('users.read'),async (req, res) => {
+router.get('/ops/students',requireAuth,requirePermission('students.review'),async (req, res) => {
   const rows=await db.prepare(`SELECT sp.*,u.email,u.phone,p.full_name FROM student_profiles sp JOIN users u ON u.id=sp.user_id JOIN profiles p ON p.user_id=u.id WHERE u.role='student' AND sp.verification_status IN ('pending','rejected') ORDER BY u.created_at`).all();
   res.json({students:rows});
 });
-router.get('/ops/students/:id/documents',requireAuth,requirePermission('users.read'),async (req, res) => {
+router.get('/ops/students/:id/documents',requireAuth,requirePermission('students.review'),async (req, res) => {
   const s=await db.prepare('SELECT user_id FROM student_profiles WHERE user_id=?').get(req.params.id);if(!s)return res.status(404).json({error:'Student record not found.'});res.json({documents:await db.prepare('SELECT id,doc_type,status,created_at FROM student_documents WHERE user_id=? ORDER BY created_at DESC').all(s.user_id)});
 });
 router.post('/ops/students/:id/documents/:docId/status',requireAuth,requirePermission('students.review'),async (req, res) => {
@@ -221,10 +250,30 @@ router.patch('/ops/zones/:id',requireAuth,requirePermission('pricing.manage'),as
 });
 
 router.get('/ops/audit',requireAuth,requirePermission('audit.read'),async (req, res) => {
-  const limit=Math.min(200,Math.max(1,Number(req.query.limit)||100));
-  const action=req.query.action?`%${String(req.query.action).slice(0,80)}%`:null;
-  const rows=await db.prepare(`SELECT a.*,p.full_name actor_name FROM audit_logs a LEFT JOIN profiles p ON p.user_id=a.actor_id WHERE (CAST(? AS text) IS NULL OR a.action LIKE ?) ORDER BY a.created_at DESC LIMIT ?`).all(action,action,limit);
-  res.json({logs:rows});
+  const page=Math.min(10000,Math.max(1,Number.parseInt(req.query.page,10)||1));
+  const limit=Math.min(100,Math.max(1,Number.parseInt(req.query.limit,10)||50));
+  const search=String(req.query.search||'').trim().slice(0,100),action=String(req.query.action||'').trim().slice(0,100);
+  const actorRole=String(req.query.actorRole||'').trim().slice(0,80),recordType=String(req.query.recordType||'').trim().slice(0,100);
+  const from=auditDateFilter(req.query.from),to=auditDateFilter(req.query.to,true);
+  if((req.query.from&&!from)||(req.query.to&&!to))return res.status(400).json({error:'Use valid dates for the audit filter.'});
+  const clauses=[],params=[];
+  if(search){clauses.push(`(a.action ILIKE ? OR a.record_type ILIKE ? OR a.record_id ILIKE ? OR a.actor_name ILIKE ? OR a.actor_email ILIKE ? OR a.reason ILIKE ? OR a.request_id ILIKE ?)`);for(let i=0;i<7;i++)params.push(`%${search}%`);}
+  if(action){clauses.push('a.action ILIKE ?');params.push(`%${action}%`);}
+  if(actorRole){clauses.push('a.actor_role=?');params.push(actorRole);}
+  if(recordType){clauses.push('a.record_type ILIKE ?');params.push(`%${recordType}%`);}
+  if(from){clauses.push('a.created_at>=CAST(? AS timestamptz)');params.push(from);}
+  if(to){clauses.push('a.created_at<=CAST(? AS timestamptz)');params.push(to);}
+  const where=clauses.length?`WHERE ${clauses.join(' AND ')}`:'';
+  const total=Number((await db.prepare(`SELECT COUNT(*) total FROM public.audit_logs a ${where}`).get(...params))?.total||0);
+  const offset=(page-1)*limit;
+  const rows=await db.prepare(`SELECT a.*,COALESCE(NULLIF(a.actor_name,''),p.full_name) actor_name
+    FROM public.audit_logs a LEFT JOIN public.profiles p ON p.user_id=a.actor_id ${where}
+    ORDER BY a.chain_sequence DESC NULLS LAST,a.created_at DESC,a.id DESC LIMIT ? OFFSET ?`).all(...params,limit,offset);
+  res.json({logs:rows.map(sanitizeAuditRecord),pagination:{page,limit,total,pages:Math.ceil(total/limit)}});
+});
+
+router.get('/ops/audit/integrity',requireAuth,requirePermission('audit.read'),async (_req,res)=>{
+  res.json(await verifyAuditHistory(db));
 });
 
 router.get('/ops/overview/reports',requireAuth,requirePermission('deliveries.read'),async (_req, res) => {
@@ -257,7 +306,7 @@ router.post('/ops/market-runs/:id/agent',requireAuth,requirePermission('market_r
   const m=await db.prepare('SELECT * FROM market_runs WHERE id=?').get(req.params.id),agentId=String(req.body?.agentId||'');
   if(!m)return res.status(404).json({error:'Market Run not found.'});
   const agent=await db.prepare('SELECT role FROM users WHERE id=? AND status=\'active\'').get(agentId);
-  if(!agent||!['ops_officer','super_admin'].includes(agent.role))return res.status(400).json({error:'Choose an active operations agent.'});
+  if(!agent||!await userHasPermission(agent,'market_runs.manage'))return res.status(400).json({error:'Choose an active operations agent with Market Run management access.'});
   await db.prepare("UPDATE market_runs SET agent_id=?,status='agent_assigned',updated_at=now() WHERE id=?").run(agentId,m.id);
   await audit(req.user,'market_run.agent_assigned','market_run',m.id,{agent_id:m.agent_id},{agent_id:agentId},String(req.body?.reason||''),req.ip);
   res.json({status:'agent_assigned'});
@@ -360,33 +409,158 @@ router.post('/ops/investors/:id/decision',requireAuth,requirePermission('investm
   await audit(req.user,`investor.verification_${status}`,'investor',investor.user_id,{status:investor.verification_status},{status},reason,req.ip);res.json({status});
 });
 
-router.get('/ops/admin-users',requireAuth,requirePermission('admin.manage'),async (_req, res) => {
-  res.json({admins:await db.prepare(`SELECT u.id,u.email,u.phone,u.role,u.status,u.created_at,p.full_name FROM users u JOIN profiles p ON p.user_id=u.id WHERE u.role NOT IN ('customer','student','rider','vendor','investor') ORDER BY u.created_at`).all()});
+router.get('/ops/admin-users',requireAuth,requireRole('super_admin'),async (_req,res)=>{
+  const admins=await db.prepare(`SELECT u.id,u.email,u.phone,u.role,u.status,u.created_at,p.full_name,r.description role_label
+    FROM public.users u LEFT JOIN public.profiles p ON p.user_id=u.id LEFT JOIN public.roles r ON r.id=u.role
+    WHERE u.role IN (${adminRoleSlots}) AND u.status<>'pending_verification' ORDER BY u.created_at DESC LIMIT 200`).all(...ADMIN_ROLE_IDS);
+  const invitations=await db.prepare(`SELECT i.id,i.email,i.full_name,i.role,i.status,i.created_at,i.updated_at,i.last_sent_at,
+    (SELECT MAX(t.expires_at) FROM public.admin_invitation_tokens t WHERE t.invitation_id=i.id AND t.used_at IS NULL AND t.revoked_at IS NULL) expires_at,
+    p.full_name invited_by_name
+    FROM public.admin_invitations i LEFT JOIN public.profiles p ON p.user_id=i.invited_by
+    WHERE i.status IN ('pending','delivery_failed') ORDER BY i.created_at DESC LIMIT 100`).all();
+  res.json({admins,invitations});
 });
-router.post('/ops/admin-users',requireAuth,requirePermission('admin.manage'),async (req, res) => {
-  const fullName=String(req.body?.fullName||'').trim(),email=String(req.body?.email||'').trim().toLowerCase(),phone=normalizePhoneNumber(req.body?.phone),role=String(req.body?.role||''),password=String(req.body?.password||'');
-  const roles=['ops_officer','rider_manager','vendor_manager','finance_officer','investment_manager','super_admin'];
-  if(!roles.includes(role)||role==='super_admin'&&req.user.role!=='super_admin')return res.status(403).json({error:'You cannot assign this administrative role.'});
-  if(fullName.length<2||!/^\S+@\S+\.\S+$/.test(email)||!phone||password.length<12||!/[A-Z]/.test(password)||!/[a-z]/.test(password)||!/[0-9]/.test(password)||!/[!@#$%^&*]/.test(password))return res.status(400).json({error:'Enter valid details and a 12-character password with upper, lower, number and symbol.'});
-  const phonePredicate=buildUserIdentifierPredicate(phone,{emailColumn:'email',phoneColumn:'phone'});
-  if(await db.prepare(`SELECT id FROM users WHERE lower(email)=? OR ${phonePredicate.sql}`).get(email,...phonePredicate.params))return res.status(409).json({error:'This email or phone is already registered.'});
-  let authUser;
-  try{authUser=await createSupabaseActiveUser({email,password,fullName,role,phone});}
-  catch(error){return res.status(error?.status||409).json({error:error?.status?error.message:'Unable to create this administrative account.'});}
-  const userId=authUser.id;
+
+router.get('/ops/admin-roles',requireAuth,requireRole('super_admin'),async (_req,res)=>{
+  const [roles,permissions,grants]=await Promise.all([
+    db.prepare(`SELECT id,name,description FROM public.roles WHERE id IN (${adminRoleSlots}) ORDER BY CASE id WHEN 'super_admin' THEN 0 ELSE 1 END,name`).all(...ADMIN_ROLE_IDS),
+    db.prepare('SELECT key,description FROM public.permissions ORDER BY key').all(),
+    db.prepare(`SELECT rp.role_id,p.key FROM public.role_permissions rp JOIN public.permissions p ON p.id=rp.permission_id WHERE rp.role_id IN (${adminRoleSlots}) ORDER BY p.key`).all(...ADMIN_ROLE_IDS),
+  ]);
+  res.json({roles:roles.map(role=>({...role,permissions:grants.filter(grant=>grant.role_id===role.id).map(grant=>grant.key)})),permissions});
+});
+
+router.put('/ops/admin-roles/:role/permissions',requireAuth,requireRole('super_admin'),async (req,res)=>{
+  const role=String(req.params.role||''),raw=req.body?.permissionKeys;
+  if(!ADMIN_ROLE_IDS.includes(role)||role==='super_admin')return res.status(400).json({error:'Choose an editable administrative position. Super Administrator access is fixed.'});
+  if(!Array.isArray(raw)||raw.length>100)return res.status(400).json({error:'Provide a valid permission list.'});
+  const permissionKeys=[...new Set(raw.map(value=>String(value||'').trim()).filter(Boolean))];
+  if(permissionKeys.includes('admin.manage'))return res.status(400).json({error:'Administrator and role management stays exclusive to Super Administrators.'});
+  const missingDependency=missingPermissionDependencies(permissionKeys)[0];
+  if(missingDependency)return res.status(400).json({error:`${missingDependency.permission} requires ${missingDependency.dependency}.`});
+  const catalog=await db.prepare('SELECT id,key FROM public.permissions').all(),catalogByKey=new Map(catalog.map(item=>[item.key,item.id]));
+  if(permissionKeys.some(key=>!catalogByKey.has(key)))return res.status(400).json({error:'The permission list contains an unsupported capability.'});
+  const previous=(await db.prepare(`SELECT p.key FROM public.role_permissions rp JOIN public.permissions p ON p.id=rp.permission_id WHERE rp.role_id=? ORDER BY p.key`).all(role)).map(row=>row.key);
+  const savePermissions=db.transaction(async()=>{
+    await db.prepare('DELETE FROM public.role_permissions WHERE role_id=?').run(role);
+    for(const key of permissionKeys)await db.prepare('INSERT INTO public.role_permissions(role_id,permission_id) VALUES (?,?)').run(role,catalogByKey.get(key));
+    await audit(req.user,'admin.role_permissions_updated','role',role,{permissions:previous},{permissions:[...permissionKeys].sort()},'Super Administrator updated the access matrix.',req.ip);
+  });
+  await savePermissions();
+  res.json({role,permissions:[...permissionKeys].sort(),message:'Role permissions updated.'});
+});
+
+router.post('/ops/admin-users',requireAuth,requireRole('super_admin'),async (req,res)=>{
+  const fullName=String(req.body?.fullName||'').trim(),email=String(req.body?.email||'').trim().toLowerCase(),role=String(req.body?.role||req.body?.position||'');
+  if(fullName.length<2||fullName.length>100||!/^\S+@\S+\.\S+$/.test(email)||email.length>180)return res.status(400).json({error:'Enter a valid full name and email address.'});
+  if(!ADMIN_ROLE_IDS.includes(role))return res.status(400).json({error:'Choose a supported administrative position.'});
+  if(!isEmailConfigured())return res.status(503).json({error:'Admin invitation email is not configured. Set RESEND_API_KEY, RESEND_FROM_EMAIL and APP_URL before inviting administrators.'});
+  let inviteOrigin;try{inviteOrigin=adminInvitationOrigin();}catch{return res.status(503).json({error:'APP_URL must be a valid public HTTPS origin before sending administrator invitations.'});}
+  if(await db.prepare('SELECT id FROM public.users WHERE lower(email)=?').get(email))return res.status(409).json({error:'An account already exists for this email address.'});
+  let provisioned;
+  try{provisioned=await createSupabasePendingAdmin({email,fullName,role});}
+  catch(error){return res.status(error?.status||409).json({error:error?.status?error.message:'Unable to prepare this invitation.'});}
+  const invitationId=id(),tokenId=id(),expiresAt=new Date(Date.now()+60*60*1000).toISOString();
+  const tokenDigest=crypto.createHash('sha256').update(provisioned.token).digest('hex');
   try{
-    const create=db.transaction(async()=>{
-      await db.prepare('INSERT INTO public.users (id,email,phone,role,status,email_verified) VALUES (?,?,?,?,\'active\',1)').run(userId,email,phone,role);
-      await db.prepare('INSERT INTO public.profiles (user_id,full_name) VALUES (?,?)').run(userId,fullName);
+    const saveInvitation=db.transaction(async()=>{
+      await db.prepare(`INSERT INTO public.users(id,email,phone,role,status,email_verified) VALUES (?,?,NULL,?,'pending_verification',0)`).run(provisioned.user.id,email,role);
+      await db.prepare('INSERT INTO public.profiles(user_id,full_name) VALUES (?,?)').run(provisioned.user.id,fullName);
+      await db.prepare(`INSERT INTO public.admin_invitations(id,email,full_name,role,auth_user_id,invited_by,status)
+        VALUES (?,?,?,?,?,?,'pending')`).run(invitationId,email,fullName,role,provisioned.user.id,req.user.id);
+      await db.prepare('INSERT INTO public.admin_invitation_tokens(id,invitation_id,token_digest,expires_at) VALUES (?,?,?,?)').run(tokenId,invitationId,tokenDigest,expiresAt);
+      await audit(req.user,'admin.invitation_created','admin_invitation',invitationId,null,{email,fullName,role,status:'pending'},null,req.ip);
     });
-    await create();
+    await saveInvitation();
   }catch(error){
-    try{await getSupabaseAdmin().auth.admin.deleteUser(userId);}catch{}
+    try{await getSupabaseAdmin().auth.admin.deleteUser(provisioned.user.id);}catch{}
     if(error?.status)return res.status(error.status).json({error:error.message});
-    return res.status(409).json({error:'Unable to create this administrative account.'});
+    return res.status(409).json({error:'The administrator invitation could not be saved.'});
   }
-  await audit(req.user,'admin.created','user',userId,null,{email,role},'Created by Super Administrator',req.ip);
-  res.status(201).json({id:userId,email,role,status:'active',message:'Admin account created. Share the temporary password securely.'});
+  const inviteLink=adminInvitationUrl(inviteOrigin,{id:invitationId,email,role,token:provisioned.token});
+  try{
+    await sendEmail({to:email,...createAdminInviteEmailTemplate({name:fullName,email,role,actionUrl:inviteLink}),idempotencyKey:`admin-invite-${invitationId}-${tokenDigest.slice(0,16)}`});
+    await db.prepare("UPDATE public.admin_invitations SET status='pending',last_sent_at=now(),updated_at=now() WHERE id=?").run(invitationId);
+    await audit(req.user,'admin.invitation_sent','admin_invitation',invitationId,{status:'pending'},{email,role,delivery:'sent'},null,req.ip);
+    res.status(201).json({id:invitationId,email,role,status:'pending',emailSent:true,message:`Invitation sent to ${email}.`});
+  }catch(error){
+    await db.prepare("UPDATE public.admin_invitations SET status='delivery_failed',updated_at=now() WHERE id=?").run(invitationId);
+    await audit(req.user,'admin.invitation_delivery_failed','admin_invitation',invitationId,{status:'pending'},{email,role,delivery:'failed'},'Email provider rejected or did not confirm delivery.',req.ip);
+    logger.warn('admin.invitation_email_failed',{requestId:req.requestId,invitationId,status:error?.status||502});
+    res.status(202).json({id:invitationId,email,role,status:'delivery_failed',emailSent:false,message:'The invitation is saved, but the email did not send. Use Resend invitation to try again.'});
+  }
+});
+
+router.post('/ops/admin-invitations/:id/resend',requireAuth,requireRole('super_admin'),async (req,res)=>{
+  if(!isEmailConfigured())return res.status(503).json({error:'Admin invitation email is not configured.'});
+  let inviteOrigin;try{inviteOrigin=adminInvitationOrigin();}catch{return res.status(503).json({error:'APP_URL must be a valid public HTTPS origin before sending administrator invitations.'});}
+  const invite=await db.prepare(`SELECT id,email,full_name,role,status,auth_user_id FROM public.admin_invitations
+    WHERE id=? AND status IN ('pending','delivery_failed')`).get(req.params.id);
+  if(!invite)return res.status(404).json({error:'A pending invitation was not found.'});
+  const user=await db.prepare('SELECT status,role FROM public.users WHERE id=?').get(invite.auth_user_id);
+  if(!user||user.status!=='pending_verification'||user.role!==invite.role)return res.status(409).json({error:'This invitation is no longer available.'});
+  let token;
+  try{token=await sendSupabaseRecovery(invite.email);}catch(error){return res.status(error?.status||503).json({error:'A fresh secure invite could not be created. Try again shortly.'});}
+  const tokenId=id(),tokenDigest=crypto.createHash('sha256').update(token).digest('hex'),expiresAt=new Date(Date.now()+60*60*1000).toISOString();
+  const saveResentToken=db.transaction(async()=>{
+    await db.prepare('UPDATE public.admin_invitation_tokens SET revoked_at=now() WHERE invitation_id=? AND used_at IS NULL AND revoked_at IS NULL').run(invite.id);
+    await db.prepare('INSERT INTO public.admin_invitation_tokens(id,invitation_id,token_digest,expires_at) VALUES (?,?,?,?)').run(tokenId,invite.id,tokenDigest,expiresAt);
+    await audit(req.user,'admin.invitation_resent','admin_invitation',invite.id,{status:invite.status},{email:invite.email,role:invite.role,delivery:'pending'},null,req.ip);
+  });
+  await saveResentToken();
+  try{
+    await sendEmail({to:invite.email,...createAdminInviteEmailTemplate({name:invite.full_name,email:invite.email,role:invite.role,actionUrl:adminInvitationUrl(inviteOrigin,{id:invite.id,email:invite.email,role:invite.role,token})}),idempotencyKey:`admin-invite-${invite.id}-${tokenDigest.slice(0,16)}`});
+    await db.prepare("UPDATE public.admin_invitations SET status='pending',last_sent_at=now(),updated_at=now() WHERE id=?").run(invite.id);
+    await audit(req.user,'admin.invitation_sent','admin_invitation',invite.id,{status:invite.status},{email:invite.email,role:invite.role,delivery:'sent'},null,req.ip);
+    res.json({id:invite.id,email:invite.email,status:'pending',message:`A fresh invitation was sent to ${invite.email}.`});
+  }catch(error){
+    await db.prepare("UPDATE public.admin_invitations SET status='delivery_failed',updated_at=now() WHERE id=?").run(invite.id);
+    await audit(req.user,'admin.invitation_delivery_failed','admin_invitation',invite.id,{status:invite.status},{email:invite.email,role:invite.role,delivery:'failed'},'Email provider rejected or did not confirm delivery.',req.ip);
+    logger.warn('admin.invitation_resend_failed',{requestId:req.requestId,invitationId:invite.id,status:error?.status||502});
+    res.status(202).json({id:invite.id,email:invite.email,status:'delivery_failed',message:'The invitation remains pending, but email was not confirmed. Resend it again when ready.'});
+  }
+});
+
+router.patch('/ops/admin-users/:userId/role',requireAuth,requireRole('super_admin'),async(req,res)=>{
+  const role=String(req.body?.role||'');
+  if(!ADMIN_ROLE_IDS.includes(role))return res.status(400).json({error:'Choose a supported administrative role.'});
+  const target=await db.prepare('SELECT u.id,u.email,u.role,u.status,p.full_name FROM public.users u LEFT JOIN public.profiles p ON p.user_id=u.id WHERE u.id=? AND u.role IN ('+adminRoleSlots+')').get(req.params.userId,...ADMIN_ROLE_IDS);
+  if(!target)return res.status(404).json({error:'Administrator not found.'});
+  if(target.status!=='active')return res.status(409).json({error:'Only active administrators can change roles. Resend or complete their invitation first.'});
+  if(target.role===role)return res.json({id:target.id,role,message:'That administrator already has this position.'});
+  if(target.id===req.user.id)return res.status(400).json({error:'You cannot change your own administrator role.'});
+  if(target.role==='super_admin'&&role!=='super_admin'){
+    const activeCount=Number((await db.prepare("SELECT COUNT(*) total FROM public.users WHERE role='super_admin' AND status='active'").get())?.total||0);
+    if(activeCount<=1)return res.status(409).json({error:'At least one active Super Administrator must remain.'});
+  }
+  const admin=getSupabaseAdmin(),authResult=await admin.auth.admin.getUserById(target.id);
+  if(authResult.error||!authResult.data?.user)return res.status(503).json({error:'The administrator identity service is temporarily unavailable.'});
+  const oldMetadata=authResult.data.user.app_metadata||{},newMetadata={...oldMetadata,role,status:target.status,session_version:crypto.randomUUID()};
+  const {error:updateError}=await admin.auth.admin.updateUserById(target.id,{app_metadata:newMetadata});
+  if(updateError)return res.status(503).json({error:'The administrator role could not be synchronized with sign-in.'});
+  try{
+    const updateRole=db.transaction(async()=>{
+      if(target.role==='super_admin'||role==='super_admin'){
+        const activeSuperAdmins=await db.prepare("SELECT id FROM public.users WHERE role='super_admin' AND status='active' ORDER BY id FOR UPDATE").all();
+        if(target.role==='super_admin'&&role!=='super_admin'&&activeSuperAdmins.length<=1)throw Object.assign(new Error('At least one active Super Administrator must remain.'),{status:409});
+      }
+      const locked=await db.prepare('SELECT role,status FROM public.users WHERE id=? FOR UPDATE').get(target.id);
+      if(!locked||locked.role!==target.role||locked.status!=='active')throw Object.assign(new Error('The administrator changed while this update was in progress. Refresh and retry.'),{status:409});
+      await db.prepare('UPDATE public.users SET role=?,updated_at=now() WHERE id=?').run(role,target.id);
+      await audit(req.user,'admin.role_changed','user',target.id,{role:target.role},{role},'Administrator role updated by Super Administrator.',req.ip);
+    });
+    await updateRole();
+  }catch(error){
+    try{
+      const current=await db.prepare('SELECT role,status FROM public.users WHERE id=?').get(target.id);
+      const latest=await admin.auth.admin.getUserById(target.id),latestMetadata=latest.data?.user?.app_metadata||{};
+      if(!latest.error&&latestMetadata.session_version===newMetadata.session_version){
+        await admin.auth.admin.updateUserById(target.id,{app_metadata:{...latestMetadata,role:current?.role||target.role,status:current?.status||target.status,session_version:crypto.randomUUID()}});
+      }
+    }catch{}
+    return res.status(error?.status||409).json({error:error?.status?error.message:'The administrator role could not be saved.'});
+  }
+  res.json({id:target.id,role,roleLabel:ADMIN_ROLE_LABELS[role],message:'Administrator role updated. Their active sessions were signed out.'});
 });
 
 router.get('/ops/rider-agreement',requireAuth,requirePermission('settings.manage'),async (_req, res) => {
