@@ -2,6 +2,7 @@ import {asyncRouter} from '../async-router.js';
 import crypto from 'crypto';
 import db from '../db.js';
 import { requireAuth, requireRole, requirePermission, notify, audit } from '../auth.js';
+import { parseDateRange, parsePagination, parseSearchQuery } from '../query-filters.js';
 
 const router=asyncRouter();
 const id=()=>crypto.randomUUID();
@@ -34,8 +35,9 @@ router.get('/investor/dashboard',requireAuth,requireRole('investor'),async (req,
     COALESCE((SELECT SUM(actual_amount) FROM investment_earnings ie WHERE ie.investment_id=i.id AND ie.type='actual'),0) actual_earnings
     FROM investments i JOIN opportunities o ON o.id=i.opportunity_id WHERE i.investor_id=? ORDER BY i.created_at DESC`).all(req.user.id);
   const applications=await db.prepare(`SELECT a.*,o.title opportunity_title,o.duration_months FROM investment_applications a JOIN opportunities o ON o.id=a.opportunity_id WHERE a.investor_id=? ORDER BY a.created_at DESC`).all(req.user.id);
+  const withdrawals=await db.prepare(`SELECT w.*,o.title opportunity_title FROM investment_withdrawals w JOIN investments i ON i.id=w.investment_id JOIN opportunities o ON o.id=i.opportunity_id WHERE w.investor_id=? ORDER BY w.created_at DESC`).all(req.user.id);
   const principal=investments.reduce((s,i)=>s+i.principal,0),projected=investments.reduce((s,i)=>s+i.projected_earnings,0),actual=investments.reduce((s,i)=>s+i.actual_earnings,0);
-  res.json({verificationStatus:profile?.verification_status||'pending',stats:{principal,projected,actual,active:investments.filter(i=>['active','approaching_maturity'].includes(i.status)).length},investments,applications});
+  res.json({verificationStatus:profile?.verification_status||'pending',stats:{principal,projected,actual,active:investments.filter(i=>['active','approaching_maturity'].includes(i.status)).length},investments,applications,withdrawals});
 });
 
 router.post('/investor/applications',requireAuth,requireRole('investor'),async (req, res) => {
@@ -100,9 +102,23 @@ router.post('/ops/opportunities/:id/status',requireAuth,requirePermission('inves
   await audit(req.user,'investment.opportunity_status_changed','opportunity',o.id,{status:o.status},{status:next},reason,req.ip);
   res.json({status:next});
 });
-router.get('/ops/investment-applications',requireAuth,requirePermission('investments.read'),async (_req, res) => {
-  const rows=await db.prepare(`SELECT a.*,o.title opportunity_title,o.duration_months,i.email investor_email,p.full_name investor_name,p.address FROM investment_applications a JOIN opportunities o ON o.id=a.opportunity_id JOIN users i ON i.id=a.investor_id JOIN profiles p ON p.user_id=i.id ORDER BY a.created_at DESC LIMIT 300`).all();
-  res.json({applications:rows});
+router.get('/ops/investment-applications',requireAuth,requirePermission('investments.read'),async (req, res) => {
+  const status=String(req.query.status||'').trim()||null,search=parseSearchQuery(req.query.search);
+  let from=null,to=null;
+  try{({from,to}=parseDateRange(req.query));}catch(error){return res.status(error.status||400).json({error:error.message});}
+  const {page,limit,offset}=parsePagination(req.query,{defaultLimit:100,maxLimit:100});
+  const total=Number((await db.prepare(`SELECT COUNT(*) total FROM investment_applications a JOIN opportunities o ON o.id=a.opportunity_id JOIN users i ON i.id=a.investor_id JOIN profiles p ON p.user_id=i.id
+    WHERE (CAST(? AS text) IS NULL OR a.status=?)
+      AND (CAST(? AS text) IS NULL OR a.reference ILIKE ? OR p.full_name ILIKE ? OR i.email ILIKE ? OR o.title ILIKE ?)
+      AND (CAST(? AS date) IS NULL OR a.created_at >= CAST(? AS date))
+      AND (CAST(? AS date) IS NULL OR a.created_at < (CAST(? AS date) + INTERVAL '1 day'))`).get(status,status,search,search,search,search,search,from,from,to,to))?.total||0);
+  const rows=await db.prepare(`SELECT a.*,o.title opportunity_title,o.duration_months,i.email investor_email,p.full_name investor_name,p.address FROM investment_applications a JOIN opportunities o ON o.id=a.opportunity_id JOIN users i ON i.id=a.investor_id JOIN profiles p ON p.user_id=i.id
+    WHERE (CAST(? AS text) IS NULL OR a.status=?)
+      AND (CAST(? AS text) IS NULL OR a.reference ILIKE ? OR p.full_name ILIKE ? OR i.email ILIKE ? OR o.title ILIKE ?)
+      AND (CAST(? AS date) IS NULL OR a.created_at >= CAST(? AS date))
+      AND (CAST(? AS date) IS NULL OR a.created_at < (CAST(? AS date) + INTERVAL '1 day'))
+    ORDER BY a.created_at DESC LIMIT ? OFFSET ?`).all(status,status,search,search,search,search,search,from,from,to,to,limit,offset);
+  res.json({applications:rows,page,pages:Math.ceil(total/limit),total,countOnPage:rows.length});
 });
 router.post('/ops/investment-applications/:id/decision',requireAuth,requirePermission('investments.manage'),async (req, res) => {
   const a=await db.prepare('SELECT * FROM investment_applications WHERE id=?').get(req.params.id);if(!a)return res.status(404).json({error:'Application not found.'});
@@ -111,8 +127,23 @@ router.post('/ops/investment-applications/:id/decision',requireAuth,requirePermi
   await notify(a.investor_id,`Investment application ${status}`,reason||`Your application ${a.reference} is ${status}.`,'investment',a.id);
   await audit(req.user,`investment.application_${status}`,'investment_application',a.id,{status:a.status},{status},reason,req.ip);res.json({status});
 });
-router.get('/ops/investor-withdrawals',requireAuth,requirePermission('investments.read'),async (_req, res) => {
-  res.json({withdrawals:await db.prepare(`SELECT w.*,o.title opportunity_title,p.full_name investor_name FROM investment_withdrawals w JOIN investments i ON i.id=w.investment_id JOIN opportunities o ON o.id=i.opportunity_id JOIN profiles p ON p.user_id=w.investor_id ORDER BY w.created_at DESC`).all()});
+router.get('/ops/investor-withdrawals',requireAuth,requirePermission('investments.read'),async (req, res) => {
+  const status=String(req.query.status||'').trim()||null,search=parseSearchQuery(req.query.search);
+  let from=null,to=null;
+  try{({from,to}=parseDateRange(req.query));}catch(error){return res.status(error.status||400).json({error:error.message});}
+  const {page,limit,offset}=parsePagination(req.query,{defaultLimit:100,maxLimit:100});
+  const total=Number((await db.prepare(`SELECT COUNT(*) total FROM investment_withdrawals w JOIN investments i ON i.id=w.investment_id JOIN opportunities o ON o.id=i.opportunity_id JOIN profiles p ON p.user_id=w.investor_id
+    WHERE (CAST(? AS text) IS NULL OR w.status=?)
+      AND (CAST(? AS text) IS NULL OR w.reference ILIKE ? OR p.full_name ILIKE ? OR o.title ILIKE ?)
+      AND (CAST(? AS date) IS NULL OR w.created_at >= CAST(? AS date))
+      AND (CAST(? AS date) IS NULL OR w.created_at < (CAST(? AS date) + INTERVAL '1 day'))`).get(status,status,search,search,search,search,from,from,to,to))?.total||0);
+  const rows=await db.prepare(`SELECT w.*,o.title opportunity_title,p.full_name investor_name FROM investment_withdrawals w JOIN investments i ON i.id=w.investment_id JOIN opportunities o ON o.id=i.opportunity_id JOIN profiles p ON p.user_id=w.investor_id
+    WHERE (CAST(? AS text) IS NULL OR w.status=?)
+      AND (CAST(? AS text) IS NULL OR w.reference ILIKE ? OR p.full_name ILIKE ? OR o.title ILIKE ?)
+      AND (CAST(? AS date) IS NULL OR w.created_at >= CAST(? AS date))
+      AND (CAST(? AS date) IS NULL OR w.created_at < (CAST(? AS date) + INTERVAL '1 day'))
+    ORDER BY w.created_at DESC LIMIT ? OFFSET ?`).all(status,status,search,search,search,search,from,from,to,to,limit,offset);
+  res.json({withdrawals:rows,page,pages:Math.ceil(total/limit),total,countOnPage:rows.length});
 });
 router.post('/ops/investor-withdrawals/:id/status',requireAuth,requirePermission('finance.manage'),async (req, res) => {
   const w=await db.prepare('SELECT * FROM investment_withdrawals WHERE id=?').get(req.params.id);if(!w)return res.status(404).json({error:'Withdrawal not found.'});

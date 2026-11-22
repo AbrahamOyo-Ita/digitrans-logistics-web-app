@@ -67,7 +67,7 @@ export default function App(){
  if(authState==='loading'&&workspace)view=<div className="min-h-screen bg-[#f6f8f6]"><Loading label="Restoring your secure session…"/></div>;
  else if(workspace&&!user)view=<div className="min-h-screen bg-[#f6f8f6]"><Loading label="Opening sign-in…"/></div>;
  else if(user&&isAuth&&path!=='/auth/verify')view=<div className="min-h-screen bg-[#f6f8f6]"><Loading label="Opening your workspace…"/></div>;
- else if(workspace&&user)view=<Workspace key={user.id} user={user} navigate={navigate} onLogout={logout} showToast={showToast}/>;
+ else if(workspace&&user)view=<Workspace key={user.id} user={user} navigate={navigate} onLogout={logout} showToast={showToast} locationSearch={location.search}/>;
  else if(isAdminInvite)view=<AdminInvitePage key={`${path}${location.hash}`} navigate={navigate}/>;
  else if(isAuth)view=<AuthPage key={`${path}${location.search}`} mode={authMode} navigate={navigate} onAuthenticated={onAuthenticated} initialRole={search.get('role')||'customer'} resetToken={search.get('token')||''} resetEmail={search.get('email')||''} verificationEmail={search.get('email')||''} verificationToken={search.get('token')||search.get('token_hash')||''}/>;
  else view=<PublicSite key={path} page={path} navigate={navigate} onLogin={onLogin} user={user}/>;

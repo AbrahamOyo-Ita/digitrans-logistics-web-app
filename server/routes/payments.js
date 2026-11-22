@@ -4,6 +4,7 @@ import db from '../db.js';
 import { requireAuth, requireRole, requirePermission, userHasPermission, audit } from '../auth.js';
 import {initializePaystackPayment,settleVerifiedPayment,verifyPaystackPayment,verifyPaystackSignature,refundPaystackPayment,reference} from '../payments.js';
 import {applyFailedPaystackPayment} from '../payment-rpc.js';
+import {parseDateRange,parsePagination,parseSearchQuery} from '../query-filters.js';
 import {logger} from '../logger.js';
 
 const router=asyncRouter();
@@ -63,8 +64,29 @@ router.get('/payments/verify/:reference',requireAuth,async(req,res)=>{
 });
 router.get('/payments',requireAuth,async (req, res) => {
   const canReadAll=await userHasPermission(req.user,'finance.read');
-  const rows=canReadAll?await db.prepare('SELECT id,reference,amount,provider,status,created_at,updated_at FROM payments ORDER BY created_at DESC LIMIT 100').all():await db.prepare('SELECT id,reference,amount,provider,status,created_at,updated_at FROM payments WHERE user_id=? ORDER BY created_at DESC LIMIT 100').all(req.user.id);
-  res.json({payments:rows});
+  const status=String(req.query.status||'').trim(),search=parseSearchQuery(req.query.search);
+  const focus=String(req.query.focus||'').trim().slice(0,120)||null;
+  let from=null,to=null;
+  try{({from,to}=parseDateRange(req.query));}catch(error){return res.status(error.status||400).json({error:error.message});}
+  if(status&&!['pending','initiated','successful','under_review','failed','cancelled','reversed','refunded'].includes(status))return res.status(400).json({error:'Choose a supported payment status.'});
+  const statusFilter=status||null,scopeAll=canReadAll?1:0;
+  const {page,limit,offset}=parsePagination(req.query,{defaultLimit:50,maxLimit:100});
+  const total=Number((await db.prepare(`SELECT COUNT(*) total FROM public.payments
+    WHERE (? = 1 OR user_id = ?)
+      AND (CAST(? AS text) IS NULL OR status = ?)
+      AND (CAST(? AS text) IS NULL OR reference ILIKE ? OR provider_ref ILIKE ?)
+      AND (CAST(? AS date) IS NULL OR created_at >= CAST(? AS date))
+      AND (CAST(? AS date) IS NULL OR created_at < (CAST(? AS date) + INTERVAL '1 day'))
+      AND (CAST(? AS text) IS NULL OR id = ? OR reference = ?)`).get(scopeAll,req.user.id,statusFilter,statusFilter,search,search,search,from,from,to,to,focus,focus,focus))?.total||0);
+  const rows=await db.prepare(`SELECT id,reference,amount,provider,status,created_at,updated_at FROM public.payments
+    WHERE (? = 1 OR user_id = ?)
+      AND (CAST(? AS text) IS NULL OR status = ?)
+      AND (CAST(? AS text) IS NULL OR reference ILIKE ? OR provider_ref ILIKE ?)
+      AND (CAST(? AS date) IS NULL OR created_at >= CAST(? AS date))
+      AND (CAST(? AS date) IS NULL OR created_at < (CAST(? AS date) + INTERVAL '1 day'))
+      AND (CAST(? AS text) IS NULL OR id = ? OR reference = ?)
+    ORDER BY created_at DESC LIMIT ? OFFSET ?`).all(scopeAll,req.user.id,statusFilter,statusFilter,search,search,search,from,from,to,to,focus,focus,focus,limit,offset);
+  res.json({payments:rows,page,pages:Math.ceil(total/limit),total,countOnPage:rows.length});
 });
 
 router.post('/payments/:id/refund',requireAuth,requirePermission('finance.manage'),async(req,res)=>{
