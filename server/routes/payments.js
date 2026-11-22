@@ -1,8 +1,8 @@
 import {asyncRouter} from '../async-router.js';
 import crypto from 'crypto';
 import db from '../db.js';
-import { requireAuth, requireRole, userHasPermission } from '../auth.js';
-import {initializePaystackPayment,settleVerifiedPayment,verifyPaystackPayment,verifyPaystackSignature,reference} from '../payments.js';
+import { requireAuth, requireRole, requirePermission, userHasPermission, audit } from '../auth.js';
+import {initializePaystackPayment,settleVerifiedPayment,verifyPaystackPayment,verifyPaystackSignature,refundPaystackPayment,reference} from '../payments.js';
 import {applyFailedPaystackPayment} from '../payment-rpc.js';
 import {logger} from '../logger.js';
 
@@ -65,6 +65,36 @@ router.get('/payments',requireAuth,async (req, res) => {
   const canReadAll=await userHasPermission(req.user,'finance.read');
   const rows=canReadAll?await db.prepare('SELECT id,reference,amount,provider,status,created_at,updated_at FROM payments ORDER BY created_at DESC LIMIT 100').all():await db.prepare('SELECT id,reference,amount,provider,status,created_at,updated_at FROM payments WHERE user_id=? ORDER BY created_at DESC LIMIT 100').all(req.user.id);
   res.json({payments:rows});
+});
+
+router.post('/payments/:id/refund',requireAuth,requirePermission('finance.manage'),async(req,res)=>{
+  const payment=await db.prepare("SELECT * FROM public.payments WHERE id=? AND provider='paystack'").get(req.params.id);
+  if(!payment)return res.status(404).json({error:'Payment not found.'});
+  if(payment.status!=='successful')return res.status(409).json({error:'Only successfully verified Paystack payments can be refunded.'});
+  const requested=Number(req.body?.amount??payment.amount);
+  if(!Number.isSafeInteger(requested)||requested<=0)return res.status(400).json({error:'Refund amount must be a positive whole naira amount.'});
+  const already=Number((await db.prepare("SELECT COALESCE(SUM(amount),0) AS total FROM public.refunds WHERE payment_id=? AND status IN ('pending','processing','processed','successful')").get(payment.id)).total||0);
+  if(requested+already>payment.amount)return res.status(409).json({error:'The requested refund exceeds the remaining refundable amount.'});
+  const providerReference=payment.provider_ref||payment.reference;
+  let providerRefund;
+  try{providerRefund=await refundPaystackPayment({providerReference,amount:requested,customerNote:req.body?.customerNote,merchantNote:req.body?.merchantNote});}
+  catch(error){return res.status(error.status||502).json({error:error.status?error.message:'Paystack refund could not be completed. No local refund was recorded.'});}
+  const refundStatus=String(providerRefund?.status||'pending').toLowerCase();
+  const refundReference=String(providerRefund?.reference||providerRefund?.id||reference('REF')).slice(0,200);
+  try{
+    await db.transaction(async()=>{
+      await db.prepare('INSERT INTO public.refunds (id,payment_id,reference,amount,reason,status) VALUES (?,?,?,?,?,?)')
+        .run(id(),payment.id,refundReference,requested,String(req.body?.reason||'').trim().slice(0,500)||null,refundStatus);
+      if(refundStatus==='processed'&&requested+already===payment.amount){
+        await db.prepare("UPDATE public.payments SET status='refunded',updated_at=now() WHERE id=? AND status='successful'").run(payment.id);
+      }
+    });
+  }catch(error){
+    logger.error('payments.paystack_refund_record_failed',{requestId:req.requestId,error});
+    return res.status(503).json({error:'Paystack accepted the refund, but DigiTrans could not record it. Contact finance with the provider refund reference.',providerReference:refundReference});
+  }
+  await audit(req.user,'payment.refunded','payment',payment.id,{status:payment.status},{status:refundStatus,amount:requested,providerReference:refundReference},String(req.body?.reason||'Paystack refund'),req.ip);
+  res.status(201).json({paymentId:payment.id,reference:refundReference,amount:requested,status:refundStatus});
 });
 
 router.post('/payments/paystack/webhook',async(req,res)=>{
