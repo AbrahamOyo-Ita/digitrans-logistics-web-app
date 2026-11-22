@@ -8,6 +8,8 @@ import {createAdminInviteEmailTemplate} from '../email-templates.js';
 import {sanitizeAuditRecord,verifyAuditHistory} from '../audit.js';
 import {ADMIN_ROLE_IDS,ADMIN_ROLE_LABELS} from '../../shared/roles.js';
 import {missingPermissionDependencies} from '../../shared/permissions.js';
+import {workspacePath} from '../../shared/workspace-links.js';
+import {parseDateRange,parsePagination,parseSearchQuery} from '../query-filters.js';
 import { createDelivery } from './customer.js';
 import {logger} from '../logger.js';
 
@@ -59,6 +61,253 @@ router.get('/ops/dashboard',requireAuth,requirePermission('deliveries.read'),asy
   if(studentReview)stats.pendingStudents=await count("SELECT COUNT(*) n FROM student_profiles WHERE verification_status='pending'");
   const recent=await db.prepare('SELECT id,reference,manual_customer_name,recipient_name,status,fee,created_at FROM deliveries ORDER BY created_at DESC LIMIT 6').all();
   res.json({stats,recent});
+});
+
+function ageMinutesFrom(timestamp){
+  const ms=timestamp?Date.parse(timestamp):NaN;
+  if(!Number.isFinite(ms))return 0;
+  return Math.max(0,Math.round((Date.now()-ms)/60000));
+}
+
+router.get('/ops/attention',requireAuth,requireAnyPermission('deliveries.read','riders.review','vendors.review','students.review','market_runs.manage','waybills.manage','finance.read','investments.read','support.manage'),async (req,res)=>{
+  const [canDeliveries,canRiders,canVendors,canStudents,canMarketRuns,canWaybills,canFinance,canInvestments,canSupport]=await Promise.all([
+    userHasPermission(req.user,'deliveries.read'),userHasPermission(req.user,'riders.review'),userHasPermission(req.user,'vendors.review'),
+    userHasPermission(req.user,'students.review'),userHasPermission(req.user,'market_runs.manage'),userHasPermission(req.user,'waybills.manage'),
+    userHasPermission(req.user,'finance.read'),userHasPermission(req.user,'investments.read'),userHasPermission(req.user,'support.manage'),
+  ]);
+  const role=req.user.role,items=[];
+  const summary={total:0,urgent:0,deliveries:0,marketRuns:0,waybills:0,verifications:0,finance:0,investments:0,support:0};
+
+  if(canDeliveries){
+    const deliveryRows=await db.prepare(`SELECT id,reference,status,timing,scheduled_at,pickup_address,dropoff_address,recipient_name,manual_customer_name,fee,created_at,updated_at
+      FROM public.deliveries
+      WHERE status='delivery_failed'
+         OR status='awaiting_assignment'
+         OR (status='assigned' AND updated_at <= now() - interval '20 minutes')
+         OR (timing='scheduled' AND status='pending_confirmation' AND scheduled_at IS NOT NULL AND scheduled_at <= now() + interval '30 minutes')
+      ORDER BY created_at ASC LIMIT 100`).all();
+    for(const row of deliveryRows){
+      const age=ageMinutesFrom(row.status==='assigned'?row.updated_at:row.created_at);
+      const isFailed=row.status==='delivery_failed';
+      const isDueScheduled=row.timing==='scheduled'&&row.status==='pending_confirmation';
+      const severity=(isFailed||isDueScheduled||(row.status==='awaiting_assignment'&&age>=20))?'high':'medium';
+      const title=isFailed?`Failed delivery · ${row.reference}`
+        :isDueScheduled?`Scheduled dispatch window due · ${row.reference}`
+        :row.status==='assigned'?`Rider acceptance overdue · ${row.reference}`
+        :`Awaiting rider assignment · ${row.reference}`;
+      items.push({
+        key:`delivery:${row.id}`,id:row.id,category:'deliveries',severity,title,
+        subtitle:`${row.pickup_address} → ${row.dropoff_address} · ${row.manual_customer_name||row.recipient_name||'Recipient'} · ₦${Number(row.fee||0).toLocaleString('en-NG')}`,
+        status:row.status,createdAt:row.updated_at||row.created_at,ageMinutes:age,
+        href:workspacePath(role,'deliveries',{focus:row.id}),
+        actionLabel:isFailed?'Review failure':'Assign / open',
+      });
+      summary.deliveries++;
+    }
+  }
+
+  if(canMarketRuns){
+    const runRows=await db.prepare(`SELECT id,reference,status,contact_name,delivery_location,final_total,budget_estimate,created_at,updated_at
+      FROM public.market_runs
+      WHERE status IN ('submitted','under_review','awaiting_expense_review','awaiting_delivery_assignment')
+      ORDER BY created_at ASC LIMIT 100`).all();
+    for(const row of runRows){
+      const age=ageMinutesFrom(row.updated_at||row.created_at);
+      const severity=(['awaiting_expense_review','awaiting_delivery_assignment'].includes(row.status)||age>=60)?'high':'medium';
+      items.push({
+        key:`market_run:${row.id}`,id:row.id,category:'marketRuns',severity,
+        title:`Market Run ${row.status.replaceAll('_',' ')} · ${row.reference}`,
+        subtitle:`${row.contact_name} · ${row.delivery_location} · ₦${Number(row.final_total||row.budget_estimate||0).toLocaleString('en-NG')}`,
+        status:row.status,createdAt:row.updated_at||row.created_at,ageMinutes:age,
+        href:workspacePath(role,'market',{focus:row.id}),
+        actionLabel:'Review Market Run',
+      });
+      summary.marketRuns++;
+    }
+  }
+
+  if(canWaybills){
+    const waybillRows=await db.prepare(`SELECT id,reference,waybill_number,status,payment_status,origin,destination_city,sender_name,fee,created_at,updated_at
+      FROM public.waybills
+      WHERE status IN ('submitted','under_review','parcel_received','paid','ready_for_dispatch','delivery_failed')
+      ORDER BY created_at ASC LIMIT 100`).all();
+    for(const row of waybillRows){
+      const age=ageMinutesFrom(row.updated_at||row.created_at);
+      const severity=(['delivery_failed','paid','ready_for_dispatch'].includes(row.status)||age>=120)?'high':'medium';
+      items.push({
+        key:`waybill:${row.id}`,id:row.id,category:'waybills',severity,
+        title:`Waybill ${row.status.replaceAll('_',' ')} · ${row.waybill_number||row.reference}`,
+        subtitle:`${row.origin} → ${row.destination_city} · ${row.sender_name} · Payment ${row.payment_status||'pending'}`,
+        status:row.status,createdAt:row.updated_at||row.created_at,ageMinutes:age,
+        href:workspacePath(role,'waybills',{focus:row.id}),
+        actionLabel:'Open waybill',
+      });
+      summary.waybills++;
+    }
+  }
+
+  if(canFinance){
+    const reviewPayments=await db.prepare(`SELECT id,reference,amount,provider,status,created_at,updated_at
+      FROM public.payments WHERE status='under_review' ORDER BY created_at ASC LIMIT 50`).all();
+    for(const row of reviewPayments){
+      const age=ageMinutesFrom(row.updated_at||row.created_at);
+      items.push({
+        key:`payment:${row.id}`,id:row.id,category:'finance',severity:'high',
+        title:`Payment under review · ${row.reference}`,
+        subtitle:`₦${Number(row.amount||0).toLocaleString('en-NG')} · ${row.provider||'paystack'} reconciliation needed`,
+        status:row.status,createdAt:row.updated_at||row.created_at,ageMinutes:age,
+        href:workspacePath(role,'payments',{focus:row.id}),
+        actionLabel:'Inspect payment',
+      });
+      summary.finance++;
+    }
+    const withdrawalRows=await db.prepare(`SELECT w.id,w.reference,w.amount,w.status,w.created_at,p.full_name rider_name
+      FROM public.withdrawal_requests w JOIN public.profiles p ON p.user_id=w.rider_id
+      WHERE w.status IN ('requested','under_review','approved','processing')
+      ORDER BY w.created_at ASC LIMIT 50`).all();
+    for(const row of withdrawalRows){
+      const age=ageMinutesFrom(row.created_at);
+      const severity=(row.status==='processing'||age>=1440)?'high':'medium';
+      items.push({
+        key:`withdrawal:${row.id}`,id:row.id,category:'finance',severity,
+        title:`Rider withdrawal ${row.status.replaceAll('_',' ')} · ${row.reference}`,
+        subtitle:`${row.rider_name} · ₦${Number(row.amount||0).toLocaleString('en-NG')}`,
+        status:row.status,createdAt:row.created_at,ageMinutes:age,
+        href:workspacePath(role,'withdrawals',{focus:row.id}),
+        actionLabel:'Review payout',
+      });
+      summary.finance++;
+    }
+    const settlementRows=await db.prepare(`SELECT s.id,s.settlement_date,s.total_payable,s.status,s.created_at,p.full_name rider_name
+      FROM public.rider_settlements s JOIN public.rider_settlement_items si ON si.settlement_id=s.id JOIN public.profiles p ON p.user_id=si.rider_id
+      WHERE s.status IN ('pending','approved')
+      GROUP BY s.id,si.rider_id,p.full_name
+      ORDER BY s.created_at ASC LIMIT 50`).all();
+    for(const row of settlementRows){
+      const age=ageMinutesFrom(row.created_at);
+      items.push({
+        key:`settlement:${row.id}:${row.rider_name}`,id:row.id,category:'finance',severity:row.status==='approved'?'high':'medium',
+        title:`Settlement ${row.status} · ${row.rider_name}`,
+        subtitle:`Cutoff ${row.settlement_date} · ₦${Number(row.total_payable||0).toLocaleString('en-NG')}`,
+        status:row.status,createdAt:row.created_at,ageMinutes:age,
+        href:workspacePath(role,'finance',{focus:row.id}),
+        actionLabel:row.status==='approved'?'Verify payout':'Approve batch',
+      });
+      summary.finance++;
+    }
+  }
+
+  if(canRiders){
+    const riderRows=await db.prepare(`SELECT u.id,u.created_at,p.full_name,r.vehicle_type,r.approval_status
+      FROM public.riders r JOIN public.users u ON u.id=r.user_id JOIN public.profiles p ON p.user_id=u.id
+      WHERE r.approval_status='pending' ORDER BY u.created_at ASC LIMIT 50`).all();
+    for(const row of riderRows){
+      const age=ageMinutesFrom(row.created_at);
+      items.push({
+        key:`rider:${row.id}`,id:row.id,category:'verifications',severity:age>=1440?'high':'medium',
+        title:`Rider verification pending · ${row.full_name}`,
+        subtitle:`Vehicle: ${row.vehicle_type||'not provided'}`,
+        status:row.approval_status,createdAt:row.created_at,ageMinutes:age,
+        href:workspacePath(role,'riders',{focus:row.id}),
+        actionLabel:'Review rider',
+      });
+      summary.verifications++;
+    }
+  }
+
+  if(canVendors){
+    const vendorRows=await db.prepare(`SELECT v.user_id,v.business_name,v.category,v.approval_status,v.created_at
+      FROM public.vendors v WHERE v.approval_status='pending' ORDER BY v.created_at ASC LIMIT 50`).all();
+    for(const row of vendorRows){
+      const age=ageMinutesFrom(row.created_at);
+      items.push({
+        key:`vendor:${row.user_id}`,id:row.user_id,category:'verifications',severity:age>=1440?'high':'medium',
+        title:`Vendor verification pending · ${row.business_name}`,
+        subtitle:`Category: ${row.category||'Business account'}`,
+        status:row.approval_status,createdAt:row.created_at,ageMinutes:age,
+        href:workspacePath(role,'vendors',{focus:row.user_id}),
+        actionLabel:'Review vendor',
+      });
+      summary.verifications++;
+    }
+  }
+
+  if(canStudents){
+    const studentRows=await db.prepare(`SELECT sp.user_id,sp.institution,sp.verification_status,sp.created_at,p.full_name
+      FROM public.student_profiles sp JOIN public.users u ON u.id=sp.user_id JOIN public.profiles p ON p.user_id=u.id
+      WHERE u.role='student' AND sp.verification_status='pending' ORDER BY sp.created_at ASC LIMIT 50`).all();
+    for(const row of studentRows){
+      const age=ageMinutesFrom(row.created_at);
+      items.push({
+        key:`student:${row.user_id}`,id:row.user_id,category:'verifications',severity:age>=1440?'high':'medium',
+        title:`Student ID verification pending · ${row.full_name}`,
+        subtitle:row.institution||'Student account',
+        status:row.verification_status,createdAt:row.created_at,ageMinutes:age,
+        href:workspacePath(role,'students',{focus:row.user_id}),
+        actionLabel:'Review student',
+      });
+      summary.verifications++;
+    }
+  }
+
+  if(canInvestments){
+    const appRows=await db.prepare(`SELECT a.id,a.reference,a.amount,a.status,a.created_at,o.title opportunity_title,p.full_name investor_name
+      FROM public.investment_applications a JOIN public.opportunities o ON o.id=a.opportunity_id JOIN public.profiles p ON p.user_id=a.investor_id
+      WHERE a.status IN ('submitted','under_review') ORDER BY a.created_at ASC LIMIT 50`).all();
+    for(const row of appRows){
+      const age=ageMinutesFrom(row.created_at);
+      items.push({
+        key:`inv_app:${row.id}`,id:row.id,category:'investments',severity:row.status==='under_review'||age>=1440?'high':'medium',
+        title:`Investment application ${row.status.replaceAll('_',' ')} · ${row.reference}`,
+        subtitle:`${row.investor_name} · ${row.opportunity_title} · ₦${Number(row.amount||0).toLocaleString('en-NG')}`,
+        status:row.status,createdAt:row.created_at,ageMinutes:age,
+        href:workspacePath(role,'investments',{tab:'applications',focus:row.id}),
+        actionLabel:'Review application',
+      });
+      summary.investments++;
+    }
+    const iwRows=await db.prepare(`SELECT w.id,w.reference,w.amount,w.status,w.created_at,p.full_name investor_name
+      FROM public.investment_withdrawals w JOIN public.profiles p ON p.user_id=w.investor_id
+      WHERE w.status IN ('requested','under_review','approved','processing') ORDER BY w.created_at ASC LIMIT 50`).all();
+    for(const row of iwRows){
+      const age=ageMinutesFrom(row.created_at);
+      items.push({
+        key:`inv_wd:${row.id}`,id:row.id,category:'investments',severity:row.status==='processing'||age>=1440?'high':'medium',
+        title:`Investor withdrawal ${row.status.replaceAll('_',' ')} · ${row.reference}`,
+        subtitle:`${row.investor_name} · ₦${Number(row.amount||0).toLocaleString('en-NG')}`,
+        status:row.status,createdAt:row.created_at,ageMinutes:age,
+        href:workspacePath(role,'investments',{tab:'withdrawals',focus:row.id}),
+        actionLabel:'Review withdrawal',
+      });
+      summary.investments++;
+    }
+  }
+
+  if(canSupport){
+    const ticketRows=await db.prepare(`SELECT t.id,t.reference,t.category,t.status,t.description,t.created_at,t.updated_at,p.full_name requester_name
+      FROM public.support_tickets t JOIN public.profiles p ON p.user_id=t.requester_id
+      WHERE t.status IN ('open','assigned') ORDER BY t.created_at ASC LIMIT 50`).all();
+    for(const row of ticketRows){
+      const age=ageMinutesFrom(row.updated_at||row.created_at);
+      items.push({
+        key:`support:${row.id}`,id:row.id,category:'support',severity:(row.status==='open'&&age>=60)?'high':'medium',
+        title:`Support ${row.status} · ${row.reference}`,
+        subtitle:`${row.requester_name} · ${row.category||'general'} · ${String(row.description||'').slice(0,80)}`,
+        status:row.status,createdAt:row.updated_at||row.created_at,ageMinutes:age,
+        href:workspacePath(role,'support',{ticket:row.id}),
+        actionLabel:'Open conversation',
+      });
+      summary.support++;
+    }
+  }
+
+  items.sort((a,b)=>{
+    if(a.severity!==b.severity)return a.severity==='high'?-1:1;
+    return b.ageMinutes-a.ageMinutes;
+  });
+  summary.total=items.length;
+  summary.urgent=items.filter(item=>item.severity==='high').length;
+  res.json({summary,items});
 });
 
 router.post('/ops/bookings',requireAuth,requirePermission('deliveries.create'),async (req, res) => {
@@ -282,14 +531,29 @@ router.get('/ops/overview/reports',requireAuth,requirePermission('deliveries.rea
   res.json({daily,serviceMix});
 });
 
-router.get('/ops/market-runs',requireAuth,requirePermission('market_runs.manage'),async (_req, res) => {
-  const rows=await db.prepare(`SELECT m.*,p.full_name customer_name,COALESCE((SELECT pay.status FROM payments pay WHERE pay.market_run_id=m.id ORDER BY pay.created_at DESC LIMIT 1),'pending') payment_status FROM market_runs m LEFT JOIN profiles p ON p.user_id=m.customer_id ORDER BY m.created_at DESC LIMIT 200`).all();
+router.get('/ops/market-runs',requireAuth,requirePermission('market_runs.manage'),async (req, res) => {
+  const status=String(req.query.status||'').trim()||null,search=parseSearchQuery(req.query.search);
+  let from=null,to=null;
+  try{({from,to}=parseDateRange(req.query));}catch(error){return res.status(error.status||400).json({error:error.message});}
+  const {page,limit,offset}=parsePagination(req.query,{defaultLimit:100,maxLimit:100});
+  const total=Number((await db.prepare(`SELECT COUNT(*) total FROM market_runs m LEFT JOIN profiles p ON p.user_id=m.customer_id
+    WHERE (CAST(? AS text) IS NULL OR m.status=?)
+      AND (CAST(? AS text) IS NULL OR m.reference ILIKE ? OR m.contact_name ILIKE ? OR m.delivery_location ILIKE ? OR COALESCE(p.full_name,'') ILIKE ? OR EXISTS(SELECT 1 FROM market_run_items mri WHERE mri.market_run_id=m.id AND mri.item_name ILIKE ?))
+      AND (CAST(? AS date) IS NULL OR m.created_at >= CAST(? AS date))
+      AND (CAST(? AS date) IS NULL OR m.created_at < (CAST(? AS date) + INTERVAL '1 day'))`).get(status,status,search,search,search,search,search,search,from,from,to,to))?.total||0);
+  const rows=await db.prepare(`SELECT m.*,p.full_name customer_name,COALESCE((SELECT pay.status FROM payments pay WHERE pay.market_run_id=m.id ORDER BY pay.created_at DESC LIMIT 1),'pending') payment_status
+    FROM market_runs m LEFT JOIN profiles p ON p.user_id=m.customer_id
+    WHERE (CAST(? AS text) IS NULL OR m.status=?)
+      AND (CAST(? AS text) IS NULL OR m.reference ILIKE ? OR m.contact_name ILIKE ? OR m.delivery_location ILIKE ? OR COALESCE(p.full_name,'') ILIKE ? OR EXISTS(SELECT 1 FROM market_run_items mri WHERE mri.market_run_id=m.id AND mri.item_name ILIKE ?))
+      AND (CAST(? AS date) IS NULL OR m.created_at >= CAST(? AS date))
+      AND (CAST(? AS date) IS NULL OR m.created_at < (CAST(? AS date) + INTERVAL '1 day'))
+    ORDER BY m.created_at DESC LIMIT ? OFFSET ?`).all(status,status,search,search,search,search,search,search,from,from,to,to,limit,offset);
   const marketRuns=await Promise.all(rows.map(async m => ({
     ...m,
     items:await db.prepare('SELECT id,item_name name,quantity,unit,brand,description FROM market_run_items WHERE market_run_id=?').all(m.id),
     expenses:await db.prepare('SELECT id,item_name,amount,receipt_path,status,created_at FROM market_run_expenses WHERE market_run_id=? ORDER BY created_at DESC').all(m.id)
   })));
-  res.json({marketRuns});
+  res.json({marketRuns,page,pages:Math.ceil(total/limit),total,countOnPage:marketRuns.length});
 });
 router.post('/ops/market-runs/:id/estimate',requireAuth,requirePermission('market_runs.manage'),async (req, res) => {
   const m=await db.prepare('SELECT * FROM market_runs WHERE id=?').get(req.params.id);
@@ -337,8 +601,24 @@ router.post('/ops/market-runs/:id/status',requireAuth,requirePermission('market_
 });
 
 router.get('/ops/waybills',requireAuth,requirePermission('waybills.manage'),async (req, res) => {
-  const rows=await db.prepare('SELECT id,reference,waybill_number,customer_id,sender_name,sender_phone,recipient_name,recipient_phone,destination_city,origin,status,fee,payment_status,weight,created_at FROM waybills ORDER BY created_at DESC LIMIT 300').all();
-  res.json({waybills:rows});
+  const status=String(req.query.status||'').trim()||null,paymentStatus=String(req.query.paymentStatus||'').trim()||null,search=parseSearchQuery(req.query.search);
+  let from=null,to=null;
+  try{({from,to}=parseDateRange(req.query));}catch(error){return res.status(error.status||400).json({error:error.message});}
+  const {page,limit,offset}=parsePagination(req.query,{defaultLimit:100,maxLimit:100});
+  const total=Number((await db.prepare(`SELECT COUNT(*) total FROM waybills
+    WHERE (CAST(? AS text) IS NULL OR status=?)
+      AND (CAST(? AS text) IS NULL OR payment_status=?)
+      AND (CAST(? AS text) IS NULL OR reference ILIKE ? OR COALESCE(waybill_number,'') ILIKE ? OR sender_name ILIKE ? OR recipient_name ILIKE ? OR destination_city ILIKE ?)
+      AND (CAST(? AS date) IS NULL OR created_at >= CAST(? AS date))
+      AND (CAST(? AS date) IS NULL OR created_at < (CAST(? AS date) + INTERVAL '1 day'))`).get(status,status,paymentStatus,paymentStatus,search,search,search,search,search,search,from,from,to,to))?.total||0);
+  const rows=await db.prepare(`SELECT id,reference,waybill_number,customer_id,sender_name,sender_phone,recipient_name,recipient_phone,destination_city,origin,status,fee,payment_status,weight,created_at FROM waybills
+    WHERE (CAST(? AS text) IS NULL OR status=?)
+      AND (CAST(? AS text) IS NULL OR payment_status=?)
+      AND (CAST(? AS text) IS NULL OR reference ILIKE ? OR COALESCE(waybill_number,'') ILIKE ? OR sender_name ILIKE ? OR recipient_name ILIKE ? OR destination_city ILIKE ?)
+      AND (CAST(? AS date) IS NULL OR created_at >= CAST(? AS date))
+      AND (CAST(? AS date) IS NULL OR created_at < (CAST(? AS date) + INTERVAL '1 day'))
+    ORDER BY created_at DESC LIMIT ? OFFSET ?`).all(status,status,paymentStatus,paymentStatus,search,search,search,search,search,search,from,from,to,to,limit,offset);
+  res.json({waybills:rows,page,pages:Math.ceil(total/limit),total,countOnPage:rows.length});
 });
 router.post('/ops/waybills/:id/status',requireAuth,requirePermission('waybills.manage'),async (req, res) => {
   const w=await db.prepare('SELECT * FROM waybills WHERE id=? OR reference=?').get(req.params.id,req.params.id);

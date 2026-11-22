@@ -2,6 +2,7 @@ import {asyncRouter} from '../async-router.js';
 import crypto from 'crypto';
 import db from '../db.js';
 import { requireAuth, requirePermission, notify, audit } from '../auth.js';
+import { parseDateRange, parsePagination, parseSearchQuery } from '../query-filters.js';
 
 const router=asyncRouter();
 const id=()=>crypto.randomUUID();
@@ -17,12 +18,42 @@ router.get('/finance/summary',requireAuth,requirePermission('finance.read'),asyn
 });
 
 router.get('/finance/earnings',requireAuth,requirePermission('finance.read'),async (req, res) => {
-  const rows=await db.prepare(`SELECT e.*,p.full_name rider_name,d.reference delivery_reference,d.created_at delivered_at FROM rider_earnings e JOIN profiles p ON p.user_id=e.rider_id JOIN deliveries d ON d.id=e.delivery_id ORDER BY e.created_at DESC LIMIT 300`).all();
-  res.json({earnings:rows});
+  const settlementStatus=String(req.query.settlementStatus||req.query.status||'').trim()||null;
+  if(settlementStatus&&!['pending','settled','paid'].includes(settlementStatus))return res.status(400).json({error:'Choose a valid settlement status.'});
+  const search=parseSearchQuery(req.query.search);
+  let from=null,to=null;
+  try{({from,to}=parseDateRange(req.query));}catch(error){return res.status(error.status||400).json({error:error.message});}
+  const {page,limit,offset}=parsePagination(req.query,{defaultLimit:100,maxLimit:100});
+  const total=Number((await db.prepare(`SELECT COUNT(*) total FROM rider_earnings e JOIN profiles p ON p.user_id=e.rider_id JOIN deliveries d ON d.id=e.delivery_id
+    WHERE (CAST(? AS text) IS NULL OR e.settlement_status=?)
+      AND (CAST(? AS text) IS NULL OR p.full_name ILIKE ? OR d.reference ILIKE ? OR e.reference ILIKE ?)
+      AND (CAST(? AS date) IS NULL OR e.created_at >= CAST(? AS date))
+      AND (CAST(? AS date) IS NULL OR e.created_at < (CAST(? AS date) + INTERVAL '1 day'))`).get(settlementStatus,settlementStatus,search,search,search,search,from,from,to,to))?.total||0);
+  const rows=await db.prepare(`SELECT e.*,p.full_name rider_name,d.reference delivery_reference,d.created_at delivered_at FROM rider_earnings e JOIN profiles p ON p.user_id=e.rider_id JOIN deliveries d ON d.id=e.delivery_id
+    WHERE (CAST(? AS text) IS NULL OR e.settlement_status=?)
+      AND (CAST(? AS text) IS NULL OR p.full_name ILIKE ? OR d.reference ILIKE ? OR e.reference ILIKE ?)
+      AND (CAST(? AS date) IS NULL OR e.created_at >= CAST(? AS date))
+      AND (CAST(? AS date) IS NULL OR e.created_at < (CAST(? AS date) + INTERVAL '1 day'))
+    ORDER BY e.created_at DESC LIMIT ? OFFSET ?`).all(settlementStatus,settlementStatus,search,search,search,search,from,from,to,to,limit,offset);
+  res.json({earnings:rows,page,pages:Math.ceil(total/limit),total,countOnPage:rows.length});
 });
 router.get('/finance/ledger',requireAuth,requirePermission('finance.read'),async (req, res) => {
-  const rows=await db.prepare('SELECT * FROM financial_ledger ORDER BY created_at DESC LIMIT 500').all();
-  res.json({ledger:rows});
+  const type=String(req.query.type||'').trim()||null,search=parseSearchQuery(req.query.search);
+  let from=null,to=null;
+  try{({from,to}=parseDateRange(req.query));}catch(error){return res.status(error.status||400).json({error:error.message});}
+  const {page,limit,offset}=parsePagination(req.query,{defaultLimit:100,maxLimit:100});
+  const total=Number((await db.prepare(`SELECT COUNT(*) total FROM financial_ledger
+    WHERE (CAST(? AS text) IS NULL OR type=?)
+      AND (CAST(? AS text) IS NULL OR reference ILIKE ? OR COALESCE(description,'') ILIKE ? OR COALESCE(related_id,'') ILIKE ?)
+      AND (CAST(? AS date) IS NULL OR created_at >= CAST(? AS date))
+      AND (CAST(? AS date) IS NULL OR created_at < (CAST(? AS date) + INTERVAL '1 day'))`).get(type,type,search,search,search,search,from,from,to,to))?.total||0);
+  const rows=await db.prepare(`SELECT * FROM financial_ledger
+    WHERE (CAST(? AS text) IS NULL OR type=?)
+      AND (CAST(? AS text) IS NULL OR reference ILIKE ? OR COALESCE(description,'') ILIKE ? OR COALESCE(related_id,'') ILIKE ?)
+      AND (CAST(? AS date) IS NULL OR created_at >= CAST(? AS date))
+      AND (CAST(? AS date) IS NULL OR created_at < (CAST(? AS date) + INTERVAL '1 day'))
+    ORDER BY created_at DESC LIMIT ? OFFSET ?`).all(type,type,search,search,search,search,from,from,to,to,limit,offset);
+  res.json({ledger:rows,page,pages:Math.ceil(total/limit),total,countOnPage:rows.length});
 });
 
 router.post('/finance/settlements',requireAuth,requirePermission('finance.manage'),async (req, res) => {
@@ -47,9 +78,27 @@ router.post('/finance/settlements',requireAuth,requirePermission('finance.manage
   await audit(req.user,'rider.settlements_created','settlement',settlementIds.join(','),null,{count:settlementIds.length,cutoff},null,req.ip);
   res.status(201).json({settlements:await db.prepare(`SELECT s.*,p.full_name rider_name,COUNT(si.earnings_id) delivery_count FROM rider_settlements s JOIN rider_settlement_items si ON si.settlement_id=s.id JOIN profiles p ON p.user_id=si.rider_id WHERE s.id IN (${settlementIds.map(()=>'?').join(',')}) GROUP BY s.id,p.full_name`).all(...settlementIds)});
 });
-router.get('/finance/settlements',requireAuth,requirePermission('finance.read'),async (_req, res) => {
-  const rows=await db.prepare(`SELECT s.*,p.full_name rider_name,si.rider_id,COUNT(si.earnings_id) delivery_count FROM rider_settlements s JOIN rider_settlement_items si ON si.settlement_id=s.id JOIN profiles p ON p.user_id=si.rider_id GROUP BY s.id,si.rider_id,p.full_name ORDER BY s.created_at DESC LIMIT 200`).all();
-  res.json({settlements:rows});
+router.get('/finance/settlements',requireAuth,requirePermission('finance.read'),async (req, res) => {
+  const status=String(req.query.status||'').trim()||null,search=parseSearchQuery(req.query.search);
+  if(status&&!['pending','approved','paid'].includes(status))return res.status(400).json({error:'Choose a valid settlement status.'});
+  let from=null,to=null;
+  try{({from,to}=parseDateRange(req.query));}catch(error){return res.status(error.status||400).json({error:error.message});}
+  const {page,limit,offset}=parsePagination(req.query,{defaultLimit:100,maxLimit:100});
+  const total=Number((await db.prepare(`SELECT COUNT(*) total FROM (
+    SELECT s.id FROM rider_settlements s JOIN rider_settlement_items si ON si.settlement_id=s.id JOIN profiles p ON p.user_id=si.rider_id
+    WHERE (CAST(? AS text) IS NULL OR s.status=?)
+      AND (CAST(? AS text) IS NULL OR p.full_name ILIKE ? OR COALESCE(s.payout_reference,'') ILIKE ? OR s.id ILIKE ?)
+      AND (CAST(? AS date) IS NULL OR s.created_at >= CAST(? AS date))
+      AND (CAST(? AS date) IS NULL OR s.created_at < (CAST(? AS date) + INTERVAL '1 day'))
+    GROUP BY s.id,si.rider_id,p.full_name
+  ) sub`).get(status,status,search,search,search,search,from,from,to,to))?.total||0);
+  const rows=await db.prepare(`SELECT s.*,p.full_name rider_name,si.rider_id,COUNT(si.earnings_id) delivery_count FROM rider_settlements s JOIN rider_settlement_items si ON si.settlement_id=s.id JOIN profiles p ON p.user_id=si.rider_id
+    WHERE (CAST(? AS text) IS NULL OR s.status=?)
+      AND (CAST(? AS text) IS NULL OR p.full_name ILIKE ? OR COALESCE(s.payout_reference,'') ILIKE ? OR s.id ILIKE ?)
+      AND (CAST(? AS date) IS NULL OR s.created_at >= CAST(? AS date))
+      AND (CAST(? AS date) IS NULL OR s.created_at < (CAST(? AS date) + INTERVAL '1 day'))
+    GROUP BY s.id,si.rider_id,p.full_name ORDER BY s.created_at DESC LIMIT ? OFFSET ?`).all(status,status,search,search,search,search,from,from,to,to,limit,offset);
+  res.json({settlements:rows,page,pages:Math.ceil(total/limit),total,countOnPage:rows.length});
 });
 router.post('/finance/settlements/:id/approve',requireAuth,requirePermission('finance.manage'),async (req, res) => {
   const s=await db.prepare('SELECT * FROM rider_settlements WHERE id=?').get(req.params.id);
@@ -81,9 +130,24 @@ router.post('/finance/settlements/:id/payout',requireAuth,requirePermission('fin
   res.json({status:'paid',payoutReference:payoutRef});
 });
 
-router.get('/finance/withdrawals',requireAuth,requirePermission('finance.read'),async (_req, res) => {
-  const rows=await db.prepare(`SELECT w.*,p.full_name rider_name,u.phone FROM withdrawal_requests w JOIN profiles p ON p.user_id=w.rider_id JOIN users u ON u.id=w.rider_id ORDER BY w.created_at DESC LIMIT 200`).all();
-  res.json({withdrawals:rows});
+router.get('/finance/withdrawals',requireAuth,requirePermission('finance.read'),async (req, res) => {
+  const status=String(req.query.status||'').trim()||null,search=parseSearchQuery(req.query.search);
+  if(status&&!['requested','under_review','approved','processing','paid','rejected','failed'].includes(status))return res.status(400).json({error:'Choose a valid withdrawal status.'});
+  let from=null,to=null;
+  try{({from,to}=parseDateRange(req.query));}catch(error){return res.status(error.status||400).json({error:error.message});}
+  const {page,limit,offset}=parsePagination(req.query,{defaultLimit:100,maxLimit:100});
+  const total=Number((await db.prepare(`SELECT COUNT(*) total FROM withdrawal_requests w JOIN profiles p ON p.user_id=w.rider_id JOIN users u ON u.id=w.rider_id
+    WHERE (CAST(? AS text) IS NULL OR w.status=?)
+      AND (CAST(? AS text) IS NULL OR p.full_name ILIKE ? OR w.reference ILIKE ? OR COALESCE(w.payout_reference,'') ILIKE ?)
+      AND (CAST(? AS date) IS NULL OR w.created_at >= CAST(? AS date))
+      AND (CAST(? AS date) IS NULL OR w.created_at < (CAST(? AS date) + INTERVAL '1 day'))`).get(status,status,search,search,search,search,from,from,to,to))?.total||0);
+  const rows=await db.prepare(`SELECT w.*,p.full_name rider_name,u.phone FROM withdrawal_requests w JOIN profiles p ON p.user_id=w.rider_id JOIN users u ON u.id=w.rider_id
+    WHERE (CAST(? AS text) IS NULL OR w.status=?)
+      AND (CAST(? AS text) IS NULL OR p.full_name ILIKE ? OR w.reference ILIKE ? OR COALESCE(w.payout_reference,'') ILIKE ?)
+      AND (CAST(? AS date) IS NULL OR w.created_at >= CAST(? AS date))
+      AND (CAST(? AS date) IS NULL OR w.created_at < (CAST(? AS date) + INTERVAL '1 day'))
+    ORDER BY w.created_at DESC LIMIT ? OFFSET ?`).all(status,status,search,search,search,search,from,from,to,to,limit,offset);
+  res.json({withdrawals:rows,page,pages:Math.ceil(total/limit),total,countOnPage:rows.length});
 });
 router.post('/finance/withdrawals/:id/status',requireAuth,requirePermission('finance.manage'),async (req, res) => {
   const w=await db.prepare('SELECT * FROM withdrawal_requests WHERE id=?').get(req.params.id);

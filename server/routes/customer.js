@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import db from '../db.js';
 import { requireAuth, requireRole, ADMIN_ROLES, userHasPermission, notify, audit, getSessionUser } from '../auth.js';
 import { calculateDeliveryFee, calculateWaybillFee } from '../pricing.js';
+import { parseDateRange, parsePagination, parseSearchQuery } from '../query-filters.js';
 
 const router=asyncRouter();
 const ref = prefix => `${prefix}-${new Date().toISOString().slice(0,10).replaceAll('-','')}-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
@@ -78,25 +79,79 @@ router.post('/pricing/quote', async (req, res) => {
 
 router.get('/deliveries', requireAuth, async (req, res) => {
   const {user} = req;
-  const page=Math.max(1,Number(req.query.page)||1), limit=Math.min(50,Math.max(1,Number(req.query.limit)||20)), offset=(page-1)*limit;
-  const status=req.query.status ? String(req.query.status) : null;
-  const search=req.query.search ? `%${String(req.query.search).slice(0,80)}%` : null;
+  const {page,limit,offset}=parsePagination(req.query,{defaultLimit:20,maxLimit:100});
+  const status=req.query.status ? String(req.query.status).trim() : null;
+  const search=parseSearchQuery(req.query.search);
+  const timingRaw=String(req.query.timing||'').trim();
+  const timing=timingRaw?(['now','scheduled'].includes(timingRaw)?timingRaw:null):null;
+  if(timingRaw&&!timing)return res.status(400).json({error:'Choose a valid delivery timing filter.'});
+  const channelRaw=String(req.query.channel||'').trim();
+  const channel=channelRaw?(['app','phone','whatsapp','walk_in','manual'].includes(channelRaw)?channelRaw:null):null;
+  if(channelRaw&&!channel)return res.status(400).json({error:'Choose a valid booking channel filter.'});
+  let from=null,to=null;
+  try{({from,to}=parseDateRange(req.query));}catch(error){return res.status(error.status||400).json({error:error.message});}
   let rows, count;
   if(await userHasPermission(user,'deliveries.read')){
-    rows=await db.prepare(`SELECT id,reference,customer_id,vendor_id,pickup_address,dropoff_address,recipient_name,status,fee,payment_status,timing,scheduled_at,created_at,updated_at FROM deliveries WHERE (CAST(? AS text) IS NULL OR status=?) AND (CAST(? AS text) IS NULL OR reference LIKE ?) ORDER BY created_at DESC LIMIT ? OFFSET ?`).all(status,status,search,search,limit,offset);
-    count=(await db.prepare(`SELECT COUNT(*) n FROM deliveries WHERE (CAST(? AS text) IS NULL OR status=?) AND (CAST(? AS text) IS NULL OR reference LIKE ?)`).get(status,status,search,search)).n;
+    rows=await db.prepare(`SELECT id,reference,customer_id,vendor_id,manual_customer_name,pickup_address,dropoff_address,recipient_name,status,fee,payment_status,timing,scheduled_at,channel,created_at,updated_at FROM deliveries
+      WHERE (CAST(? AS text) IS NULL OR status=?)
+        AND (CAST(? AS text) IS NULL OR timing=?)
+        AND (CAST(? AS text) IS NULL OR channel=?)
+        AND (CAST(? AS text) IS NULL OR reference ILIKE ? OR recipient_name ILIKE ? OR pickup_address ILIKE ? OR dropoff_address ILIKE ? OR COALESCE(manual_customer_name,'') ILIKE ?)
+        AND (CAST(? AS date) IS NULL OR created_at >= CAST(? AS date))
+        AND (CAST(? AS date) IS NULL OR created_at < (CAST(? AS date) + INTERVAL '1 day'))
+      ORDER BY created_at DESC LIMIT ? OFFSET ?`).all(status,status,timing,timing,channel,channel,search,search,search,search,search,search,from,from,to,to,limit,offset);
+    count=Number((await db.prepare(`SELECT COUNT(*) n FROM deliveries
+      WHERE (CAST(? AS text) IS NULL OR status=?)
+        AND (CAST(? AS text) IS NULL OR timing=?)
+        AND (CAST(? AS text) IS NULL OR channel=?)
+        AND (CAST(? AS text) IS NULL OR reference ILIKE ? OR recipient_name ILIKE ? OR pickup_address ILIKE ? OR dropoff_address ILIKE ? OR COALESCE(manual_customer_name,'') ILIKE ?)
+        AND (CAST(? AS date) IS NULL OR created_at >= CAST(? AS date))
+        AND (CAST(? AS date) IS NULL OR created_at < (CAST(? AS date) + INTERVAL '1 day'))`).get(status,status,timing,timing,channel,channel,search,search,search,search,search,search,from,from,to,to)).n||0);
   } else if (user.role==='vendor') {
-    rows=await db.prepare(`SELECT id,reference,pickup_address,dropoff_address,recipient_name,status,fee,payment_status,timing,scheduled_at,created_at,updated_at FROM deliveries WHERE vendor_id=? AND (CAST(? AS text) IS NULL OR status=?) AND (CAST(? AS text) IS NULL OR reference LIKE ?) ORDER BY created_at DESC LIMIT ? OFFSET ?`).all(user.id,status,status,search,search,limit,offset);
-    count=(await db.prepare(`SELECT COUNT(*) n FROM deliveries WHERE vendor_id=? AND (CAST(? AS text) IS NULL OR status=?) AND (CAST(? AS text) IS NULL OR reference LIKE ?)`).get(user.id,status,status,search,search)).n;
+    rows=await db.prepare(`SELECT id,reference,pickup_address,dropoff_address,recipient_name,status,fee,payment_status,timing,scheduled_at,created_at,updated_at FROM deliveries
+      WHERE vendor_id=?
+        AND (CAST(? AS text) IS NULL OR status=?)
+        AND (CAST(? AS text) IS NULL OR timing=?)
+        AND (CAST(? AS text) IS NULL OR reference ILIKE ? OR recipient_name ILIKE ? OR pickup_address ILIKE ? OR dropoff_address ILIKE ?)
+        AND (CAST(? AS date) IS NULL OR created_at >= CAST(? AS date))
+        AND (CAST(? AS date) IS NULL OR created_at < (CAST(? AS date) + INTERVAL '1 day'))
+      ORDER BY created_at DESC LIMIT ? OFFSET ?`).all(user.id,status,status,timing,timing,search,search,search,search,search,from,from,to,to,limit,offset);
+    count=Number((await db.prepare(`SELECT COUNT(*) n FROM deliveries
+      WHERE vendor_id=?
+        AND (CAST(? AS text) IS NULL OR status=?)
+        AND (CAST(? AS text) IS NULL OR timing=?)
+        AND (CAST(? AS text) IS NULL OR reference ILIKE ? OR recipient_name ILIKE ? OR pickup_address ILIKE ? OR dropoff_address ILIKE ?)
+        AND (CAST(? AS date) IS NULL OR created_at >= CAST(? AS date))
+        AND (CAST(? AS date) IS NULL OR created_at < (CAST(? AS date) + INTERVAL '1 day'))`).get(user.id,status,status,timing,timing,search,search,search,search,search,from,from,to,to)).n||0);
   } else if (user.role==='rider') {
     rows=await db.prepare(`SELECT d.id,d.reference,d.pickup_address,d.dropoff_address,d.recipient_name,d.recipient_phone,d.package_category,d.package_desc,d.instructions,d.status,d.fee,d.timing,d.scheduled_at,d.created_at,da.status assignment_status
-      FROM deliveries d JOIN delivery_assignments da ON da.delivery_id=d.id WHERE da.rider_id=? AND da.status IN ('assigned','accepted') AND (CAST(? AS text) IS NULL OR d.status=?) ORDER BY d.created_at DESC LIMIT ? OFFSET ?`).all(user.id,status,status,limit,offset);
-    count=(await db.prepare(`SELECT COUNT(*) n FROM deliveries d JOIN delivery_assignments da ON da.delivery_id=d.id WHERE da.rider_id=? AND da.status IN ('assigned','accepted') AND (CAST(? AS text) IS NULL OR d.status=?)`).get(user.id,status,status)).n;
+      FROM deliveries d JOIN delivery_assignments da ON da.delivery_id=d.id
+      WHERE da.rider_id=? AND da.status IN ('assigned','accepted')
+        AND (CAST(? AS text) IS NULL OR d.status=?)
+        AND (CAST(? AS text) IS NULL OR d.reference ILIKE ? OR d.recipient_name ILIKE ? OR d.pickup_address ILIKE ? OR d.dropoff_address ILIKE ?)
+      ORDER BY d.created_at DESC LIMIT ? OFFSET ?`).all(user.id,status,status,search,search,search,search,search,limit,offset);
+    count=Number((await db.prepare(`SELECT COUNT(*) n FROM deliveries d JOIN delivery_assignments da ON da.delivery_id=d.id
+      WHERE da.rider_id=? AND da.status IN ('assigned','accepted')
+        AND (CAST(? AS text) IS NULL OR d.status=?)
+        AND (CAST(? AS text) IS NULL OR d.reference ILIKE ? OR d.recipient_name ILIKE ? OR d.pickup_address ILIKE ? OR d.dropoff_address ILIKE ?)`).get(user.id,status,status,search,search,search,search,search)).n||0);
   } else {
-    rows=await db.prepare(`SELECT id,reference,pickup_address,dropoff_address,recipient_name,status,fee,payment_status,timing,scheduled_at,created_at,updated_at FROM deliveries WHERE customer_id=? AND (CAST(? AS text) IS NULL OR status=?) AND (CAST(? AS text) IS NULL OR reference LIKE ?) ORDER BY created_at DESC LIMIT ? OFFSET ?`).all(user.id,status,status,search,search,limit,offset);
-    count=(await db.prepare(`SELECT COUNT(*) n FROM deliveries WHERE customer_id=? AND (CAST(? AS text) IS NULL OR status=?) AND (CAST(? AS text) IS NULL OR reference LIKE ?)`).get(user.id,status,status,search,search)).n;
+    rows=await db.prepare(`SELECT id,reference,pickup_address,dropoff_address,recipient_name,status,fee,payment_status,timing,scheduled_at,created_at,updated_at FROM deliveries
+      WHERE customer_id=?
+        AND (CAST(? AS text) IS NULL OR status=?)
+        AND (CAST(? AS text) IS NULL OR timing=?)
+        AND (CAST(? AS text) IS NULL OR reference ILIKE ? OR recipient_name ILIKE ? OR pickup_address ILIKE ? OR dropoff_address ILIKE ?)
+        AND (CAST(? AS date) IS NULL OR created_at >= CAST(? AS date))
+        AND (CAST(? AS date) IS NULL OR created_at < (CAST(? AS date) + INTERVAL '1 day'))
+      ORDER BY created_at DESC LIMIT ? OFFSET ?`).all(user.id,status,status,timing,timing,search,search,search,search,search,from,from,to,to,limit,offset);
+    count=Number((await db.prepare(`SELECT COUNT(*) n FROM deliveries
+      WHERE customer_id=?
+        AND (CAST(? AS text) IS NULL OR status=?)
+        AND (CAST(? AS text) IS NULL OR timing=?)
+        AND (CAST(? AS text) IS NULL OR reference ILIKE ? OR recipient_name ILIKE ? OR pickup_address ILIKE ? OR dropoff_address ILIKE ?)
+        AND (CAST(? AS date) IS NULL OR created_at >= CAST(? AS date))
+        AND (CAST(? AS date) IS NULL OR created_at < (CAST(? AS date) + INTERVAL '1 day'))`).get(user.id,status,status,timing,timing,search,search,search,search,search,from,from,to,to)).n||0);
   }
-  res.json({deliveries:rows,page,pages:Math.ceil(count/limit),total:count});
+  res.json({deliveries:rows,page,pages:Math.ceil(count/limit),total:count,countOnPage:rows.length});
 });
 
 router.post('/deliveries', requireAuth, requireRole('customer','student','vendor'), async (req, res) => {
