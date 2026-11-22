@@ -91,3 +91,24 @@ export function Loading({label='Loading your workspace…'}){return <div classNa
 export function Toast({toast,onClose}){if(!toast)return null;const success=toast.type!=='error';return <div className={`fixed bottom-5 right-5 z-[100] flex max-w-sm items-start gap-3 rounded-2xl border px-4 py-3.5 shadow-lift animate-float-in ${success?'border-emerald-200 bg-white':'border-rose-200 bg-white'}`} role="status"><span className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full ${success?'bg-emerald-50 text-emerald-700':'bg-rose-50 text-rose-700'}`}><Icon name={success?'check':'alert'} size={16}/></span><div className="flex-1"><p className="text-sm font-semibold text-ink">{toast.title|| (success?'All set':'Something went wrong')}</p><p className="mt-0.5 text-xs leading-5 text-slate-500">{toast.message}</p></div><button className="text-slate-400 hover:text-slate-700" onClick={onClose} aria-label="Close notification"><Icon name="close" size={16}/></button></div>}
 export function Modal({title,description,onClose,children,wide=false}){return <div className="fixed inset-0 z-[90] flex items-end justify-center bg-ink/45 p-0 backdrop-blur-sm sm:items-center sm:p-5" onMouseDown={e=>e.target===e.currentTarget&&onClose?.()}><div className={`max-h-[92vh] w-full overflow-auto rounded-t-3xl bg-white shadow-lift sm:rounded-3xl ${wide?'max-w-2xl':'max-w-lg'}`}><div className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur sm:px-7"><div><h2 className="text-lg font-bold text-ink">{title}</h2>{description&&<p className="mt-1 text-xs text-slate-500">{description}</p>}</div><button className="grid h-9 w-9 place-items-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-ink" onClick={onClose} aria-label="Close"><Icon name="close"/></button></div><div className="p-5 sm:p-7">{children}</div></div></div>}
 export function Divider({children}){return <div className="relative my-5 text-center"><span className="relative z-10 bg-white px-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">{children}</span><span className="absolute left-0 right-0 top-1/2 h-px bg-slate-100"/></div>}
+export function PwaInstallPrompt({active=false}){
+ const [open,setOpen]=useState(false);
+ useEffect(()=>{
+  if(!active){setOpen(false);return undefined;}
+  const isIphone=/iPhone/i.test(typeof navigator==='undefined'?'':navigator.userAgent);
+  const isInstalled=typeof window!=='undefined'&&(window.navigator.standalone===true||window.matchMedia?.('(display-mode: standalone)').matches);
+  if(!isIphone||isInstalled)return undefined;
+  let dismissed=false;
+  try{dismissed=window.sessionStorage.getItem('digitrans:pwa-prompt-dismissed')==='1';}catch{}
+  if(dismissed)return undefined;
+  const timer=window.setTimeout(()=>setOpen(true),5000);
+  return()=>window.clearTimeout(timer);
+ },[active]);
+ const dismiss=()=>{try{window.sessionStorage.setItem('digitrans:pwa-prompt-dismissed','1');}catch{}setOpen(false);};
+ if(!open)return null;
+ return <Modal title="Install DigiTrans" description="Keep your logistics workspace one tap away on your iPhone." onClose={dismiss}>
+  <div className="space-y-5"><p className="text-sm leading-6 text-slate-600">Add DigiTrans to your Home Screen for a faster, app-like experience and easy access to your dashboard.</p><ol className="space-y-3.5">
+   {[['Tap the Share button','It is the square with an upward arrow at the bottom of Safari.'],['Choose “Add to Home Screen”','Scroll through the share options if you do not see it immediately.'],['Tap Add','DigiTrans will appear on your Home Screen like an app.']].map(([title,description],index)=><li key={title} className="flex gap-3"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-cyan/10 text-xs font-bold text-cyan">{index+1}</span><div><p className="text-sm font-semibold text-ink">{title}</p><p className="mt-0.5 text-xs leading-5 text-slate-500">{description}</p></div></li>)}
+  </ol><button type="button" onClick={dismiss} className="w-full rounded-xl bg-cyan px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-cyan-600">Got it</button></div>
+ </Modal>;
+}
