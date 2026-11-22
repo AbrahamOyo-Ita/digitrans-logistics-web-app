@@ -4,6 +4,7 @@ import {useApiData} from '../lib/hooks';
 import {Badge,Button,Card,Empty,Loading,PageTitle,StatCard} from '../components/UI';
 import Icon from '../components/Icon';
 import {BookingForm,DeliveryList,MarketRunsView,WaybillsView,ProfileView,DocumentsView,SupportView} from './CustomerViews';
+import {ADMIN_ROLE_IDS} from '../../../shared/roles.js';
 import {RiderOverview,RiderJobsPage,RiderEarnings,RiderProfile} from './RiderViews';
 import {VendorOverview,VendorProfile} from './VendorViews';
 import {InvestorOverview,OpportunitiesView,InvestorApplications,InvestorProfile,InvestorWithdrawals} from './InvestorViews';
@@ -22,19 +23,27 @@ function InvestorManagerOverview({navigate}){
 function NotificationsView(){const {data,loading,error,reload}=useApiData('/notifications');const read=async n=>{await api(`/notifications/${n.id}/read`,{method:'PATCH'});reload();};const readAll=async()=>{await api('/notifications/read-all',{method:'POST'});reload();};return <><PageTitle eyebrow="Account activity" title="Notifications" description="Service updates linked only to your account." action={<Button variant="outline" onClick={readAll}>Mark all as read</Button>}/>{loading?<Loading/>:error?<p className="text-sm text-rose-600">{error}</p>:!data?.notifications?.length?<Empty icon="bell" title="Nothing new" description="Important activity will appear here."/>:<div className="space-y-2">{data.notifications.map(n=><button key={n.id} onClick={()=>read(n)} className={`block w-full rounded-xl border p-4 text-left ${n.is_read?'border-slate-200 bg-white':'border-brand-100 bg-brand-50/50'}`}><div className="flex items-center justify-between gap-3"><p className="text-sm font-bold text-ink">{n.title}</p>{!n.is_read&&<span className="h-2 w-2 rounded-full bg-brand-600"/>}</div><p className="mt-1 text-xs leading-5 text-slate-500">{n.message}</p><p className="mt-2 text-[10px] text-slate-400">{new Date(n.created_at).toLocaleString('en-NG')}</p></button>)}</div>}</>}
 
 export default function WorkspaceContent({user,page,navigate,showToast}){
- const role=user.role;
+ const role=user.role,isAdmin=ADMIN_ROLE_IDS.includes(role),permissions=new Set(user.permissions||[]);
+ const can=key=>role==='super_admin'||permissions.has(key);
+ if(page==='access-denied'||page==='no-access')return <Card className="mx-auto max-w-xl"><div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-700"><Icon name="shield"/></span><div><h2 className="text-sm font-bold text-ink">{page==='no-access'?'No administrator permissions assigned':'This section is not available to your position'}</h2><p className="mt-1 text-xs leading-5 text-slate-500">{page==='no-access'?'Ask a Super Administrator to assign the permissions you need.':'Your assigned permissions do not include this section. Ask a Super Administrator if your access should change.'}</p></div></div></Card>;
  if(page==='overview'){
   if(['customer','student'].includes(role))return <CustomerOverview user={user} navigate={navigate}/>;
   if(role==='rider')return <RiderOverview navigate={navigate} showToast={showToast}/>;
   if(role==='vendor')return <VendorOverview navigate={navigate} showToast={showToast}/>;
   if(role==='investor')return <InvestorOverview navigate={navigate}/>;
-  if(role==='investment_manager')return <InvestorManagerOverview navigate={navigate}/>;
-  return <OpsOverview navigate={navigate}/>;
+  if(isAdmin){
+   if(!can('deliveries.read')&&can('investments.read'))return <InvestorManagerOverview navigate={navigate}/>;
+   if(can('deliveries.read'))return <OpsOverview user={user} navigate={navigate}/>;
+   if(can('finance.read'))return <FinanceView user={user} showToast={showToast}/>;
+   if(can('users.read'))return <AccountsView user={user} showToast={showToast}/>;
+   return <Empty icon="shield" title="Your admin workspace is ready" description="Choose an available section from the navigation."/>;
+  }
+  return <OpsOverview user={user} navigate={navigate}/>;
  }
- if(page==='booking')return <BookingForm user={user} admin={['ops_officer','super_admin'].includes(role)} navigate={navigate} showToast={showToast}/>;
- if(page==='deliveries'||page==='history')return <DeliveryList user={user} navigate={navigate} showToast={showToast} ops={['ops_officer','rider_manager','finance_officer','super_admin'].includes(role)}/>;
+ if(page==='booking')return <BookingForm user={user} admin={isAdmin} navigate={navigate} showToast={showToast}/>;
+ if(page==='deliveries'||page==='history')return <DeliveryList user={user} navigate={navigate} showToast={showToast} ops={isAdmin}/>;
  if(page==='market')return <MarketRunsView user={user} showToast={showToast}/>;
- if(page==='waybills')return ['super_admin','ops_officer'].includes(role)?<OpsWaybills showToast={showToast}/>:<WaybillsView user={user} showToast={showToast}/>;
+ if(page==='waybills')return isAdmin&&can('waybills.manage')?<OpsWaybills user={user} showToast={showToast}/>:<WaybillsView user={user} showToast={showToast}/>;
  if(page==='jobs')return <RiderJobsPage showToast={showToast}/>;
  if(page==='earnings')return <RiderEarnings showToast={showToast}/>;
  if(page==='profile'){
@@ -44,24 +53,25 @@ export default function WorkspaceContent({user,page,navigate,showToast}){
   return <ProfileView user={user} showToast={showToast}/>;
  }
  if(page==='documents')return <DocumentsView user={user} showToast={showToast}/>;
- if(page==='support')return ['ops_officer','rider_manager','vendor_manager','super_admin'].includes(role)?<OpsSupport showToast={showToast}/>:<SupportView user={user} showToast={showToast}/>;
+ if(page==='support')return isAdmin?<OpsSupport showToast={showToast}/>:<SupportView user={user} showToast={showToast}/>;
  if(page==='notifications')return <NotificationsView/>;
  if(page==='opportunities')return <OpportunitiesView showToast={showToast}/>;
  if(page==='applications')return <InvestorApplications showToast={showToast}/>;
  if(page==='withdrawals'){
-  if(['customer','student','investor'].includes(role))return role==='investor'?<InvestorWithdrawals showToast={showToast}/>:<DeliveryList user={user} navigate={navigate} showToast={showToast}/>;
-  if(role==='investment_manager')return <OpsInvestments user={user} showToast={showToast} initialTab="withdrawals"/>;
-  return <FinanceWithdrawals showToast={showToast}/>;
+  if(['customer','student'].includes(role))return <DeliveryList user={user} navigate={navigate} showToast={showToast}/>;
+  if(role==='investor')return <InvestorWithdrawals showToast={showToast}/>;
+  return <FinanceWithdrawals user={user} showToast={showToast}/>;
  }
  if(page==='riders')return <ApplicationsView kind="rider" showToast={showToast}/>;
  if(page==='vendors')return <ApplicationsView kind="vendor" showToast={showToast}/>;
  if(page==='customers')return <AccountsView user={user} showToast={showToast}/>;
- if(page==='finance')return <FinanceView showToast={showToast}/>;
- if(page==='investments')return role==='finance_officer'?<OpsInvestments user={user} showToast={showToast}/>:<OpsInvestments user={user} showToast={showToast}/>;
- if(page==='pricing')return <PricingView showToast={showToast}/>;
+ if(page==='students')return <ApplicationsView kind="student" showToast={showToast}/>;
+ if(page==='finance')return <FinanceView user={user} showToast={showToast}/>;
+ if(page==='investments')return <OpsInvestments user={user} showToast={showToast}/>;
+ if(page==='pricing')return <PricingView user={user} showToast={showToast}/>;
  if(page==='website')return <ContentManagement showToast={showToast}/>;
  if(page==='audit')return <AuditView/>;
- if(page==='team')return <AdminTeam showToast={showToast}/>;
+ if(page==='team')return <AdminTeam user={user} showToast={showToast}/>;
  if(page==='contact')return <ContactMessages showToast={showToast}/>;
  return <Empty icon="file" title="Workspace page not found" description="Choose a section from the navigation." action={<Button onClick={()=>navigate('/workspace')}>Back to overview</Button>}/>;
 }

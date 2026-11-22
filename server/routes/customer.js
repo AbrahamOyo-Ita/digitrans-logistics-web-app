@@ -1,7 +1,7 @@
 import {asyncRouter} from '../async-router.js';
 import crypto from 'crypto';
 import db from '../db.js';
-import { requireAuth, requireRole, notify, audit, getSessionUser } from '../auth.js';
+import { requireAuth, requireRole, ADMIN_ROLES, userHasPermission, notify, audit, getSessionUser } from '../auth.js';
 import { calculateDeliveryFee, calculateWaybillFee } from '../pricing.js';
 
 const router=asyncRouter();
@@ -13,9 +13,10 @@ export async function createDelivery({ userId, role, body, actor, channel='app' 
   const dropoff = String(body.dropoffAddress || body.dropoff || '').trim();
   const recipientName = String(body.recipientName || '').trim();
   const recipientPhone = String(body.recipientPhone || '').trim();
-  const manualName = ['ops_officer','super_admin'].includes(role) ? String(body.customerName || '').trim() : null;
-  const manualPhone = ['ops_officer','super_admin'].includes(role) ? String(body.customerPhone || '').trim() : null;
-  if (['ops_officer','super_admin'].includes(role) && (manualName.length < 2 || manualPhone.length < 7)) throw Object.assign(new Error('Manual bookings require the customer name and phone number.'),{status:400});
+  const canManuallyBook=ADMIN_ROLES.includes(role)&&await userHasPermission(actor||{role},'deliveries.create');
+  const manualName=canManuallyBook?String(body.customerName||'').trim():null;
+  const manualPhone=canManuallyBook?String(body.customerPhone||'').trim():null;
+  if(canManuallyBook&&(manualName.length<2||manualPhone.length<7))throw Object.assign(new Error('Manual bookings require the customer name and phone number.'),{status:400});
   const timing = body.timing === 'scheduled' ? 'scheduled' : 'now';
   const scheduledAt = timing === 'scheduled' ? String(body.scheduledAt || '') : null;
   if (pickup.length < 4 || dropoff.length < 4 || recipientName.length < 2 || recipientPhone.length < 7) throw Object.assign(new Error('Add pickup, destination, recipient name and phone.'),{status:400});
@@ -41,7 +42,7 @@ export async function createDelivery({ userId, role, body, actor, channel='app' 
   } catch(e) { throw Object.assign(new Error(e.message),{status:400}); }
   const id = crypto.randomUUID(), reference = ref('DT');
   const vendorId = role === 'vendor' ? userId : null;
-  const customerId = ['vendor','ops_officer','super_admin'].includes(role) ? null : userId;
+  const customerId=role==='vendor'||canManuallyBook?null:userId;
   const create = db.transaction(async () => {
     await db.prepare(`INSERT INTO deliveries (id,reference,customer_id,vendor_id,manual_customer_name,manual_customer_phone,pickup_address,dropoff_address,pickup_lat,pickup_lng,dropoff_lat,dropoff_lng,recipient_name,recipient_phone,package_category,package_desc,declared_value,delivery_method,timing,scheduled_at,instructions,status,fee,pricing_version_id,distance_km,fee_breakdown,channel,created_by)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
@@ -81,7 +82,7 @@ router.get('/deliveries', requireAuth, async (req, res) => {
   const status=req.query.status ? String(req.query.status) : null;
   const search=req.query.search ? `%${String(req.query.search).slice(0,80)}%` : null;
   let rows, count;
-  if (user.role==='super_admin' || user.role==='ops_officer' || user.role==='rider_manager' || user.role==='finance_officer') {
+  if(await userHasPermission(user,'deliveries.read')){
     rows=await db.prepare(`SELECT id,reference,customer_id,vendor_id,pickup_address,dropoff_address,recipient_name,status,fee,payment_status,timing,scheduled_at,created_at,updated_at FROM deliveries WHERE (CAST(? AS text) IS NULL OR status=?) AND (CAST(? AS text) IS NULL OR reference LIKE ?) ORDER BY created_at DESC LIMIT ? OFFSET ?`).all(status,status,search,search,limit,offset);
     count=(await db.prepare(`SELECT COUNT(*) n FROM deliveries WHERE (CAST(? AS text) IS NULL OR status=?) AND (CAST(? AS text) IS NULL OR reference LIKE ?)`).get(status,status,search,search)).n;
   } else if (user.role==='vendor') {
@@ -106,7 +107,7 @@ router.post('/deliveries', requireAuth, requireRole('customer','student','vendor
 router.get('/deliveries/:id', requireAuth, async (req, res) => {
   const d=await db.prepare(`SELECT * FROM deliveries WHERE id=? OR reference=?`).get(req.params.id,req.params.id);
   if (!d) return res.status(404).json({error:'Delivery not found.'});
-  const privileged=['super_admin','ops_officer','rider_manager','finance_officer'].includes(req.user.role);
+  const privileged=await userHasPermission(req.user,'deliveries.read');
   const isAssigned=req.user.role==='rider' && !!(await db.prepare(`SELECT 1 FROM delivery_assignments WHERE delivery_id=? AND rider_id=? AND status IN ('assigned','accepted')`).get(d.id,req.user.id));
   if (!privileged && !isAssigned && d.customer_id!==req.user.id && d.vendor_id!==req.user.id) return res.status(404).json({error:'Delivery not found.'});
   const timeline=await db.prepare(`SELECT new_status,actor_role,lat,lng,created_at FROM delivery_status_history WHERE delivery_id=? ORDER BY created_at ASC`).all(d.id);
@@ -118,7 +119,7 @@ router.get('/deliveries/:id', requireAuth, async (req, res) => {
 router.post('/deliveries/:id/cancel', requireAuth, async (req, res) => {
   const d=await db.prepare('SELECT * FROM deliveries WHERE id=? OR reference=?').get(req.params.id,req.params.id);
   if (!d) return res.status(404).json({error:'Delivery not found.'});
-  const canManage=['super_admin','ops_officer'].includes(req.user.role);
+  const canManage=await userHasPermission(req.user,'deliveries.update');
   if (!canManage && d.customer_id!==req.user.id && d.vendor_id!==req.user.id) return res.status(404).json({error:'Delivery not found.'});
   if (!['pending_confirmation','awaiting_assignment'].includes(d.status)) return res.status(409).json({error:'This delivery can no longer be cancelled in the current status.'});
   const prev=d.status, reason=String(req.body?.reason||'Customer cancellation').slice(0,300);
@@ -162,7 +163,7 @@ router.post('/market-runs', requireAuth, requireRole('customer','student'), asyn
 });
 
 router.get('/market-runs', requireAuth, async (req, res) => {
-  const isOps=['super_admin','ops_officer','finance_officer'].includes(req.user.role);
+  const isOps=await userHasPermission(req.user,'market_runs.manage');
   const rows=isOps?await db.prepare(`SELECT m.*,COALESCE((SELECT p.status FROM payments p WHERE p.market_run_id=m.id ORDER BY p.created_at DESC LIMIT 1),'pending') payment_status FROM market_runs m ORDER BY m.created_at DESC LIMIT 100`).all():await db.prepare(`SELECT m.*,COALESCE((SELECT p.status FROM payments p WHERE p.market_run_id=m.id ORDER BY p.created_at DESC LIMIT 1),'pending') payment_status FROM market_runs m WHERE m.customer_id=? ORDER BY m.created_at DESC`).all(req.user.id);
   const result=await Promise.all(rows.map(async row => ({
     ...row,
@@ -191,7 +192,7 @@ router.post('/waybills', requireAuth, requireRole('customer','student'), async (
 });
 
 router.get('/waybills', requireAuth, async (req, res) => {
-  const ops=['super_admin','ops_officer'].includes(req.user.role);
+  const ops=await userHasPermission(req.user,'waybills.manage');
   const rows=ops?await db.prepare('SELECT id,reference,waybill_number,sender_name,recipient_name,destination_city,origin,status,fee,payment_status,weight,created_at FROM waybills ORDER BY created_at DESC LIMIT 100').all():await db.prepare('SELECT id,reference,waybill_number,sender_name,recipient_name,destination_city,origin,status,fee,payment_status,weight,created_at FROM waybills WHERE customer_id=? ORDER BY created_at DESC').all(req.user.id);
   res.json({waybills:rows});
 });
@@ -257,7 +258,8 @@ router.delete('/addresses/:id',requireAuth,async (req, res) => {
 
 router.get('/market-runs/:id',requireAuth,async (req, res) => {
   const m=await db.prepare('SELECT * FROM market_runs WHERE id=? OR reference=?').get(req.params.id,req.params.id);
-  if(!m||m.customer_id!==req.user.id&&!['super_admin','ops_officer','finance_officer'].includes(req.user.role))return res.status(404).json({error:'Market Run not found.'});
+  const staff=await userHasPermission(req.user,'market_runs.manage');
+  if(!m||m.customer_id!==req.user.id&&!staff)return res.status(404).json({error:'Market Run not found.'});
   res.json({marketRun:{...m,items:await db.prepare('SELECT item_name name,quantity,unit,brand,description FROM market_run_items WHERE market_run_id=?').all(m.id),expenses:await db.prepare("SELECT item_name,amount,status,created_at FROM market_run_expenses WHERE market_run_id=? AND status='approved'").all(m.id)}});
 });
 router.post('/market-runs/:id/approve',requireAuth,requireRole('customer','student'),async (req, res) => {

@@ -1,3 +1,5 @@
+import {ADMIN_ROLE_LABELS} from '../shared/roles.js';
+
 const BRAND='DigiTrans';
 const PALETTE={navy:'#10283a',navyDeep:'#081d2b',teal:'#0e7c8b',mint:'#dff0ed',coral:'#f26c4f',ink:'#1b3445',muted:'#687b85',paper:'#f1f5f5',line:'#e1e9e8',cream:'#f5f2e8'};
 
@@ -301,6 +303,23 @@ function renderEmail({subject,preheader,eyebrow,title,body,action,actionUrl,gree
 </body>
 </html>`;
  return {html,text:plainText||text};
+}
+
+export function createAdminInviteEmailTemplate({name='',email='',role='',actionUrl}={}){
+ const href=actionHref(actionUrl),roleLabel=ADMIN_ROLE_LABELS[String(role||'')]||'DigiTrans administrator';
+ const subject='You’re invited to join DigiTrans Logistics';
+ const body=`DigiTrans Logistics has invited you to join the Admin Dashboard as a ${roleLabel}. Create a password known only to you to securely activate your administrator account. Your inviter will never see or set your password.`;
+ const note='This personal, one-time invitation link expires after a short time. If you were not expecting this invitation, do not use or forward the link; contact your DigiTrans administrator.';
+ const details=[{label:'Administrator position',value:roleLabel},{label:'Invited email',value:String(email||'').trim().toLowerCase()}];
+ const greeting=greetingFor(name);
+ const expiry='This secure setup link is time-limited and can only be used once. If it has expired, ask your Super Administrator to resend your invitation.';
+ const text=[greeting,'',body,...details.map(row=>`${row.label}: ${row.value}`),'',`Set my password: ${href}`,'',expiry,'',note,'','DigiTrans Logistics · Calabar, Cross River State','Need help? hello@digitrans.ng'].join('\n');
+ const {html}=renderEmail({
+  subject,preheader:'Set a private password to activate your DigiTrans administrator account.',
+  eyebrow:'Administrator invitation',title:'You’re invited to the team.',body,action:'Set my password',actionUrl:href,
+  greeting,note,expiry,details,plainText:text,
+ });
+ return {subject,preheader:'Set a private password to activate your DigiTrans administrator account.',html,text};
 }
 
 export function createAuthEmailTemplate({kind='verify',name='',actionUrl}={}){

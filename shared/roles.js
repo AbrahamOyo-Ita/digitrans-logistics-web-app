@@ -3,6 +3,11 @@ export const APP_ROLES=Object.freeze([
   'ops_officer','rider_manager','vendor_manager','finance_officer','investment_manager','super_admin',
 ]);
 
+export const ADMIN_ROLE_IDS=Object.freeze(['ops_officer','rider_manager','vendor_manager','finance_officer','investment_manager','super_admin']);
+export const ADMIN_ROLE_LABELS=Object.freeze({
+ ops_officer:'Operations Officer',rider_manager:'Rider Manager',vendor_manager:'Vendor Manager',
+ finance_officer:'Finance Officer',investment_manager:'Investment Manager',super_admin:'Super Administrator',
+});
 export const PUBLIC_SIGNUP_ROLES=Object.freeze(['customer','student','rider','vendor','investor']);
 
 export const ROLE_HOME=Object.freeze({

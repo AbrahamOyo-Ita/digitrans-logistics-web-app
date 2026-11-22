@@ -12,6 +12,7 @@ const migrationFiles=[
   'supabase/migrations/202611160001_initial_schema.sql',
   'supabase/migrations/202611160002_payment_atomicity.sql',
   'supabase/migrations/202611160003_transactional_email_outbox.sql',
+  'supabase/migrations/202611220001_admin_invites_rbac_audit.sql',
 ];
 
 async function newSchema(){
@@ -46,6 +47,7 @@ function resolveSql(node,source){
         const expression=node.expressions[i],raw=source.slice(expression.start,expression.end);
         if(raw==='table')sql+='rider_documents';
         else if(raw==='ownerColumn')sql+='rider_id';
+        else if(raw==='where')sql+='WHERE a.action ILIKE ?';
         else sql+='?';
       }
     }

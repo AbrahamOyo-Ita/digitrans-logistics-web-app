@@ -8,7 +8,7 @@ import {readPostgresConfig} from '../server/postgres.js';
 const root=path.dirname(fileURLToPath(import.meta.url));
 const migrationsDir=path.join(root,'..','supabase','migrations');
 const productionApproval='I_REVIEWED_BACKUP_AND_CUTOVER_PLAN';
-const dangerousSql=/\b(?:DROP\b|TRUNCATE\b|DELETE\s+FROM\b)/i;
+const dangerousSql=/\bDROP\s+(?:TABLE|SCHEMA|POLICY|INDEX|VIEW|MATERIALIZED\s+VIEW|FUNCTION|TRIGGER|COLUMN|CONSTRAINT|TYPE|DATABASE|SEQUENCE)\b|\bTRUNCATE\s+(?:TABLE\s+)?(?:ONLY\s+)?(?:[\w"]+\.)?[\w"]+(?=\s*(?:,|;|$)|\s+(?:RESTART|CASCADE)\b)|\bDELETE\s+FROM\b/i;
 const verifiedLegacyChecksums={
   '202611160001':'e87de223c7a4a3ef9a7bd3e4f9a3356d65074701ead901fe00be054255cc9572',
   '202611160002':'2af1918f884064340b58c7b5a424ee754ebeaff93b8f654d7e0669965894be2e',

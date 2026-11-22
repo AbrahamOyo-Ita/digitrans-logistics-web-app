@@ -1,7 +1,7 @@
 import {asyncRouter} from '../async-router.js';
 import crypto from 'crypto';
 import db from '../db.js';
-import { requireAuth, requireRole, requirePermission, audit } from '../auth.js';
+import { requireAuth, requireRole, requirePermission, userHasPermission, audit } from '../auth.js';
 import {initializePaystackPayment,settleVerifiedPayment,verifyPaystackPayment,verifyPaystackSignature,refundPaystackPayment,reference} from '../payments.js';
 import {applyFailedPaystackPayment} from '../payment-rpc.js';
 import {logger} from '../logger.js';
@@ -57,11 +57,13 @@ router.post('/payments/initiate',requireAuth,requireRole('customer','student','v
 
 router.get('/payments/verify/:reference',requireAuth,async(req,res)=>{
   const p=await db.prepare('SELECT * FROM payments WHERE reference=? OR provider_ref=?').get(req.params.reference,req.params.reference);
-  if(!p||p.user_id!==req.user.id&&!['super_admin','finance_officer'].includes(req.user.role))return res.status(404).json({error:'Payment not found.'});
+  const canReadAll=await userHasPermission(req.user,'finance.read');
+  if(!p||p.user_id!==req.user.id&&!canReadAll)return res.status(404).json({error:'Payment not found.'});
   try{const result=await verifyPaystackPayment(req.params.reference);res.json(result);}catch(e){res.status(e.status||502).json({error:e.status?e.message:'Payment verification could not be completed. Please retry shortly.'});}
 });
 router.get('/payments',requireAuth,async (req, res) => {
-  const rows=['super_admin','finance_officer'].includes(req.user.role)?await db.prepare('SELECT id,reference,amount,provider,status,created_at,updated_at FROM payments ORDER BY created_at DESC LIMIT 100').all():await db.prepare('SELECT id,reference,amount,provider,status,created_at,updated_at FROM payments WHERE user_id=? ORDER BY created_at DESC LIMIT 100').all(req.user.id);
+  const canReadAll=await userHasPermission(req.user,'finance.read');
+  const rows=canReadAll?await db.prepare('SELECT id,reference,amount,provider,status,created_at,updated_at FROM payments ORDER BY created_at DESC LIMIT 100').all():await db.prepare('SELECT id,reference,amount,provider,status,created_at,updated_at FROM payments WHERE user_id=? ORDER BY created_at DESC LIMIT 100').all(req.user.id);
   res.json({payments:rows});
 });
 
