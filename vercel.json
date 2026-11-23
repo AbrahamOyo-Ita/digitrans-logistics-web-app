@@ -2,6 +2,8 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "cleanUrls": true,
+  "trailingSlash": false,
   "functions": {
     "api/cron/transactional-emails.js": { "maxDuration": 30 }
   },
@@ -9,17 +11,126 @@
     { "path": "/api/cron/scheduled-deliveries", "schedule": "0 0 * * *" },
     { "path": "/api/cron/transactional-emails", "schedule": "0 0 * * *" }
   ],
-  "routes": [
-    { "src": "/api/cron/scheduled-deliveries", "dest": "/api/cron/scheduled-deliveries.js" },
-    { "src": "/api/cron/transactional-emails", "dest": "/api/cron/transactional-emails.js" },
-    { "src": "/api/(.*)", "dest": "/api/[...path].js" },
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "redirects": [
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "digitransdelivery.com" }],
+      "destination": "https://www.digitransdelivery.com/",
+      "statusCode": 301
+    },
+    {
+      "source": "/:path+",
+      "has": [{ "type": "host", "value": "digitransdelivery.com" }],
+      "destination": "https://www.digitransdelivery.com/:path+",
+      "statusCode": 301
+    },
+    { "source": "/local-delivery", "destination": "/services/local-delivery", "statusCode": 301 },
+    { "source": "/services/standard-delivery", "destination": "/services/local-delivery", "statusCode": 301 },
+    { "source": "/market-runs", "destination": "/services/market-runs", "statusCode": 301 },
+    { "source": "/student-delivery", "destination": "/services/student-delivery", "statusCode": 301 },
+    { "source": "/intercity-delivery", "destination": "/services/intercity-waybill", "statusCode": 301 },
+    { "source": "/services/waybills", "destination": "/services/intercity-waybill", "statusCode": 301 },
+    { "source": "/business", "destination": "/services/business-logistics", "statusCode": 301 },
+    { "source": "/insights", "destination": "/guides", "statusCode": 301 },
+    { "source": "/insights/delivery-costs-in-calabar", "destination": "/guides/how-delivery-pricing-works-in-calabar", "statusCode": 301 },
+    { "source": "/insights/market-run-checklist", "destination": "/guides/watt-market-and-marian-market-run-checklist", "statusCode": 301 },
+    { "source": "/insights/sending-parcels-out-of-calabar", "destination": "/guides/sending-waybills-from-calabar-to-port-harcourt", "statusCode": 301 }
+  ],
+  "rewrites": [
+    { "source": "/api/cron/scheduled-deliveries", "destination": "/api/cron/scheduled-deliveries" },
+    { "source": "/api/cron/transactional-emails", "destination": "/api/cron/transactional-emails" },
+    { "source": "/api/:path*", "destination": "/api/[...path]" },
+    { "source": "/login", "destination": "/app-shell.html" },
+    { "source": "/register", "destination": "/app-shell.html" },
+    { "source": "/forgot-password", "destination": "/app-shell.html" },
+    { "source": "/reset-password", "destination": "/app-shell.html" },
+    { "source": "/auth", "destination": "/app-shell.html" },
+    { "source": "/auth/:path*", "destination": "/app-shell.html" },
+    { "source": "/admin/invite", "destination": "/app-shell.html" },
+    { "source": "/workspace", "destination": "/app-shell.html" },
+    { "source": "/payment/return", "destination": "/app-shell.html" },
+    { "source": "/customer", "destination": "/app-shell.html" },
+    { "source": "/customer/:path*", "destination": "/app-shell.html" },
+    { "source": "/rider", "destination": "/app-shell.html" },
+    { "source": "/rider/:path*", "destination": "/app-shell.html" },
+    { "source": "/vendor", "destination": "/app-shell.html" },
+    { "source": "/vendor/:path*", "destination": "/app-shell.html" },
+    { "source": "/investor", "destination": "/app-shell.html" },
+    { "source": "/investor/:path*", "destination": "/app-shell.html" },
+    { "source": "/ops", "destination": "/app-shell.html" },
+    { "source": "/ops/:path*", "destination": "/app-shell.html" }
   ],
   "headers": [
     {
       "source": "/(.*)",
+      "has": [{ "type": "host", "value": ".*\\.vercel\\.app" }],
       "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
+      ]
+    },
+    { "source": "/login", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
+    { "source": "/register", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
+    { "source": "/forgot-password", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
+    { "source": "/reset-password", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
+    { "source": "/workspace", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
+    { "source": "/admin/invite", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
+    { "source": "/payment/return", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
+    { "source": "/auth/:path*", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
+    { "source": "/customer", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
+    { "source": "/customer/:path*", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
+    { "source": "/rider", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
+    { "source": "/rider/:path*", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
+    { "source": "/vendor", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
+    { "source": "/vendor/:path*", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
+    { "source": "/investor", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
+    { "source": "/investor/:path*", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
+    { "source": "/ops", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
+    { "source": "/ops/:path*", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/images/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=604800, stale-while-revalidate=86400" }
+      ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/robots.txt",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600, s-maxage=3600" }]
+    },
+    {
+      "source": "/sitemap.xml",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600, s-maxage=3600" }]
+    },
+    {
+      "source": "/llms.txt",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600, s-maxage=3600" }]
+    },
+    {
+      "source": "/llms-full.txt",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600, s-maxage=3600" }]
+    },
+    {
+      "source": "/:path*.md",
+      "headers": [
+        { "key": "Content-Type", "value": "text/markdown; charset=utf-8" },
+        { "key": "Cache-Control", "value": "public, max-age=3600, s-maxage=3600" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
         { "key": "X-Frame-Options", "value": "DENY" },

@@ -40,9 +40,9 @@ function auditDateFilter(value,end=false){
 router.get('/ops/dashboard',requireAuth,requirePermission('deliveries.read'),async (req,res)=>{
   const count=async(sql,...args)=>(await db.prepare(sql).get(...args))?.n||0;
   const sum=async(sql,...args)=>(await db.prepare(sql).get(...args))?.n||0;
-  const [users,riders,vendors,marketRuns,waybills,finance,investments,studentReview]=await Promise.all([
+  const [users,riders,vendors,marketRuns,waybills,finance,investments,studentReview,supportManage]=await Promise.all([
     userHasPermission(req.user,'users.read'),userHasPermission(req.user,'riders.review'),userHasPermission(req.user,'vendors.review'),
-    userHasPermission(req.user,'market_runs.manage'),userHasPermission(req.user,'waybills.manage'),userHasPermission(req.user,'finance.read'),userHasPermission(req.user,'investments.read'),userHasPermission(req.user,'students.review'),
+    userHasPermission(req.user,'market_runs.manage'),userHasPermission(req.user,'waybills.manage'),userHasPermission(req.user,'finance.read'),userHasPermission(req.user,'investments.read'),userHasPermission(req.user,'students.review'),userHasPermission(req.user,'support.manage'),
   ]);
   const stats={
     activeDeliveries:await count("SELECT COUNT(*) n FROM deliveries WHERE status IN ('assigned','rider_accepted','rider_en_route_to_pickup','arrived_at_pickup','package_collected','in_transit','arrived_at_destination','out_for_delivery')"),
@@ -59,6 +59,10 @@ router.get('/ops/dashboard',requireAuth,requirePermission('deliveries.read'),asy
   if(finance){stats.riderEarnings=await sum('SELECT COALESCE(SUM(rider_earnings),0) n FROM rider_earnings');stats.outstandingSettlements=await sum("SELECT COALESCE(SUM(rider_earnings),0) n FROM rider_earnings WHERE settlement_status='pending'");stats.pendingWithdrawals=await count("SELECT COUNT(*) n FROM withdrawal_requests WHERE status IN ('requested','under_review')");}
   if(investments){stats.investors=await count('SELECT COUNT(*) n FROM investors');stats.activeOpportunities=await count("SELECT COUNT(*) n FROM opportunities WHERE status='published'");}
   if(studentReview)stats.pendingStudents=await count("SELECT COUNT(*) n FROM student_profiles WHERE verification_status='pending'");
+  if(supportManage){
+    stats.newEnquiries=await count("SELECT COUNT(*) n FROM contact_messages WHERE status='new'");
+    stats.openSupport=await count("SELECT COUNT(*) n FROM support_tickets WHERE status IN ('open','assigned')");
+  }
   const recent=await db.prepare('SELECT id,reference,manual_customer_name,recipient_name,status,fee,created_at FROM deliveries ORDER BY created_at DESC LIMIT 6').all();
   res.json({stats,recent});
 });
@@ -296,6 +300,21 @@ router.get('/ops/attention',requireAuth,requireAnyPermission('deliveries.read','
         status:row.status,createdAt:row.updated_at||row.created_at,ageMinutes:age,
         href:workspacePath(role,'support',{ticket:row.id}),
         actionLabel:'Open conversation',
+      });
+      summary.support++;
+    }
+    const enquiryRows=await db.prepare(`SELECT id,name,email,category,message,created_at
+      FROM public.contact_messages
+      WHERE status='new' ORDER BY created_at ASC LIMIT 50`).all();
+    for(const row of enquiryRows){
+      const age=ageMinutesFrom(row.created_at);
+      items.push({
+        key:`contact:${row.id}`,id:row.id,category:'support',severity:age>=120?'high':'medium',
+        title:`Website enquiry · ${row.name}`,
+        subtitle:`${row.category||'general'} · ${row.email} · ${String(row.message||'').slice(0,80)}`,
+        status:'new',createdAt:row.created_at,ageMinutes:age,
+        href:workspacePath(role,'contact',{focus:row.id}),
+        actionLabel:'Review enquiry',
       });
       summary.support++;
     }

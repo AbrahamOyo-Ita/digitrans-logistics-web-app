@@ -12,6 +12,7 @@ import operationsRouter from './routes/operations.js';
 import financeRouter from './routes/finance.js';
 import investmentsRouter from './routes/investments.js';
 import commonRouter from './routes/common.js';
+import contentRouter from './routes/content.js';
 import paymentsRouter from './routes/payments.js';
 
 const root=fileURLToPath(new URL('..',import.meta.url));
@@ -78,6 +79,7 @@ async function setupPgliteApp(){
   app.use('/api',financeRouter);
   app.use('/api',investmentsRouter);
   app.use('/api',commonRouter);
+  app.use('/api',contentRouter);
   app.use('/api',paymentsRouter);
 
   const server=app.listen(0,'127.0.0.1');
@@ -363,4 +365,37 @@ test('workflow routes filter safely, scope /ops/attention by permissions, and en
   const finSet=await apiCall(baseUrl,'/api/finance/settlements?status=pending',{userId:ids.financeOfficer});
   assert.equal(finSet.status,200);
   assert.equal(finSet.data.settlements.length,1);
+
+  // 6. Public contact enquiry delivers to admin dashboard notifications, contact list, and Needs Attention
+  const publicContent=await apiCall(baseUrl,'/api/public/content');
+  assert.equal(publicContent.status,200);
+  assert.equal(publicContent.data.settings.public_email,'digitransdeliveryandlogistics@gmail.com');
+  assert.match(publicContent.data.settings.public_address,/No 2, Ituebange Street/);
+
+  const contactSubmit=await apiCall(baseUrl,'/api/public/contact',{
+    method:'POST',
+    body:{
+      name:'Adaeze Okon',
+      email:'adaeze@example.test',
+      phone:'+2348000000001',
+      category:'Business partnership',
+      message:'We run a Calabar store and want regular parcel dispatch.',
+    },
+  });
+  assert.equal(contactSubmit.status,201);
+  assert.ok(contactSubmit.data.id);
+
+  const opsContactList=await apiCall(baseUrl,'/api/ops/contact-messages',{userId:ids.opsOfficer});
+  assert.equal(opsContactList.status,200);
+  assert.equal(opsContactList.data.messages.length,1);
+  assert.equal(opsContactList.data.messages[0].id,contactSubmit.data.id);
+
+  const opsNotices=await apiCall(baseUrl,'/api/notifications',{userId:ids.opsOfficer});
+  assert.equal(opsNotices.status,200);
+  assert.ok(opsNotices.data.notifications.some(n=>n.type==='contact_message'&&n.related_id===contactSubmit.data.id));
+  assert.ok(opsNotices.data.notifications.some(n=>n.type==='support'&&n.related_id===custCreate.data.id));
+
+  const opsAttentionAfterContact=await apiCall(baseUrl,'/api/ops/attention',{userId:ids.opsOfficer});
+  assert.equal(opsAttentionAfterContact.status,200);
+  assert.ok(opsAttentionAfterContact.data.items.some(i=>i.key===`contact:${contactSubmit.data.id}`&&i.href===`/ops/contact?focus=${contactSubmit.data.id}`));
 });

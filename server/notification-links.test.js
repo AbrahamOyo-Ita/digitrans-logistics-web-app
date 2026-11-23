@@ -24,6 +24,7 @@ test('notification links respect finance, investment and verification workspaces
   assert.equal(notificationHref({type:'investment',related_id:'application-2',title:'Investment payment review'},{role:'investor'}),'/investor/applications?focus=application-2');
   assert.equal(notificationHref({type:'account',title:'Student verification approved'},{role:'student'}),'/customer/documents');
   assert.equal(notificationHref({type:'account',related_id:'rider-1',title:'Rider application pending'},{role:'rider_manager'}),'/ops/riders?focus=rider-1');
+  assert.equal(notificationHref({type:'contact_message',related_id:'enq-1',title:'New enquiry'},{role:'ops_officer'}),'/ops/contact?focus=enq-1');
 });
 
 test('unknown notification types stay in the signed-in role workspace and unsafe ids are encoded',()=>{
