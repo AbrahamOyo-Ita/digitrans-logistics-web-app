@@ -226,7 +226,7 @@ export default function AuthPage({
       <div className="grid min-h-[100dvh] w-full lg:grid-cols-[minmax(420px,.92fr)_minmax(520px,1.08fr)]">
         
         {/* Left Column: Atmospheric Visual Hero with Glassmorphism */}
-        <section className="relative isolate flex min-h-[430px] flex-col justify-between overflow-hidden bg-[#092a35] p-6 text-white sm:p-8 lg:min-h-[100dvh] lg:p-12">
+        <section className="relative isolate hidden min-h-[430px] flex-col justify-between overflow-hidden bg-[#092a35] p-6 text-white sm:p-8 lg:flex lg:min-h-[100dvh] lg:p-12">
           {/* Real Brand Photograph */}
           <img
             src="/images/street-wide.jpg"
