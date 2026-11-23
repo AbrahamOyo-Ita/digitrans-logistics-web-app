@@ -4,6 +4,7 @@ import db from '../db.js';
 import { requireAuth, requireRole, ADMIN_ROLES, userHasPermission, notify, audit, getSessionUser } from '../auth.js';
 import { calculateDeliveryFee, calculateWaybillFee } from '../pricing.js';
 import { parseDateRange, parsePagination, parseSearchQuery } from '../query-filters.js';
+import { flushTransactionalEmailOutboxBestEffort } from '../email-outbox.js';
 
 const router=asyncRouter();
 const ref = prefix => `${prefix}-${new Date().toISOString().slice(0,10).replaceAll('-','')}-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
@@ -32,7 +33,7 @@ export async function createDelivery({ userId, role, body, actor, channel='app' 
   if (!Number.isFinite(recipientValue) || recipientValue < 0 || recipientValue > 100000000) throw Object.assign(new Error('Enter a valid declared value.'),{status:400});
   const riderService = role === 'vendor' ? await db.prepare('SELECT approval_status FROM vendors WHERE user_id=?').get(userId) : null;
   if (role === 'vendor' && riderService?.approval_status !== 'approved') throw Object.assign(new Error('Your business account must be approved before requesting deliveries.'),{status:403});
-  const isStudent = role === 'student' && (async () => {
+  const isStudent = role === 'student' && await (async () => {
     const s = await db.prepare('SELECT verification_status,expires_at FROM student_profiles WHERE user_id=?').get(userId);
     return s?.verification_status === 'approved' && (!s.expires_at || new Date(s.expires_at) >= new Date());
   })();
@@ -57,14 +58,16 @@ export async function createDelivery({ userId, role, body, actor, channel='app' 
   await create();
   if (customerId) await notify(customerId,'Delivery request received',`Reference ${reference} is in the delivery queue.`,'delivery',id);
   await audit(actor || {id:userId,role},'delivery.created','delivery',id,null,{reference,fee:price.fee,channel},null);
+  await flushTransactionalEmailOutboxBestEffort();
   return { id, reference, fee:price.fee, breakdown:price.breakdown, status:timing === 'scheduled' ? 'pending_confirmation' : 'awaiting_assignment', scheduledAt, distanceKm:price.distanceKm };
 }
 
 router.get('/zones', async (_req, res) => res.json({ zones:await db.prepare('SELECT id,name,description FROM service_zones WHERE active=1 ORDER BY name').all() }));
 router.get('/pricing', async (_req, res) => {
-  const p = await db.prepare('SELECT version,base_fee,per_km,min_fee,student_flat,scheduled_surcharge FROM pricing_versions ORDER BY created_at DESC LIMIT 1').get();
+  const p = await db.prepare('SELECT version,base_fee,per_km,min_fee,student_flat,vendor_discount_pct,scheduled_surcharge,special_charge,rider_commission_pct,market_runs_fee FROM pricing_versions ORDER BY created_at DESC LIMIT 1').get();
   if (!p) return res.status(503).json({error:'Pricing is not configured.'});
-  res.json({pricing:p,currency:'NGN',method:'haversine-estimate',notice:'Final fare is calculated by the server. Route estimates may differ from road distance.'});
+  const waybillRoutes = await db.prepare('SELECT origin,destination,weight_band,price,category FROM waybill_pricing ORDER BY origin,destination,weight_band').all();
+  res.json({pricing:p,waybillRoutes,currency:'NGN',method:'haversine-estimate',notice:'Final fare is calculated by the server. Route estimates may differ from road distance.'});
 });
 router.post('/pricing/quote', async (req, res) => {
   try {
@@ -185,6 +188,7 @@ router.post('/deliveries/:id/cancel', requireAuth, async (req, res) => {
   await cancel();
   if(d.customer_id) await notify(d.customer_id,'Delivery cancelled',`Reference ${d.reference} has been cancelled.`,'delivery',d.id);
   await audit(req.user,'delivery.cancelled','delivery',d.id,{status:prev},{status:'cancelled'},reason,req.ip);
+  await flushTransactionalEmailOutboxBestEffort();
   res.json({ok:true,status:'cancelled'});
 });
 
@@ -214,6 +218,7 @@ router.post('/market-runs', requireAuth, requireRole('customer','student'), asyn
   });
   await create(); await notify(req.user.id,'Market Run submitted',`Request ${reference} is under review.`,'market_run',id);
   await audit(req.user,'market_run.created','market_run',id,null,{reference},null,req.ip);
+  await flushTransactionalEmailOutboxBestEffort();
   res.status(201).json({id,reference,status:'submitted',serviceFee:pricing?.market_runs_fee||0});
 });
 
@@ -243,6 +248,7 @@ router.post('/waybills', requireAuth, requireRole('customer','student'), async (
   });
   await create(); await notify(req.user.id,'Waybill request received',`Reference ${reference} is under review.`,'waybill',id);
   await audit(req.user,'waybill.created','waybill',id,null,{reference,fee:calculated.fee},null,req.ip);
+  await flushTransactionalEmailOutboxBestEffort();
   res.status(201).json({id,reference,fee:calculated.fee,weightBand:calculated.band,status:'submitted'});
 });
 
@@ -325,6 +331,7 @@ router.post('/market-runs/:id/approve',requireAuth,requireRole('customer','stude
   await db.prepare("UPDATE market_runs SET status=?,updated_at=now() WHERE id=?").run(status,m.id);
   await notify(req.user.id,approved?'Estimate approved':'Market Run cancelled',approved?`Your estimate of ₦${Number(m.final_total||0).toLocaleString()} has been approved.`:'The Market Run was cancelled.','market_run',m.id);
   await audit(req.user,'market_run.customer_decision','market_run',m.id,{status:m.status},{status},null,req.ip);
+  await flushTransactionalEmailOutboxBestEffort();
   res.json({status});
 });
 router.post('/market-runs/:id/cancel',requireAuth,requireRole('customer','student'),async (req, res) => {
@@ -332,7 +339,9 @@ router.post('/market-runs/:id/cancel',requireAuth,requireRole('customer','studen
   if(!m||m.customer_id!==req.user.id)return res.status(404).json({error:'Market Run not found.'});
   if(!['submitted','under_review','awaiting_customer_approval'].includes(m.status))return res.status(409).json({error:'This Market Run can no longer be cancelled.'});
   await db.prepare("UPDATE market_runs SET status='cancelled',updated_at=now() WHERE id=?").run(m.id);
-  await audit(req.user,'market_run.cancelled','market_run',m.id,{status:m.status},{status:'cancelled'},String(req.body?.reason||''),req.ip);res.json({status:'cancelled'});
+  await audit(req.user,'market_run.cancelled','market_run',m.id,{status:m.status},{status:'cancelled'},String(req.body?.reason||''),req.ip);
+  await flushTransactionalEmailOutboxBestEffort();
+  res.json({status:'cancelled'});
 });
 
 export default router;

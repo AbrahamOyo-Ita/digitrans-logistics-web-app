@@ -30,12 +30,16 @@ app.use(securityHeaders({isProduction}));
 app.use(bodyParser());
 
 let readiness;
+let ready=false;
 app.use(async(_req,_res,next)=>{
+  if(ready)return next();
   try{
     readiness??=assertApplicationReady();
     await readiness;
+    ready=true;
     next();
   }catch(error){
+    readiness=null;
     error.status=503;
     next(error);
   }

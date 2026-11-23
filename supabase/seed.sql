@@ -64,17 +64,38 @@ INSERT INTO public.role_permissions(role_id,permission_id) VALUES
 ON CONFLICT (role_id,permission_id) DO NOTHING;
 
 INSERT INTO public.service_zones(id,name,description,active,supported_services) VALUES
- ('zone-01','Calabar Municipal','DigiTrans delivery service area in Calabar Municipal, Calabar',0,'local,market_runs'),
- ('zone-02','Marian','DigiTrans delivery service area in Marian, Calabar',0,'local,market_runs'),
- ('zone-03','UNICAL','DigiTrans delivery service area in UNICAL, Calabar',0,'local,market_runs'),
- ('zone-04','Etta Agbor','DigiTrans delivery service area in Etta Agbor, Calabar',0,'local,market_runs'),
- ('zone-05','State Housing','DigiTrans delivery service area in State Housing, Calabar',0,'local,market_runs'),
- ('zone-06','8 Miles','DigiTrans delivery service area in 8 Miles, Calabar',0,'local,market_runs'),
- ('zone-07','Akim','DigiTrans delivery service area in Akim, Calabar',0,'local,market_runs'),
- ('zone-08','Big Qua','DigiTrans delivery service area in Big Qua, Calabar',0,'local,market_runs'),
- ('zone-09','Atimbo','DigiTrans delivery service area in Atimbo, Calabar',0,'local,market_runs'),
- ('zone-10','Goldie','DigiTrans delivery service area in Goldie, Calabar',0,'local,market_runs')
-ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name,description=EXCLUDED.description,supported_services=EXCLUDED.supported_services;
+ ('zone-01','Calabar Municipal','DigiTrans delivery service area in Calabar Municipal, Calabar',1,'local,market_runs'),
+ ('zone-02','Marian','DigiTrans delivery service area in Marian, Calabar',1,'local,market_runs'),
+ ('zone-03','UNICAL','DigiTrans delivery service area in UNICAL, Calabar',1,'local,market_runs'),
+ ('zone-04','Etta Agbor','DigiTrans delivery service area in Etta Agbor, Calabar',1,'local,market_runs'),
+ ('zone-05','State Housing','DigiTrans delivery service area in State Housing, Calabar',1,'local,market_runs'),
+ ('zone-06','8 Miles','DigiTrans delivery service area in 8 Miles, Calabar',1,'local,market_runs'),
+ ('zone-07','Akim','DigiTrans delivery service area in Akim, Calabar',1,'local,market_runs'),
+ ('zone-08','Big Qua','DigiTrans delivery service area in Big Qua, Calabar',1,'local,market_runs'),
+ ('zone-09','Atimbo & Nyahasang','DigiTrans delivery service area in Atimbo & Nyahasang, Calabar',1,'local,market_runs'),
+ ('zone-10','Goldie','DigiTrans delivery service area in Goldie, Calabar',1,'local,market_runs'),
+ ('zone-11','Watt Market & Duke Town','DigiTrans delivery service area in Watt Market & Duke Town, Calabar',1,'local,market_runs'),
+ ('zone-12','Anantigha & Ikot Ishie','DigiTrans delivery service area in Anantigha & Ikot Ishie, Calabar',1,'local,market_runs')
+ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name,description=EXCLUDED.description,active=EXCLUDED.active,supported_services=EXCLUDED.supported_services;
+
+INSERT INTO public.pricing_versions(id,version,base_fee,per_km,min_fee,student_flat,vendor_discount_pct,scheduled_surcharge,special_charge,rider_commission_pct,market_runs_fee) VALUES
+ ('pricing-calabar-v1','Calabar Standard v1.0',500,250,1000,500,10,300,0,25,1500)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.waybill_pricing(id,origin,destination,weight_band,price,category) VALUES
+ ('wb-cal-ph-b5','Calabar','Port Harcourt','below_5kg',1500,'general'),
+ ('wb-cal-ph-5_10','Calabar','Port Harcourt','5_10kg',3000,'general'),
+ ('wb-cal-ph-a10','Calabar','Port Harcourt','above_10kg',4500,'general'),
+ ('wb-ph-cal-b5','Port Harcourt','Calabar','below_5kg',1500,'general'),
+ ('wb-ph-cal-5_10','Port Harcourt','Calabar','5_10kg',3000,'general'),
+ ('wb-ph-cal-a10','Port Harcourt','Calabar','above_10kg',4500,'general'),
+ ('wb-cal-obd-b5','Calabar','Obudu','below_5kg',1500,'general'),
+ ('wb-cal-obd-5_10','Calabar','Obudu','5_10kg',3000,'general'),
+ ('wb-cal-obd-a10','Calabar','Obudu','above_10kg',4500,'general'),
+ ('wb-obd-cal-b5','Obudu','Calabar','below_5kg',1500,'general'),
+ ('wb-obd-cal-5_10','Obudu','Calabar','5_10kg',3000,'general'),
+ ('wb-obd-cal-a10','Obudu','Calabar','above_10kg',4500,'general')
+ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.faqs(id,question,answer,category,sort_order) VALUES
  ('faq-1','Where does DigiTrans deliver?','We provide local delivery throughout supported areas in Calabar and intercity parcel service on selected routes. Check availability when booking.','Services',1),
@@ -87,7 +108,8 @@ ON CONFLICT (id) DO UPDATE SET question=EXCLUDED.question,answer=EXCLUDED.answer
 
 INSERT INTO public.system_settings(key,value) VALUES
  ('platform_name','DigiTrans Logistics'),
- ('support_phone','+234 800 000 0000'),
  ('public_email','digitransdeliveryandlogistics@gmail.com'),
- ('public_address','No 2, Ituebange Street, Nyahasang, Atimbo, Calabar Municipal, Cross River State, Nigeria')
+ ('public_address','No 2, Ituebange Street, Nyahasang, Atimbo, Calabar Municipal, Cross River State, Nigeria'),
+ ('current_rider_agreement_version','1.0'),
+ ('current_rider_agreement_text','DigiTrans Logistics Rider Operating Agreement (v1.0): By accepting this agreement, you confirm that all personal, vehicle, and guarantor details submitted are accurate, you will handle customer parcels with care and integrity, comply with road safety laws and DigiTrans prohibited-items rules, collect proof of delivery before completing orders, and maintain verified active status prior to accepting dispatch assignments.')
 ON CONFLICT (key) DO NOTHING;

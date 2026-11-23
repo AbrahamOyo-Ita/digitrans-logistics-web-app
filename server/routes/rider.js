@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import db from '../db.js';
 import { requireAuth, requireRole, requirePermission, notify, audit, revokeAllSessions } from '../auth.js';
 import { calculateRiderEarnings } from '../pricing.js';
+import { flushTransactionalEmailOutboxBestEffort } from '../email-outbox.js';
 import {logger} from '../logger.js';
 
 const router=asyncRouter();
@@ -66,7 +67,7 @@ router.post('/rider/agreement',requireAuth,riderOnly,async (req, res) => {
   if(req.body?.accepted!==true)return res.status(400).json({error:'Confirm that you have read and accept the rider agreement.'});
   const existing=await db.prepare('SELECT id FROM rider_agreements WHERE rider_id=? AND version=?').get(req.user.id,version);
   if(existing)return res.json({message:'The current agreement has already been accepted.',version});
-  await db.prepare('INSERT INTO rider_agreements (id,rider_id,version,ip,session_ref,doc_ref) VALUES (?,?,?,?,?,?)').run(id(),req.user.id,version,req.ip,req.user.sessionId,`rider-agreement-${version}`);
+  await db.prepare('INSERT INTO rider_agreements (id,rider_id,version,ip,session_ref,doc_ref) VALUES (?,?,?,?,?,?)').run(id(),req.user.id,version,req.ip,req.user.sessionId||req.requestId||'session',`rider-agreement-${version}`);
   await audit(req.user,'rider.agreement_accepted','rider',req.user.id,null,{version},null,req.ip);
   res.status(201).json({message:'Agreement acceptance recorded.',version});
 });
@@ -126,6 +127,7 @@ router.post('/rider/jobs/:deliveryId/accept',requireAuth,riderOnly,async (req, r
   });
   await update();
   if(a.customer_id)await notify(a.customer_id,'Rider accepted your delivery',`A rider accepted delivery ${a.reference}.`,'delivery',req.params.deliveryId);
+  await flushTransactionalEmailOutboxBestEffort();
   res.json({message:'Assignment accepted.',status:'rider_accepted'});
 });
 
@@ -141,6 +143,7 @@ router.post('/rider/jobs/:deliveryId/reject',requireAuth,riderOnly,async (req, r
   });
   await reject(); await audit(req.user,'delivery.assignment_rejected','delivery',req.params.deliveryId,{rider:req.user.id},{status:'awaiting_assignment'},reason,req.ip);
   if(a.customer_id)await notify(a.customer_id,'Delivery reassignment in progress',`We are finding a new rider for ${a.reference}.`,'delivery',req.params.deliveryId);
+  await flushTransactionalEmailOutboxBestEffort();
   res.json({message:'Assignment declined. Operations has been notified.'});
 });
 
@@ -195,6 +198,7 @@ router.post('/rider/jobs/:deliveryId/status',requireAuth,riderOnly,async (req, r
   try{await statusUpdate();}catch(error){logger.error('delivery.status_update_failed',{requestId:req.requestId,deliveryId:d.id,error});return res.status(409).json({error:'Unable to record the update. Refresh and try again.'});}
   if(d.customer_id)await notify(d.customer_id,next==='delivered'?'Delivery completed':'Delivery update',`Delivery ${d.reference}: ${next.replaceAll('_',' ')}.`,'delivery',d.id);
   await audit(req.user,'delivery.status_changed','delivery',d.id,{status:d.status},{status:next},notes,req.ip);
+  await flushTransactionalEmailOutboxBestEffort();
   res.json({message:'Delivery progress updated.',status:next});
 });
 

@@ -11,6 +11,7 @@ export async function assertApplicationReady({env=process.env,migrationsLoader=l
   const verifiedLegacyChecksums={
     '202611160001':'e87de223c7a4a3ef9a7bd3e4f9a3356d65074701ead901fe00be054255cc9572',
     '202611160002':'2af1918f884064340b58c7b5a424ee754ebeaff93b8f654d7e0669965894be2e',
+    '202611160003':'84e038f357524cd61d80c153b0a4a25d012755a7c625e87fc78a140145fbfb1c',
   };
   let legacyChecksums=verifiedLegacyChecksums;
   try{legacyChecksums=JSON.parse(String(env.SUPABASE_MIGRATION_CHECKSUM_OVERRIDES||'{}'));}catch{throw new Error('SUPABASE_MIGRATION_CHECKSUM_OVERRIDES must be valid JSON.');}

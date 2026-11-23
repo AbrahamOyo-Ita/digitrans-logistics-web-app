@@ -5,6 +5,7 @@ import { requireAuth, requireRole, requirePermission, userHasPermission, audit }
 import {initializePaystackPayment,settleVerifiedPayment,verifyPaystackPayment,verifyPaystackSignature,refundPaystackPayment,reference} from '../payments.js';
 import {applyFailedPaystackPayment} from '../payment-rpc.js';
 import {parseDateRange,parsePagination,parseSearchQuery} from '../query-filters.js';
+import {flushTransactionalEmailOutboxBestEffort} from '../email-outbox.js';
 import {logger} from '../logger.js';
 
 const router=asyncRouter();
@@ -60,7 +61,11 @@ router.get('/payments/verify/:reference',requireAuth,async(req,res)=>{
   const p=await db.prepare('SELECT * FROM payments WHERE reference=? OR provider_ref=?').get(req.params.reference,req.params.reference);
   const canReadAll=await userHasPermission(req.user,'finance.read');
   if(!p||p.user_id!==req.user.id&&!canReadAll)return res.status(404).json({error:'Payment not found.'});
-  try{const result=await verifyPaystackPayment(req.params.reference);res.json(result);}catch(e){res.status(e.status||502).json({error:e.status?e.message:'Payment verification could not be completed. Please retry shortly.'});}
+  try{
+    const result=await verifyPaystackPayment(req.params.reference);
+    await flushTransactionalEmailOutboxBestEffort();
+    res.json(result);
+  }catch(e){res.status(e.status||502).json({error:e.status?e.message:'Payment verification could not be completed. Please retry shortly.'});}
 });
 router.get('/payments',requireAuth,async (req, res) => {
   const canReadAll=await userHasPermission(req.user,'finance.read');
@@ -128,9 +133,12 @@ router.post('/payments/paystack/webhook',async(req,res)=>{
   const payment=await db.prepare('SELECT * FROM public.payments WHERE reference=? OR provider_ref=?').get(data.reference,data.reference);
   if(!payment)return res.status(200).json({received:true});
   try{
-    if(event.event==='charge.success'&&providerStatus==='success')await settleVerifiedPayment(payment,data,null,raw);
-    else if(['failed','abandoned'].includes(providerStatus))await applyFailedPaystackPayment({paymentId:payment.id,providerData:data,rawPayload:raw});
-    else return res.status(200).json({received:true});
+    if(event.event==='charge.success'&&providerStatus==='success'){
+      await settleVerifiedPayment(payment,data,null,raw);
+      await flushTransactionalEmailOutboxBestEffort();
+    }else if(['failed','abandoned'].includes(providerStatus)){
+      await applyFailedPaystackPayment({paymentId:payment.id,providerData:data,rawPayload:raw});
+    }else return res.status(200).json({received:true});
     res.status(200).json({received:true});
   }catch(error){
     logger.error('payments.paystack_webhook_reconciliation_failed',{requestId:req.requestId,error});

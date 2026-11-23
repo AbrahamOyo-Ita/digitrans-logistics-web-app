@@ -95,6 +95,10 @@ export default function App({ initialPathname = null, initialSearch = '' }) {
       navigate(`/login?next=${encodeURIComponent(pathWithQuery(location))}`, { replace: true });
       return;
     }
+    if (cleanPath === '/app-shell') {
+      navigate(user ? roleHome(user) : '/login?next=%2Fworkspace', { replace: true });
+      return;
+    }
     if (user && cleanPath === '/workspace') {
       navigate(roleHome(user), { replace: true });
       return;

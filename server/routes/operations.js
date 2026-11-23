@@ -11,6 +11,7 @@ import {missingPermissionDependencies} from '../../shared/permissions.js';
 import {workspacePath} from '../../shared/workspace-links.js';
 import {parseDateRange,parsePagination,parseSearchQuery} from '../query-filters.js';
 import { createDelivery } from './customer.js';
+import { flushTransactionalEmailOutboxBestEffort } from '../email-outbox.js';
 import {logger} from '../logger.js';
 
 const router=asyncRouter();
@@ -459,6 +460,7 @@ router.post('/ops/deliveries/:id/assign',requireAuth,requirePermission('deliveri
   await notify(riderId,'New delivery assignment',`You have been assigned delivery ${delivery.reference}.`,'assignment',delivery.id);
   if(delivery.customer_id)await notify(delivery.customer_id,'Rider assigned',`A rider has been assigned to ${delivery.reference}.`,'delivery',delivery.id);
   await audit(req.user,current?'delivery.reassigned':'delivery.assigned','delivery',delivery.id,{status:delivery.status,riderId:current?.rider_id||null},{status:'assigned',riderId,assignmentRef},reason,req.ip);
+  await flushTransactionalEmailOutboxBestEffort();
   res.status(201).json({assignmentId,assignmentRef,status:'assigned'});
 });
 
@@ -476,6 +478,7 @@ router.post('/ops/deliveries/:id/status',requireAuth,requirePermission('deliveri
   });
   await run(); if(d.customer_id)await notify(d.customer_id,'Delivery updated',`Delivery ${d.reference}: ${next.replaceAll('_',' ')}.`,'delivery',d.id);
   await audit(req.user,'delivery.status_changed','delivery',d.id,{status:d.status},{status:next},reason,req.ip);
+  await flushTransactionalEmailOutboxBestEffort();
   res.json({status:next});
 });
 
@@ -583,6 +586,7 @@ router.post('/ops/market-runs/:id/estimate',requireAuth,requirePermission('marke
   await db.prepare("UPDATE market_runs SET estimated_items_cost=?,service_fee=?,final_total=?,status='awaiting_customer_approval',updated_at=now() WHERE id=?").run(items,fee,total,m.id);
   if(m.customer_id)await notify(m.customer_id,'Market Run estimate ready',`Review the estimate for ${m.reference}: ₦${total.toLocaleString()}.`,'market_run',m.id);
   await audit(req.user,'market_run.estimate_created','market_run',m.id,{total:m.final_total},{items,fee,total},String(req.body?.reason||''),req.ip);
+  await flushTransactionalEmailOutboxBestEffort();
   res.json({status:'awaiting_customer_approval',estimatedItemsCost:items,serviceFee:fee,total});
 });
 router.post('/ops/market-runs/:id/agent',requireAuth,requirePermission('market_runs.manage'),async (req, res) => {
@@ -616,6 +620,7 @@ router.post('/ops/market-runs/:id/status',requireAuth,requirePermission('market_
   await db.prepare('UPDATE market_runs SET status=?,updated_at=now() WHERE id=?').run(next,m.id);
   if(m.customer_id)await notify(m.customer_id,'Market Run update',`Request ${m.reference}: ${next.replaceAll('_',' ')}${reason?`. ${reason}`:''}`,'market_run',m.id);
   await audit(req.user,'market_run.status_changed','market_run',m.id,{status:m.status},{status:next},reason,req.ip);
+  await flushTransactionalEmailOutboxBestEffort();
   res.json({status:next});
 });
 
@@ -655,6 +660,7 @@ router.post('/ops/waybills/:id/status',requireAuth,requirePermission('waybills.m
   });
   await change();if(w.customer_id)await notify(w.customer_id,'Waybill update',`Waybill ${w.reference}: ${next.replaceAll('_',' ')}.`,'waybill',w.id);
   await audit(req.user,'waybill.status_changed','waybill',w.id,{status:w.status},{status:next,waybillNumber:number},notes,req.ip);
+  await flushTransactionalEmailOutboxBestEffort();
   res.json({status:next,waybillNumber:number});
 });
 router.post('/ops/waybills/:id/payment',requireAuth,requirePermission('finance.manage'),async (req, res) => {
@@ -672,6 +678,7 @@ router.post('/ops/waybills/:id/payment',requireAuth,requirePermission('finance.m
   });
   await record();if(w.customer_id)await notify(w.customer_id,'Waybill payment confirmed',`Payment for ${w.reference} has been reconciled.`,'payment',w.id);
   await audit(req.user,'waybill.payment_reconciled','waybill',w.id,{payment_status:w.payment_status},{payment_status:'successful',providerRef},'Provider transaction verified',req.ip);
+  await flushTransactionalEmailOutboxBestEffort();
   res.json({status:'successful',paymentReference:paymentRef});
 });
 router.get('/ops/waybills/:id/label',requireAuth,requirePermission('waybills.manage'),async (req, res) => {

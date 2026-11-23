@@ -15,8 +15,8 @@ export const SERVICES = Object.freeze([
     image: '/images/handover.jpg',
     imageAlt: 'A DigiTrans courier completing a door-to-door parcel handover in Calabar',
     ogImage: '/images/og/og-services.jpg',
-    priceFrom: 'Zone/km fare [CONFIRM]',
-    turnaround: 'Same-day local dispatch [CONFIRM]',
+    priceFrom: 'From ₦1,000',
+    turnaround: 'Same-day dispatch',
     icon: 'truck',
     quoteService: 'standard',
     highlights: [
@@ -68,8 +68,8 @@ export const SERVICES = Object.freeze([
     image: '/images/market-run.jpg',
     imageAlt: 'Fresh foodstuff and household market items prepared during a DigiTrans Market Run in Calabar',
     ogImage: '/images/og/og-services.jpg',
-    priceFrom: 'Items + service fee [CONFIRM]',
-    turnaround: 'Same-day / scheduled [CONFIRM]',
+    priceFrom: 'Items + ₦1,500 fee',
+    turnaround: 'Same-day / scheduled',
     icon: 'bag',
     quoteService: 'market-run',
     highlights: [
@@ -121,8 +121,8 @@ export const SERVICES = Object.freeze([
     image: '/images/depot.jpg',
     imageAlt: 'DigiTrans dispatch riders supporting student deliveries in Calabar',
     ogImage: '/images/og/og-services.jpg',
-    priceFrom: 'Verified student rate [CONFIRM]',
-    turnaround: 'Campus-zone dispatch [CONFIRM]',
+    priceFrom: '₦500 verified student rate',
+    turnaround: 'Campus-zone dispatch',
     icon: 'user',
     quoteService: 'student',
     highlights: [
@@ -175,8 +175,8 @@ export const SERVICES = Object.freeze([
     image: '/images/waybill.jpg',
     imageAlt: 'Intercity parcel prepared and weighed for DigiTrans waybill dispatch',
     ogImage: '/images/og/og-routes.jpg',
-    priceFrom: 'Weight-tier tariff [CONFIRM]',
-    turnaround: 'Scheduled intercity dispatch [CONFIRM]',
+    priceFrom: 'From ₦1,500',
+    turnaround: 'Scheduled intercity dispatch',
     icon: 'box',
     quoteService: 'waybill',
     highlights: [
@@ -228,7 +228,7 @@ export const SERVICES = Object.freeze([
     image: '/images/vendor.jpg',
     imageAlt: 'Local business owner handing a packaged customer order to a DigiTrans rider',
     ogImage: '/images/og/og-services.jpg',
-    priceFrom: 'Vendor tariff rules [CONFIRM]',
+    priceFrom: '10% vendor discount',
     turnaround: 'On-demand & scheduled dispatch',
     icon: 'chart',
     quoteService: 'business',
@@ -281,7 +281,7 @@ export const SERVICES = Object.freeze([
     image: '/images/hero-courier.jpg',
     imageAlt: 'DigiTrans bicycle courier prepared for a scheduled parcel pickup in Calabar',
     ogImage: '/images/og/og-services.jpg',
-    priceFrom: 'Standard + optional surcharge [CONFIRM]',
+    priceFrom: 'Standard + ₦300 slot',
     turnaround: 'Planned dispatch slot',
     icon: 'clock',
     quoteService: 'standard',
@@ -388,7 +388,7 @@ export const CITIES = Object.freeze([
     ogImage: '/images/og/og-cities.jpg',
     answerSummary:
       'DigiTrans connects Port Harcourt and Calabar through tracked intercity waybill dispatch. Senders and recipients can track parcels online via DT-WB reference numbers from intake through destination handoff.',
-    officeAddress: 'Pickup/collection point details confirmed upon waybill booking [CONFIRM]',
+    officeAddress: 'Pickup and collection point details confirmed upon waybill booking',
     areasCovered: [
       'Calabar -> Port Harcourt commercial & personal parcel dispatch',
       'Port Harcourt -> Calabar inbound waybills',
@@ -423,7 +423,7 @@ export const CITIES = Object.freeze([
     ogImage: '/images/og/og-cities.jpg',
     answerSummary:
       'DigiTrans connects northern Cross River State (Obudu) with Calabar via tracked intercity waybills. Send family packages, student essentials, documents, or retail stock with verifiable intake weight and online parcel tracking.',
-    officeAddress: 'Collection / handoff details confirmed at waybill booking [CONFIRM]',
+    officeAddress: 'Collection and handoff details confirmed at waybill booking',
     areasCovered: [
       'Calabar -> Obudu parcel & document dispatch',
       'Obudu -> Calabar return parcel waybills',
@@ -466,8 +466,8 @@ export const ROUTES = Object.freeze([
     ogImage: '/images/og/og-routes.jpg',
     answerSummary: `Send tracked parcels from Calabar to Port Harcourt with DigiTrans Logistics. Submit your waybill online, drop off at ${SITE.address} (or request approved local pickup), confirm verified weight charges, and track every stage via DT-WB code.`,
     intakeLocation: SITE.address,
-    deliveryWindow: 'Scheduled intercity dispatch [CONFIRM]',
-    pricingNote: 'Weight-tiered intercity route pricing verified at parcel intake [CONFIRM].',
+    deliveryWindow: 'Scheduled intercity dispatch',
+    pricingNote: '₦1,500 (<5 kg), ₦3,000 (5–10 kg), and ₦4,500 (>10 kg) verified at intake.',
     idealFor: ['Commercial retail orders & fashion stock', 'Legal & business documents', 'Packaged electronics & household supplies', 'Family care parcels'],
     faqs: [
       {
@@ -498,9 +498,9 @@ export const ROUTES = Object.freeze([
     heroAlt: 'DigiTrans dispatch hub receiving inbound parcels for Calabar delivery',
     ogImage: '/images/og/og-routes.jpg',
     answerSummary: `Move parcels from Port Harcourt into Calabar with end-to-end tracking and local Calabar delivery options. Packages arriving in Calabar connect directly to our Nyahasang, Atimbo office (${SITE.shortAddress}) and local rider distribution across all 12 zones.`,
-    intakeLocation: 'Port Harcourt dispatch intake confirmed on booking [CONFIRM]',
-    deliveryWindow: 'Scheduled intercity dispatch [CONFIRM]',
-    pricingNote: 'Calculated by verified weight and route tier before dispatch [CONFIRM].',
+    intakeLocation: 'Port Harcourt dispatch intake details confirmed on booking',
+    deliveryWindow: 'Scheduled intercity dispatch',
+    pricingNote: '₦1,500 (<5 kg), ₦3,000 (5–10 kg), and ₦4,500 (>10 kg) verified before dispatch.',
     idealFor: ['Supplier inventory for Calabar vendors', 'UNICAL student supplies from Rivers State', 'Business & family shipments into Calabar'],
     faqs: [
       {
@@ -528,8 +528,8 @@ export const ROUTES = Object.freeze([
     ogImage: '/images/og/og-routes.jpg',
     answerSummary: `Send documented, tracked waybills north from Calabar to Obudu across Cross River State. Drop off at ${SITE.address} or book a local Calabar pickup, confirm the verified weight charge, and follow transit status with your DT-WB code.`,
     intakeLocation: SITE.address,
-    deliveryWindow: 'Scheduled Cross River dispatch [CONFIRM]',
-    pricingNote: 'Weight-based waybill pricing verified prior to dispatch [CONFIRM].',
+    deliveryWindow: 'Scheduled Cross River dispatch',
+    pricingNote: '₦1,500 (<5 kg), ₦3,000 (5–10 kg), and ₦4,500 (>10 kg) verified prior to dispatch.',
     idealFor: ['Up-state student & family parcels', 'Printed files & official documents', 'Packaged retail stock for Obudu merchants'],
     faqs: [
       {
@@ -556,9 +556,9 @@ export const ROUTES = Object.freeze([
     heroAlt: 'DigiTrans rider preparing local delivery for arriving Obudu parcels in Calabar',
     ogImage: '/images/og/og-routes.jpg',
     answerSummary: `Connect Obudu to Calabar reliably with DigiTrans tracked waybills. Parcels arriving at our Atimbo, Calabar hub (${SITE.shortAddress}) can be picked up at the office or forwarded anywhere in Calabar by our local rider fleet.`,
-    intakeLocation: 'Obudu intake details confirmed upon waybill approval [CONFIRM]',
-    deliveryWindow: 'Scheduled Cross River dispatch [CONFIRM]',
-    pricingNote: 'Priced by verified weight and selected delivery option [CONFIRM].',
+    intakeLocation: 'Obudu intake details confirmed upon waybill approval',
+    deliveryWindow: 'Scheduled Cross River dispatch',
+    pricingNote: '₦1,500 (<5 kg), ₦3,000 (5–10 kg), and ₦4,500 (>10 kg) verified at intake.',
     idealFor: ['Documents & applications heading to Calabar', 'Local agricultural/packaged dry goods [permitted items only]', 'Student & family parcels to UNICAL & Calabar zones'],
     faqs: [
       {
@@ -576,19 +576,19 @@ export const ROUTES = Object.freeze([
 export const ROUTE_BY_SLUG = Object.fromEntries(ROUTES.map((r) => [r.slug, r]));
 
 export const PRICING_SUMMARY_ROWS = Object.freeze([
-  ['Local delivery (Calabar)', 'Base fee + per-km route rate (subject to minimum fare)', 'Shown upfront before booking [CONFIRM]'],
-  ['Market Runs', 'Approved item cost estimate + Market Run service fee', 'Reconciled against receipts [CONFIRM]'],
-  ['Intercity waybill (under 5 kg)', 'Weight tier (below 5 kg) on active route', 'Verified at intake [CONFIRM]'],
-  ['Intercity waybill (5–10 kg)', 'Mid-weight tier (5–10 kg) on active route', 'Verified at intake [CONFIRM]'],
-  ['Intercity waybill (above 10 kg)', 'Base tier + per-kg above 10 kg', 'Verified at intake [CONFIRM]'],
-  ['Verified student delivery', 'Active student rate on approved campus zones', 'Requires approved student ID [CONFIRM]'],
-  ['Business & vendor accounts', 'Server-applied vendor discount % where approved', 'Configured on vendor approval [CONFIRM]'],
+  ['Local delivery (Calabar)', '₦500 base + ₦250/km (₦1,000 minimum fare)', 'Shown upfront before booking'],
+  ['Market Runs', 'Approved item cost estimate + ₦1,500 service fee', 'Reconciled against receipts'],
+  ['Intercity waybill (under 5 kg)', '₦1,500 on Calabar <-> Port Harcourt & Calabar <-> Obudu', 'Verified at intake'],
+  ['Intercity waybill (5–10 kg)', '₦3,000 on Calabar <-> Port Harcourt & Calabar <-> Obudu', 'Verified at intake'],
+  ['Intercity waybill (above 10 kg)', '₦4,500 on Calabar <-> Port Harcourt & Calabar <-> Obudu', 'Verified at intake'],
+  ['Verified student delivery', '₦500 flat rate on eligible campus trips', 'Requires approved student ID'],
+  ['Business & vendor accounts', '10% vendor discount on approved business accounts', 'Applied automatically after approval'],
 ]);
 
 export const PRICING_EXTRAS = Object.freeze([
-  ['Scheduled pickup slot', 'Scheduled surcharge when configured [CONFIRM]', 'Reserve a future pickup window ahead of dispatch.'],
-  ['Fragile / special handling', 'Disclosed before confirmation [CONFIRM]', 'Extra packing care noted on the booking instructions.'],
-  ['Intercity declared value', 'Confirmed during intake review [CONFIRM]', 'Optional parcel valuation recorded on the waybill intake form.'],
+  ['Scheduled pickup slot', '₦300 surcharge', 'Reserve a future pickup window ahead of dispatch.'],
+  ['Fragile / special handling', 'Disclosed before confirmation', 'Extra packing care noted on the booking instructions.'],
+  ['Intercity declared value', 'Recorded at intake review', 'Optional parcel valuation recorded on the waybill intake form.'],
 ]);
 
 export const SERVICE_SCENARIOS = Object.freeze([
@@ -695,8 +695,7 @@ export const GUIDES = Object.freeze([
       {
         heading: 'Planning vs. final confirmed price',
         paragraphs: [
-          'Use the public quote calculator on our Pricing or Quote pages to preview typical zone-to-zone planning estimates anytime. Once signed in, the booking screen fetches active server pricing rules and displays the exact confirmed Naira total before you commit.',
-          'Notice: fixed example rates in offline estimates are marked [CONFIRM] until confirmed against live pricing configuration during booking.',
+          'Use the public quote calculator on our Pricing or Quote pages to preview typical zone-to-zone planning estimates anytime. Once signed in, the booking screen fetches active server pricing rules (₦500 base + ₦250/km with a ₦1,000 minimum local fare, ₦1,500 Market Run fee, ₦500 student rate, 10% vendor discount, ₦300 scheduled slot surcharge, and ₦1,500 / ₦3,000 / ₦4,500 intercity waybill weight bands) and displays the exact confirmed Naira total before you commit.',
         ],
       },
     ],

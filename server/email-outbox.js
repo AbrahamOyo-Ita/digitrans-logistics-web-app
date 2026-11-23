@@ -96,3 +96,22 @@ export async function processTransactionalEmailOutbox({client=db,env=process.env
  }));
  return {configured:true,claimed:records.length,...counts};
 }
+
+/**
+ * Best-effort bounded flush for request handlers in serverless environments where
+ * background tasks cannot outlive the HTTP response. Never throws or blocks beyond timeoutMs.
+ */
+export async function flushTransactionalEmailOutboxBestEffort({limit=6,concurrency=3,timeoutMs=1800,env=process.env}={}){
+ if(!isEmailConfigured(env))return null;
+ let timer;
+ try{
+  const timeout=new Promise(resolve=>{timer=setTimeout(()=>resolve(null),timeoutMs);});
+  return await Promise.race([
+   processTransactionalEmailOutbox({limit,concurrency,env}).catch(error=>{
+    logger.warn('email.outbox_inline_drain_failed',{error});
+    return null;
+   }),
+   timeout,
+  ]);
+ }finally{clearTimeout(timer);}
+}

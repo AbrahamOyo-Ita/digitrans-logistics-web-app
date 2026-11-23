@@ -1,4 +1,4 @@
-const CACHE_NAME = 'digitrans-shell-v4';
+const CACHE_NAME = 'digitrans-shell-v5';
 const SHELL = ['/', '/offline.html', '/manifest.webmanifest', '/icon-192.png', '/images/Digitrans_Logo.webp'];
 const PRIVATE_PREFIXES = ['/api/', '/uploads/', '/customer', '/rider', '/vendor', '/investor', '/ops', '/admin', '/workspace', '/auth', '/login', '/register', '/forgot-password', '/reset-password', '/payment'];
 

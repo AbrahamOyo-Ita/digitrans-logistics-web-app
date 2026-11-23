@@ -51,6 +51,17 @@ test('Supabase seed is idempotent and creates authorization catalogues without d
   assert.equal(keys.has('finance_officer:admin.manage'),false);
   const adminManagementGrant=await db.query(`SELECT role_id FROM public.role_permissions rp JOIN public.permissions p ON p.id=rp.permission_id WHERE p.key='admin.manage'`);
   assert.deepEqual(adminManagementGrant.rows,[{role_id:'super_admin'}]);
+  const zoneStats=await db.query(`SELECT count(*)::int AS total, count(*) FILTER (WHERE active=1)::int AS active_count FROM public.service_zones`);
+  assert.deepEqual(zoneStats.rows,[{total:12,active_count:12}]);
+  const pricingRow=await db.query(`SELECT version,base_fee,per_km,min_fee,student_flat,vendor_discount_pct,market_runs_fee FROM public.pricing_versions`);
+  assert.deepEqual(pricingRow.rows,[{version:'Calabar Standard v1.0',base_fee:500,per_km:250,min_fee:1000,student_flat:500,vendor_discount_pct:10,market_runs_fee:1500}]);
+  const wbCount=await db.query(`SELECT count(*)::int AS total FROM public.waybill_pricing`);
+  assert.equal(wbCount.rows[0].total,12);
+  const settingsRows=await db.query(`SELECT key,value FROM public.system_settings`);
+  const settingsMap=Object.fromEntries(settingsRows.rows.map(r=>[r.key,r.value]));
+  assert.equal(settingsMap.support_phone,undefined);
+  assert.equal(settingsMap.current_rider_agreement_version,'1.0');
+  assert.ok(settingsMap.current_rider_agreement_text?.length>40);
 });
 
 test('remote staging seed requires HTTPS Supabase Auth even from a development shell',async()=>{
