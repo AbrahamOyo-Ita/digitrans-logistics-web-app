@@ -71,7 +71,9 @@ function appOrigin(req){
 }
 function verificationUrl(req,{token,email,type}){
   const url=new URL(type==='recovery'?'/reset-password':'/auth/verify',appOrigin(req));
-  url.searchParams.set('token',token);url.searchParams.set('email',email);return url;
+  url.searchParams.set('token',token);url.searchParams.set('email',email);
+  if(type&&type!=='recovery')url.searchParams.set('type',type);
+  return url;
 }
 
 const GOOGLE_STATE_COOKIE='google_oauth_state';
@@ -244,7 +246,7 @@ router.post('/register',async(req,res)=>{
     if(emailConflict&&!Number(emailConflict.email_verified)){
       try{
         const generated=await resendSupabaseSignup(email);
-        const url=verificationUrl(req,{token:generated.hashedToken,email,type:'signup'});
+        const url=verificationUrl(req,{token:generated.hashedToken,email,type:'magiclink'});
         await sendEmail({to:email,...createAuthEmailTemplate({kind:'verify',name:emailConflict.full_name||d.fullName,actionUrl:url.href})});
       }catch(error){
         logger.error('auth.registration_verification_resend_failed',{requestId:req.requestId,error});
@@ -313,8 +315,7 @@ router.post('/resend-verification',async(req,res)=>{
   if(!row||row.email_verified)return res.json(generic);
   try{
     const generated=await resendSupabaseSignup(email);
-    const url=verificationUrl(req,{token:generated.hashedToken,email,type:'signup'});
-    url.searchParams.set('type','magiclink');
+    const url=verificationUrl(req,{token:generated.hashedToken,email,type:'magiclink'});
     await sendEmail({to:email,...createAuthEmailTemplate({kind:'verify',name:row.full_name,actionUrl:url.href})});
   }catch(error){
     logger.error('auth.verification_resend_failed',{requestId:req.requestId,error});

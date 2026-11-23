@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Icon from '../components/Icon';
 import Brand from '../components/Brand';
 import { api } from '../lib/api';
@@ -42,6 +42,7 @@ export default function AuthPage({
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [googleEnabled, setGoogleEnabled] = useState(false);
+  const verificationRequestRef = useRef('');
 
   useEffect(() => {
     let active = true;
@@ -112,6 +113,9 @@ export default function AuthPage({
       setError('This verification link is incomplete. Request a new link or sign in.');
       return;
     }
+    const requestKey = `${email}:${token}:${type}`;
+    if (verificationRequestRef.current === requestKey) return;
+    verificationRequestRef.current = requestKey;
     setBusy(true);
     setVerificationState('checking');
     setError('');
