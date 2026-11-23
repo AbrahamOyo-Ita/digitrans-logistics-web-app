@@ -237,9 +237,21 @@ router.post('/register',async(req,res)=>{
   const d=parsed.data,email=d.email.toLowerCase(),phone=normalizePhoneNumber(d.phone);
   if(process.env.NODE_ENV==='production'&&!isEmailConfigured())return res.status(503).json({error:'Account verification email is not configured yet. Please contact DigiTrans support.'});
   const phonePredicate=buildUserIdentifierPredicate(phone,{emailColumn:'email',phoneColumn:'phone'});
-  const emailConflict=await db.prepare('SELECT id FROM public.users WHERE lower(email)=?').get(email);
+  const emailConflict=await db.prepare(`SELECT u.id,u.email,u.email_verified,p.full_name
+    FROM public.users u LEFT JOIN public.profiles p ON p.user_id=u.id WHERE lower(u.email)=?`).get(email);
   const phoneConflict=await db.prepare(`SELECT id FROM public.users WHERE ${phonePredicate.sql}`).get(...phonePredicate.params);
   if(emailConflict||phoneConflict){
+    if(emailConflict&&!Number(emailConflict.email_verified)){
+      try{
+        const generated=await resendSupabaseSignup(email);
+        const url=verificationUrl(req,{token:generated.hashedToken,email,type:'signup'});
+        await sendEmail({to:email,...createAuthEmailTemplate({kind:'verify',name:emailConflict.full_name||d.fullName,actionUrl:url.href})});
+      }catch(error){
+        logger.error('auth.registration_verification_resend_failed',{requestId:req.requestId,error});
+        return res.status(error?.status||503).json({error:'This account is awaiting email verification, but a fresh verification email could not be sent. Please try again shortly.'});
+      }
+      return res.status(200).json({message:'This account is awaiting email verification. We sent a fresh verification link to your email.'});
+    }
     const conflict=emailConflict&&phoneConflict?'email address and phone number':emailConflict?'email address':'phone number';
     return res.status(409).json({error:`An account with this ${conflict} already exists. Sign in or use account recovery.`});
   }
