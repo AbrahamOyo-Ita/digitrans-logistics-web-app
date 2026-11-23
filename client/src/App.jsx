@@ -133,7 +133,7 @@ export default function App({ initialPathname = null, initialSearch = '' }) {
     }
   };
 
-  const onAuthenticated = (authenticatedUser, target = '/workspace') => {
+  const onAuthenticated = useCallback((authenticatedUser, target = '/workspace') => {
     setUser(authenticatedUser);
     setAuthState('ready');
     let next = safePath(target || '/workspace');
@@ -148,7 +148,7 @@ export default function App({ initialPathname = null, initialSearch = '' }) {
       title: 'You’re signed in',
       message: `Welcome to your ${authenticatedUser?.role?.replaceAll('_', ' ')} workspace.`,
     });
-  };
+  }, [navigate, showToast]);
 
   const logout = async () => {
     try {
