@@ -32,20 +32,20 @@ export const SITE = Object.freeze({
   }),
   mapsUrl: 'https://maps.google.com/?q=No+2,+Ituebange+Street,+Nyahasang,+Atimbo,+Calabar+Municipal,+Cross+River+State,+Nigeria',
 
-  // Unconfirmed operational details — clearly flagged [CONFIRM] until confirmed by owner
-  phone: '+234 800 000 0000',
-  phoneIsPlaceholder: true,
-  phoneHref: 'tel:+2348000000000',
-  phoneNote: 'Phone number [CONFIRM] — email or contact form is active.',
-  whatsapp: '+234 800 000 0000',
-  whatsappIsPlaceholder: true,
-  whatsappHref: 'https://wa.me/2348000000000',
-  hours: 'Operating hours [CONFIRM]',
-  hoursIsPlaceholder: true,
-  foundedYear: null, // [CONFIRM]
-  foundedNote: 'Cross River State [CONFIRM]',
-  geo: null, // [CONFIRM] verified latitude/longitude coordinates
-  socialLinks: Object.freeze([]), // [CONFIRM] add verified Instagram/X/Facebook/LinkedIn URLs when live
+  // Public contact channels (phone/WhatsApp intentionally omitted until verified line is published via CMS settings)
+  phone: null,
+  phoneIsPlaceholder: false,
+  phoneHref: null,
+  phoneNote: 'Email dispatch or contact form is active.',
+  whatsapp: null,
+  whatsappIsPlaceholder: false,
+  whatsappHref: null,
+  hours: null,
+  hoursIsPlaceholder: false,
+  foundedYear: null,
+  foundedNote: 'Cross River State',
+  geo: null,
+  socialLinks: Object.freeze([]),
 
   // Confirmed geographic scope & intercity corridors
   cities: Object.freeze(['Calabar', 'Port Harcourt', 'Obudu']),

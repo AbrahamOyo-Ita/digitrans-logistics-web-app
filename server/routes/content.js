@@ -25,7 +25,7 @@ router.get('/public/content',async (_req, res) => {
   const faqs=await db.prepare('SELECT id,question,answer,category FROM faqs ORDER BY sort_order,created_at').all();
   const zones=await db.prepare('SELECT id,name FROM service_zones WHERE active=1 ORDER BY name').all();
   const settings=await db.prepare('SELECT key,value FROM system_settings WHERE key IN ('+allowedSettings.map(()=>'?').join(',')+')').all(...allowedSettings);
-  res.json({banners,faqs,zones,settings:Object.fromEntries(settings.map(s=>[s.key,s.value]))});
+  res.json({banners,faqs,zones,settings:Object.fromEntries(settings.map(s=>[s.key,s.value])),authProviders:{google:String(process.env.GOOGLE_OAUTH_ENABLED||'').trim().toLowerCase()==='true'}});
 });
 router.get('/public/faqs',async (_req, res) => res.json({faqs:await db.prepare('SELECT id,question,answer,category FROM faqs ORDER BY sort_order,created_at').all()}));
 router.get('/public/banners',async (_req, res) => {

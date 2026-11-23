@@ -41,17 +41,31 @@ export default function AuthPage({
   const [resendMessage, setResendMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    api('/auth/providers')
+      .then((res) => {
+        if (active) setGoogleEnabled(Boolean(res?.google));
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const params = new URLSearchParams(window.location.search);
   const next = params.get('next') || '/workspace';
   const oauthError = params.get('oauth_error');
 
   useEffect(() => {
-    const messages = {
+      const messages = {
       google_cancelled: 'Google sign-in was cancelled. You can try again or use your email and password.',
       google_state_invalid: 'Google sign-in expired. Please try again.',
       google_code_missing: 'Google sign-in could not be completed. Please try again.',
       google_account_conflict: 'That Google email is linked to another account. Sign in with your existing account.',
+      google_disabled: 'Google sign-in is currently disabled. Sign in using your email address and password.',
       google_failed: 'Google sign-in could not be completed. Please try again.'
     };
     if (oauthError) setError(messages[oauthError] || messages.google_failed);
@@ -565,7 +579,7 @@ export default function AuthPage({
                           required
                           autoComplete="tel"
                           minLength={8}
-                          placeholder="+234 800 000 0000"
+                          placeholder="+234…"
                           className="w-full bg-[#f4f5f8] hover:bg-[#edeff2] focus:bg-white border border-transparent focus:border-[#1d4ed8] focus:ring-4 focus:ring-blue-500/10 rounded-2xl px-4 py-3.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200"
                         />
                       </div>
@@ -744,7 +758,7 @@ export default function AuthPage({
                 <div className="text-center text-xs sm:text-sm text-slate-600 pt-2">
                   {kind === 'login' ? (
                     <>
-                      Already have an account?{' '}
+                      Don&apos;t have an account?{' '}
                       <button
                         type="button"
                         onClick={() => switchKind('register')}
@@ -776,23 +790,27 @@ export default function AuthPage({
                   )}
                 </div>
 
-                {/* 'Or' Divider */}
-                <div className="relative flex items-center justify-center my-6">
-                  <div className="border-t border-slate-200 w-full" />
-                  <span className="bg-white px-3 text-xs font-medium text-slate-400 uppercase tracking-wider absolute">
-                    Or
-                  </span>
-                </div>
+                {googleEnabled && (
+                  <>
+                    {/* 'Or' Divider */}
+                    <div className="relative flex items-center justify-center my-6">
+                      <div className="border-t border-slate-200 w-full" />
+                      <span className="bg-[#f7f8f6] px-3 text-xs font-medium text-slate-400 uppercase tracking-wider absolute">
+                        Or
+                      </span>
+                    </div>
 
-                {/* Sign up/in with Google (Matches Reference) */}
-                <button
-                  type="button"
-                  onClick={handleGoogleAuth}
-                  className="w-full py-3.5 rounded-2xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 bg-white font-medium text-slate-700 text-sm shadow-sm transition-all duration-200 flex items-center justify-center gap-3 cursor-pointer"
-                >
-                  <GoogleIcon className="w-4 h-4" />
-                  <span>{kind === 'register' ? 'Sign up with Google' : 'Sign in with Google'}</span>
-                </button>
+                    {/* Sign up/in with Google */}
+                    <button
+                      type="button"
+                      onClick={handleGoogleAuth}
+                      className="w-full py-3.5 rounded-2xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 bg-white font-medium text-slate-700 text-sm shadow-sm transition-all duration-200 flex items-center justify-center gap-3 cursor-pointer"
+                    >
+                      <GoogleIcon className="w-4 h-4" />
+                      <span>{kind === 'register' ? 'Sign up with Google' : 'Sign in with Google'}</span>
+                    </button>
+                  </>
+                )}
 
                 {/* Terms and Privacy Footnote */}
                 <p className="text-[11px] text-slate-400 text-center leading-relaxed pt-2">

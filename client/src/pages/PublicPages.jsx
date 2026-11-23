@@ -64,9 +64,9 @@ function ServiceIndex({ navigate }) {
       >
         <div className="service-index-prices">
           {[
-            ['Local delivery', 'Zone/km fare [CONFIRM]'],
-            ['Intercity hubs', 'Calabar · PH · Obudu'],
-            ['Market Runs', 'Approved upfront'],
+            ['Local delivery', 'From ₦1,000'],
+            ['Intercity hubs', 'From ₦1,500'],
+            ['Market Runs', '₦1,500 service fee'],
           ].map(([label, value]) => (
             <div key={label}>
               <span>{label}</span>
@@ -684,9 +684,9 @@ function PricingPage({ navigate, book }) {
               ))}
             </div>
             <div className="mt-10 rounded-2xl border border-cyan/20 bg-cyan/5 p-6">
-              <h2 className="text-[.9375rem] font-semibold text-navy">About [CONFIRM] rate indicators</h2>
+              <h2 className="text-[.9375rem] font-semibold text-navy">Live server tariff verification</h2>
               <p className="mt-1.5 text-[.8125rem] leading-relaxed text-ink-slate">
-                Planning estimates use current zone guidelines; your signed-in workspace fetches live server tariff rules from the DigiTrans database and displays the exact final Naira figure prior to payment or confirmation.
+                Planning estimates reflect DigiTrans published tariffs (₦500 base + ₦250/km with ₦1,000 minimum local fare, ₦1,500 Market Run fee, ₦500 verified student rate, 10% verified vendor discount, and ₦1,500 / ₦3,000 / ₦4,500 waybill tiers). Your signed-in workspace confirms the exact Naira figure prior to payment or confirmation.
               </p>
             </div>
           </div>

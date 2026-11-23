@@ -621,24 +621,48 @@ export function QuoteEstimator({ onBook, defaultService = 'standard', compact = 
   const [service, setService] = useState(defaultService);
   const [from, setFrom] = useState(() => requestedZone('from') || 'marian');
   const [to, setTo] = useState(() => requestedZone('to') || 'unical');
+  const [waybillCorridor, setWaybillCorridor] = useState('Calabar::Port Harcourt');
   const [weight, setWeight] = useState('3');
   const [budget, setBudget] = useState('5000');
   const [scheduled, setScheduled] = useState(false);
   const [student, setStudent] = useState(false);
   const [liveRates, setLiveRates] = useState(null);
+  const [liveWaybills, setLiveWaybills] = useState([]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     let active = true;
     api('/pricing')
       .then((res) => {
-        if (active && res?.pricing) setLiveRates(res.pricing);
+        if (!active) return;
+        if (res?.pricing) setLiveRates(res.pricing);
+        if (Array.isArray(res?.waybillRoutes)) setLiveWaybills(res.waybillRoutes);
       })
       .catch(() => {});
     return () => {
       active = false;
     };
   }, []);
+
+  const corridorPairs = useMemo(() => {
+    const seen = new Set();
+    const pairs = [];
+    for (const row of liveWaybills) {
+      const key = `${row.origin}::${row.destination}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        pairs.push({ key, origin: row.origin, destination: row.destination, label: `${row.origin} → ${row.destination}` });
+      }
+    }
+    return pairs.length
+      ? pairs
+      : [
+          { key: 'Calabar::Port Harcourt', origin: 'Calabar', destination: 'Port Harcourt', label: 'Calabar → Port Harcourt' },
+          { key: 'Port Harcourt::Calabar', origin: 'Port Harcourt', destination: 'Calabar', label: 'Port Harcourt → Calabar' },
+          { key: 'Calabar::Obudu', origin: 'Calabar', destination: 'Obudu', label: 'Calabar → Obudu' },
+          { key: 'Obudu::Calabar', origin: 'Obudu', destination: 'Calabar', label: 'Obudu → Calabar' },
+        ];
+  }, [liveWaybills]);
 
   const result = useMemo(() => {
     const a = zones.find((z) => z.id === from);
@@ -658,8 +682,13 @@ export function QuoteEstimator({ onBook, defaultService = 'standard', compact = 
 
     if (service === 'waybill') {
       const kg = Math.max(0.1, Number(weight) || 0);
-      const cost = kg <= 5 ? 1500 : kg <= 10 ? 3000 : Math.round(kg * 250);
-      lines = [[`Estimated parcel weight (${kg} kg) [CONFIRM]`, cost]];
+      const band = kg < 5 ? 'below_5kg' : kg <= 10 ? '5_10kg' : 'above_10kg';
+      const bandLabel = band === 'below_5kg' ? 'below 5 kg' : band === '5_10kg' ? '5–10 kg' : 'above 10 kg';
+      const [origin, destination] = waybillCorridor.split('::');
+      const liveTier = liveWaybills.find((row) => row.origin === origin && row.destination === destination && row.weight_band === band);
+      const fallbackCost = band === 'below_5kg' ? 1500 : band === '5_10kg' ? 3000 : 4500;
+      const cost = Number(liveTier?.price ?? fallbackCost);
+      lines = [[`${origin} → ${destination} (${kg} kg · ${bandLabel})`, cost]];
     } else if (service === 'market-run') {
       lines = [
         ['Shopping item estimate (approved first)', Math.max(0, Number(budget) || 0)],
@@ -690,7 +719,7 @@ export function QuoteEstimator({ onBook, defaultService = 'standard', compact = 
       zoneFallback: a.lga !== b.lga,
       isLivePricing: Boolean(liveRates),
     };
-  }, [service, from, to, weight, budget, scheduled, student, liveRates]);
+  }, [service, from, to, waybillCorridor, weight, budget, scheduled, student, liveRates, liveWaybills]);
 
   return (
     <div className={`border border-line/80 bg-white ${compact ? 'rounded-2xl shadow-card' : 'rounded-3xl shadow-panel'} overflow-hidden`}>
@@ -720,28 +749,41 @@ export function QuoteEstimator({ onBook, defaultService = 'standard', compact = 
             <option value="student">Student delivery</option>
           </Select>
         </label>
-        <div className="grid gap-3 sm:grid-cols-2">
+        {service === 'waybill' ? (
           <label className="block">
-            <span className="field-label">Pickup zone</span>
-            <Select value={from} onChange={(e) => setFrom(e.target.value)} className="field min-h-11 border-line bg-white py-2">
-              {zones.map((z) => (
-                <option key={z.id} value={z.id}>
-                  {z.name}
+            <span className="field-label">Intercity corridor</span>
+            <Select value={waybillCorridor} onChange={(e) => setWaybillCorridor(e.target.value)} className="field min-h-11 border-line bg-white py-2">
+              {corridorPairs.map((pair) => (
+                <option key={pair.key} value={pair.key}>
+                  {pair.label}
                 </option>
               ))}
             </Select>
           </label>
-          <label className="block">
-            <span className="field-label">Drop-off zone</span>
-            <Select value={to} onChange={(e) => setTo(e.target.value)} className="field min-h-11 border-line bg-white py-2">
-              {zones.map((z) => (
-                <option key={z.id} value={z.id}>
-                  {z.name}
-                </option>
-              ))}
-            </Select>
-          </label>
-        </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="field-label">Pickup zone</span>
+              <Select value={from} onChange={(e) => setFrom(e.target.value)} className="field min-h-11 border-line bg-white py-2">
+                {zones.map((z) => (
+                  <option key={z.id} value={z.id}>
+                    {z.name}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <label className="block">
+              <span className="field-label">Drop-off zone</span>
+              <Select value={to} onChange={(e) => setTo(e.target.value)} className="field min-h-11 border-line bg-white py-2">
+                {zones.map((z) => (
+                  <option key={z.id} value={z.id}>
+                    {z.name}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          </div>
+        )}
         {service === 'waybill' && (
           <label className="block">
             <span className="field-label">Estimated parcel weight (kg)</span>
@@ -783,7 +825,9 @@ export function QuoteEstimator({ onBook, defaultService = 'standard', compact = 
               <span className="tabular-nums font-bold text-cyan">{naira(result.total)}</span>
             </div>
             <p className="mt-1.5 text-[.6875rem] leading-relaxed text-muted">
-              ~{result.km.toFixed(1)} km route{result.zoneFallback ? ' · cross-zone' : ''} · Server confirms final fare on booking
+              {service === 'waybill'
+                ? 'Weight-tiered intercity waybill · Server confirms final fare on booking'
+                : `~${result.km.toFixed(1)} km route${result.zoneFallback ? ' · cross-zone' : ''} · Server confirms final fare on booking`}
             </p>
           </div>
         )}

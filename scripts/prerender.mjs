@@ -291,7 +291,11 @@ async function main() {
     .map((f) => `/assets/${f}`);
 
   // Preserve an un-prerendered noindex shell for client-only auth & workspace routes
-  const appShellHtml = injectHeadTags(templateHtml, {
+  const appShellTemplate = templateHtml.replace(
+    '<div id="root"></div>',
+    '<div id="root"><main style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;background:#f7f8f6;color:#0b1b2b;font-family:system-ui,-apple-system,sans-serif"><div style="max-width:28rem;text-align:center"><h1 style="font-size:1.5rem;font-weight:700;margin:0 0 .75rem">DigiTrans Logistics Workspace</h1><p style="font-size:.9375rem;line-height:1.6;color:#475569;margin:0 0 1.25rem">Sign in or create an account to book local deliveries, approve Market Runs, or manage intercity waybills across Calabar, Port Harcourt, and Obudu.</p><noscript>Enable JavaScript to sign in and use the DigiTrans Logistics workspace.</noscript></div></main></div>',
+  );
+  const appShellHtml = injectHeadTags(appShellTemplate, {
     meta: {
       title: 'Workspace | DigiTrans Logistics',
       description: 'Secure DigiTrans Logistics account and operations workspace.',

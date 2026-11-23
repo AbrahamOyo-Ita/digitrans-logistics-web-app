@@ -53,7 +53,7 @@ router.post('/investor/applications',requireAuth,requireRole('investor'),async (
   const idd=id(),reference=ref('INV'),agreementVersion=opp.agreement_doc||'terms-v1';
   const create=db.transaction(async () => {
     await db.prepare('INSERT INTO investment_applications (id,investor_id,opportunity_id,amount,reference) VALUES (?,?,?,?,?)').run(idd,req.user.id,opp.id,amount,reference);
-    await db.prepare('INSERT INTO investment_agreements (id,application_id,version,doc_ref,accepted_at,method,session_ref) VALUES (?,?,?,?,now(),?,?)').run(id(),idd,agreementVersion,opp.agreement_doc||null,'click_accept',req.user.sessionId);
+    await db.prepare('INSERT INTO investment_agreements (id,application_id,version,doc_ref,accepted_at,method,session_ref) VALUES (?,?,?,?,now(),?,?)').run(id(),idd,agreementVersion,opp.agreement_doc||null,'click_accept',req.user.sessionId||req.requestId||'session');
   });
   await create();await notify(req.user.id,'Investment application received',`Application ${reference} has been submitted.`,'investment',idd);
   await audit(req.user,'investment.application_created','investment_application',idd,null,{reference,opportunityId:opp.id,amount,agreementVersion},null,req.ip);

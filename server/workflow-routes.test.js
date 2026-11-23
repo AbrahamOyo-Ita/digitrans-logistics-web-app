@@ -7,6 +7,7 @@ import {PGlite} from '@electric-sql/pglite';
 import {createApp,bodyParser} from './native-http.js';
 import {configurePostgresForTests,closePostgres} from './postgres.js';
 import {resetSupabaseAdminForTests} from './supabase.js';
+import authRouter from './routes/auth.js';
 import customerRouter from './routes/customer.js';
 import operationsRouter from './routes/operations.js';
 import financeRouter from './routes/finance.js';
@@ -74,6 +75,7 @@ async function setupPgliteApp(){
 
   const app=createApp();
   app.use(bodyParser());
+  app.use('/api/auth',authRouter);
   app.use('/api',customerRouter);
   app.use('/api',operationsRouter);
   app.use('/api',financeRouter);
@@ -398,4 +400,98 @@ test('workflow routes filter safely, scope /ops/attention by permissions, and en
   const opsAttentionAfterContact=await apiCall(baseUrl,'/api/ops/attention',{userId:ids.opsOfficer});
   assert.equal(opsAttentionAfterContact.status,200);
   assert.ok(opsAttentionAfterContact.data.items.some(i=>i.key===`contact:${contactSubmit.data.id}`&&i.href===`/ops/contact?focus=${contactSubmit.data.id}`));
+
+  // 7. Seeded tariffs, 12 active zones, student approval gating, waybill corridors, and auth providers
+  assert.equal(publicContent.data.authProviders.google,false);
+  assert.equal(publicContent.data.zones.length,12);
+
+  const authProviders=await apiCall(baseUrl,'/api/auth/providers');
+  assert.equal(authProviders.status,200);
+  assert.deepEqual(authProviders.data,{google:false});
+
+  const zonesRes=await apiCall(baseUrl,'/api/zones');
+  assert.equal(zonesRes.status,200);
+  assert.equal(zonesRes.data.zones.length,12);
+
+  const pricingRes=await apiCall(baseUrl,'/api/pricing');
+  assert.equal(pricingRes.status,200);
+  assert.equal(pricingRes.data.pricing.base_fee,500);
+  assert.equal(pricingRes.data.pricing.per_km,250);
+  assert.equal(pricingRes.data.pricing.min_fee,1000);
+  assert.equal(pricingRes.data.pricing.student_flat,500);
+  assert.equal(pricingRes.data.pricing.vendor_discount_pct,10);
+  assert.equal(pricingRes.data.pricing.market_runs_fee,1500);
+  assert.equal(pricingRes.data.waybillRoutes.length,12);
+
+  await pg.query("INSERT INTO public.student_profiles(user_id,institution,verification_status) VALUES($1,'UNICAL','pending')",[ids.student]);
+  const unapprovedStudentDel=await apiCall(baseUrl,'/api/deliveries',{
+    method:'POST',
+    userId:ids.student,
+    body:{
+      pickupAddress:'UNICAL Main Gate',
+      dropoffAddress:'Marian Road, Calabar',
+      recipientName:'Ekaette',
+      recipientPhone:'+2348030000010',
+      packageDescription:'Course textbooks',
+      prohibitedAccepted:true,
+      zone:'UNICAL',
+    },
+  });
+  assert.equal(unapprovedStudentDel.status,201);
+  assert.equal(unapprovedStudentDel.data.fee,1250,'pending student must receive standard fare (500 + 3*250 = 1250)');
+
+  await pg.query("UPDATE public.student_profiles SET verification_status='approved' WHERE user_id=$1",[ids.student]);
+  const approvedStudentDel=await apiCall(baseUrl,'/api/deliveries',{
+    method:'POST',
+    userId:ids.student,
+    body:{
+      pickupAddress:'UNICAL Main Gate',
+      dropoffAddress:'Goldie Street, Calabar',
+      recipientName:'Ekaette',
+      recipientPhone:'+2348030000010',
+      packageDescription:'Lab notebook',
+      prohibitedAccepted:true,
+      zone:'UNICAL',
+    },
+  });
+  assert.equal(approvedStudentDel.status,201);
+  assert.equal(approvedStudentDel.data.fee,500,'approved student receives student_flat');
+
+  const wbHeavy=await apiCall(baseUrl,'/api/waybills',{
+    method:'POST',
+    userId:ids.customerA,
+    body:{
+      senderName:'Alpha',
+      senderPhone:'+2348030000001',
+      recipientName:'Emeka',
+      recipientPhone:'+2348030000022',
+      origin:'Calabar',
+      destinationCity:'Port Harcourt',
+      destinationAddress:'10 Aba Road, Port Harcourt',
+      itemDescription:'Retail stock box',
+      weight:12.5,
+    },
+  });
+  assert.equal(wbHeavy.status,201);
+  assert.equal(wbHeavy.data.fee,4500);
+  assert.equal(wbHeavy.data.weightBand,'above_10kg');
+
+  const wbObudu=await apiCall(baseUrl,'/api/waybills',{
+    method:'POST',
+    userId:ids.customerA,
+    body:{
+      senderName:'Alpha',
+      senderPhone:'+2348030000001',
+      recipientName:'Bassey',
+      recipientPhone:'+2348030000033',
+      origin:'Obudu',
+      destinationCity:'Calabar',
+      destinationAddress:'No 2 Ituebange St, Calabar',
+      itemDescription:'Signed documents',
+      weight:2,
+    },
+  });
+  assert.equal(wbObudu.status,201);
+  assert.equal(wbObudu.data.fee,1500);
+  assert.equal(wbObudu.data.weightBand,'below_5kg');
 });

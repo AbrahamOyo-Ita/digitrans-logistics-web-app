@@ -167,7 +167,16 @@ async function discardNewAccount(userId){
   try{await getSupabaseAdmin().auth.admin.deleteUser(userId);}catch{}
 }
 
+function isGoogleOAuthEnabled(){
+  return String(process.env.GOOGLE_OAUTH_ENABLED||'').trim().toLowerCase()==='true';
+}
+
+router.get('/providers',(_req,res)=>{
+  res.json({google:isGoogleOAuthEnabled()});
+});
+
 router.get('/google',async(req,res)=>{
+  if(!isGoogleOAuthEnabled())return googleFailure(req,res,'google_disabled',req.query?.next);
   const verifier=createPkceVerifier();
   const state=createOAuthState({
     nonce:crypto.randomBytes(24).toString('base64url'),
@@ -188,6 +197,7 @@ router.get('/google',async(req,res)=>{
 });
 
 router.get('/google/callback',async(req,res)=>{
+  if(!isGoogleOAuthEnabled())return googleFailure(req,res,'google_disabled',req.query?.next);
   const signedState=readOAuthState(req.cookies?.[GOOGLE_STATE_COOKIE]);
   const returnedState=String(req.query?.state||'');
   const next=signedState?.next||'/workspace';

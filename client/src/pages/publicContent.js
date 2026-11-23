@@ -1,4 +1,4 @@
-import { SITE, PLACEHOLDERS } from '../config/site.js';
+import { SITE } from '../config/site.js';
 import {
   CITIES,
   FAQS,
@@ -20,9 +20,9 @@ export const site = {
   emailHref: `mailto:${SITE.email}`,
   address: SITE.address,
   shortAddress: SITE.shortAddress,
-  phone: PLACEHOLDERS.phone,
-  whatsapp: PLACEHOLDERS.whatsapp,
-  hours: PLACEHOLDERS.hours,
+  phone: SITE.phone,
+  whatsapp: SITE.whatsapp,
+  hours: SITE.hours,
 };
 
 export const services = SERVICES.map((item) => ({
