@@ -1,6 +1,8 @@
 import {ADMIN_ROLE_LABELS} from '../shared/roles.js';
+import {SITE} from '../shared/site.js';
 
-const BRAND='DigiTrans';
+const BRAND=SITE.brandName;
+const SUPPORT_EMAIL=SITE.email;
 const PALETTE={navy:'#10283a',navyDeep:'#081d2b',teal:'#0e7c8b',mint:'#dff0ed',coral:'#f26c4f',ink:'#1b3445',muted:'#687b85',paper:'#f1f5f5',line:'#e1e9e8',cream:'#f5f2e8'};
 
 function escapeHtml(value){
@@ -243,7 +245,7 @@ function renderEmail({subject,preheader,eyebrow,title,body,action,actionUrl,gree
  const detailHtml=details.length?`<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:25px 0 0;border-collapse:collapse;border-top:1px solid ${PALETTE.line};">${details.map(row=>`<tr><td style="width:42%;padding:11px 12px 11px 0;border-bottom:1px solid ${PALETTE.line};color:${PALETTE.muted};font-size:11px;line-height:1.5;vertical-align:top;">${escapeHtml(row.label)}</td><td align="right" style="padding:11px 0;border-bottom:1px solid ${PALETTE.line};color:${PALETTE.ink};font-size:12px;font-weight:bold;line-height:1.5;overflow-wrap:anywhere;vertical-align:top;">${escapeHtml(row.value)}</td></tr>`).join('')}</table>`:'';
  const expiryHtml=expiry?`<p style="margin:18px 0 0;color:#89979d;font-size:11px;line-height:1.65;">${escapeHtml(expiry)}</p>`:'';
  const imageHtml=imageUrl?`<tr><td align="center" bgcolor="${PALETTE.cream}" style="padding:9px 22px 0;background:${PALETTE.cream};"><img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(imageAlt)}" width="520" border="0" style="display:block;width:100%;max-width:520px;height:auto;margin:0 auto;border:0;outline:none;color:${PALETTE.muted};font-family:Arial,Helvetica,sans-serif;font-size:12px;text-decoration:none;"></td></tr>`:'';
- const text=[greeting,'',body,...(details.length?['',...details.map(row=>`${row.label}: ${row.value}`)]:[]),'',`${action}: ${actionUrl}`,...(expiry?['',expiry]:[]),'',note,'','DigiTrans Logistics','Thoughtful movement, made local.','Need help? hello@digitrans.ng'].join('\n');
+ const text=[greeting,'',body,...(details.length?['',...details.map(row=>`${row.label}: ${row.value}`)]:[]),'',`${action}: ${actionUrl}`,...(expiry?['',expiry]:[]),'',note,'','DigiTrans Logistics','Thoughtful movement, made local.',`Need help? ${SUPPORT_EMAIL}`].join('\n');
  const html=`<!doctype html>
 <html lang="en">
 <head>
@@ -292,8 +294,8 @@ function renderEmail({subject,preheader,eyebrow,title,body,action,actionUrl,gree
      <tr><td class="email-footer" style="border:1px solid ${PALETTE.line};border-top:0;border-radius:0 0 20px 20px;background:#f8fbfa;padding:22px 30px;">
       <p style="margin:0;color:#6c7d84;font-size:11px;line-height:1.7;">${safeNote}</p>
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:17px;border-collapse:collapse;border-top:1px solid ${PALETTE.line};"><tr>
-       <td style="padding-top:14px;color:#809097;font-size:10px;line-height:1.7;">DigiTrans Logistics<br>Thoughtful movement, made local.</td>
-       <td align="right" style="padding-top:14px;color:#9aa6aa;font-size:10px;line-height:1.7;">Need help?<br><a href="mailto:hello@digitrans.ng" style="color:${PALETTE.teal};text-decoration:none;">Talk to our team</a></td>
+       <td style="padding-top:14px;color:#809097;font-size:10px;line-height:1.7;">DigiTrans Logistics<br>${escapeHtml(SITE.shortAddress)}</td>
+       <td align="right" style="padding-top:14px;color:#9aa6aa;font-size:10px;line-height:1.7;">Need help?<br><a href="mailto:${escapeHtml(SUPPORT_EMAIL)}" style="color:${PALETTE.teal};text-decoration:none;">Talk to our team</a></td>
       </tr></table>
      </td></tr>
      <tr><td align="center" style="padding:17px 20px 0;color:#98a5a9;font-size:9px;line-height:1.7;">You’re receiving this service email because of an update to your DigiTrans account or delivery.</td></tr>
@@ -313,7 +315,7 @@ export function createAdminInviteEmailTemplate({name='',email='',role='',actionU
  const details=[{label:'Administrator position',value:roleLabel},{label:'Invited email',value:String(email||'').trim().toLowerCase()}];
  const greeting=greetingFor(name);
  const expiry='This secure setup link is time-limited and can only be used once. If it has expired, ask your Super Administrator to resend your invitation.';
- const text=[greeting,'',body,...details.map(row=>`${row.label}: ${row.value}`),'',`Set my password: ${href}`,'',expiry,'',note,'','DigiTrans Logistics · Calabar, Cross River State','Need help? hello@digitrans.ng'].join('\n');
+ const text=[greeting,'',body,...details.map(row=>`${row.label}: ${row.value}`),'',`Set my password: ${href}`,'',expiry,'',note,'','DigiTrans Logistics · Calabar, Cross River State',`Need help? ${SUPPORT_EMAIL}`].join('\n');
  const {html}=renderEmail({
   subject,preheader:'Set a private password to activate your DigiTrans administrator account.',
   eyebrow:'Administrator invitation',title:'You’re invited to the team.',body,action:'Set my password',actionUrl:href,
@@ -342,11 +344,77 @@ export function createTransactionalEmailTemplate({eventType,name='',payload={},b
  const actionUrl=actionHref(copy.hrefFor(origin));
  const greeting=greetingFor(name);
  const details=detailsFor(eventType,data);
- const text=[greeting,'',copy.body,...(details.length?['',...details.map(row=>`${row.label}: ${row.value}`)]:[]),'',`${copy.action}: ${actionUrl}`,'',copy.note,'','DigiTrans Logistics · Calabar, Cross River State','Need help? hello@digitrans.ng'].join('\n');
+ const text=[greeting,'',copy.body,...(details.length?['',...details.map(row=>`${row.label}: ${row.value}`)]:[]),'',`${copy.action}: ${actionUrl}`,'',copy.note,'','DigiTrans Logistics · Calabar, Cross River State',`Need help? ${SUPPORT_EMAIL}`].join('\n');
  const {html}=renderEmail({
   subject:copy.subject,preheader:copy.preheader,eyebrow:copy.eyebrow,title:copy.title,body:copy.body,
   action:copy.action,actionUrl,greeting,imageUrl:new URL(`/images/email/${copy.image}`,origin).href,
   imageAlt:copy.imageAlt,note:copy.note,details,plainText:text,
  });
  return {subject:copy.subject,preheader:copy.preheader,html,text};
+}
+
+export function createContactEnquiryEmailTemplate({enquiryId='',name='',email='',phone='',category='General',message='',baseUrl=process.env.APP_URL||SITE.canonicalOrigin}={}){
+ const origin=publicOrigin(baseUrl);
+ const safeCategory=String(category||'General').trim().slice(0,80)||'General';
+ const safeName=String(name||'Website visitor').trim();
+ const safeEmail=String(email||'').trim().toLowerCase();
+ const actionUrl=actionHref(enquiryId?`${origin}/ops/contact?focus=${encodeURIComponent(enquiryId)}`:`${origin}/ops/contact`);
+ const subject=`DigiTrans website enquiry · ${safeCategory}${safeName?` (${safeName})`:''}`;
+ const body=String(message||'').trim();
+ const details=[
+  {label:'Sender name',value:safeName},
+  {label:'Sender email',value:safeEmail},
+  {label:'Phone',value:String(phone||'').trim()||'Not supplied'},
+  {label:'Category',value:safeCategory},
+ ];
+ const greeting='Hello DigiTrans support team,';
+ const note='Reply directly to this email to respond to the sender, or open the Admin Dashboard to review and track enquiry status.';
+ const text=[greeting,'','A new enquiry was submitted on the DigiTrans Logistics website.',...details.map(row=>`${row.label}: ${row.value}`),'',body,'',`Review in Admin Dashboard: ${actionUrl}`,'',note,'',`DigiTrans Logistics · ${SITE.address}`].join('\n');
+ const {html}=renderEmail({
+  subject,
+  preheader:`New website enquiry from ${safeName} (${safeCategory}).`,
+  eyebrow:'Website enquiry',
+  title:'New message from the public contact form.',
+  body,
+  action:'Open enquiry in dashboard',
+  actionUrl,
+  greeting,
+  note,
+  details,
+  plainText:text,
+ });
+ return {subject,preheader:`New website enquiry from ${safeName} (${safeCategory}).`,html,text};
+}
+
+export function createSupportRequestEmailTemplate({ticketId='',reference='',requesterName='',requesterEmail='',requesterRole='',category='general',description='',relatedSummary='',isReply=false,baseUrl=process.env.APP_URL||SITE.canonicalOrigin}={}){
+ const origin=publicOrigin(baseUrl);
+ const refText=String(reference||ticketId||'').trim();
+ const actionUrl=actionHref(ticketId?`${origin}/ops/support?ticket=${encodeURIComponent(ticketId)}`:`${origin}/ops/support`);
+ const subject=`${isReply?'Support reply received':'New DigiTrans support request'}${refText?` · ${refText}`:''}`;
+ const body=String(description||'').trim();
+ const details=[
+  {label:'Ticket reference',value:refText||'Support ticket'},
+  {label:'Requester',value:String(requesterName||'DigiTrans account').trim()},
+  {label:'Account role',value:readableStatus(requesterRole||'customer')},
+  ...(requesterEmail?[{label:'Requester email',value:String(requesterEmail).trim().toLowerCase()}]:[]),
+  {label:'Category',value:readableStatus(category||'general')},
+  ...(relatedSummary?[{label:'Linked record',value:String(relatedSummary)}]:[]),
+ ];
+ const greeting='Hello DigiTrans support team,';
+ const note='Open the Admin Dashboard support desk to reply inside the customer ticket conversation and keep an audit trail.';
+ const text=[greeting,'',isReply?'A user posted a follow-up reply on an active support ticket.':'A logged-in DigiTrans user opened a new support ticket.',...details.map(row=>`${row.label}: ${row.value}`),'',body,'',`Open support desk: ${actionUrl}`,'',note,'',`DigiTrans Logistics · ${SITE.address}`].join('\n');
+ const {html}=renderEmail({
+  subject,
+  preheader:`${refText||'Support ticket'} · ${String(requesterName||'DigiTrans user').trim()}`,
+  eyebrow:isReply?'Support ticket reply':'New support ticket',
+  title:isReply?`Follow-up reply on ${refText||'support ticket'}.`:`New ticket ${refText||''} needs review.`,
+  body,
+  action:'Open ticket in dashboard',
+  actionUrl,
+  greeting,
+  note,
+  details,
+  plainText:text,
+ });
+ return {subject,preheader:`${refText||'Support ticket'} · ${String(requesterName||'DigiTrans user').trim()}`,html,text};
 }

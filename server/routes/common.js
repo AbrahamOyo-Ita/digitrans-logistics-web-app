@@ -5,6 +5,7 @@ import { requireAuth, requirePermission, userHasPermission, notify, audit } from
 import { parseSearchQuery } from '../query-filters.js';
 import { ADMIN_ROLE_IDS } from '../../shared/roles.js';
 import { workspacePath } from '../../shared/workspace-links.js';
+import { dispatchSupportTicketNotification } from '../support-notifications.js';
 
 const router=asyncRouter();
 const ref=p=>`${p}-${new Date().toISOString().slice(0,10).replaceAll('-','')}-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
@@ -120,16 +121,21 @@ router.post('/notifications/read-all',requireAuth,async (req, res) => {
 router.post('/support',requireAuth,async (req, res) => {
   const category=String(req.body?.category||'general').trim().slice(0,80),description=String(req.body?.description||'').trim(),rawRelated=String(req.body?.relatedId||'').trim();
   if(description.length<10||description.length>3000)return res.status(400).json({error:'Describe the issue in at least 10 characters.'});
-  let relatedId=null;
+  let relatedId=null,relatedSummary='';
   if(rawRelated){
     const staff=await canManageSupport(req.user);
     const resolved=await resolveRelatedRecord(rawRelated,req.user,{allowAny:staff});
     if(!resolved)return res.status(404).json({error:'Related record not found.'});
     relatedId=resolved.id;
+    relatedSummary=`${resolved.reference} · ${resolved.summary}`;
   }
   const id=crypto.randomUUID(),reference=ref('SUP');
   await db.prepare('INSERT INTO support_tickets (id,reference,requester_id,category,description,related_id) VALUES (?,?,?,?,?,?)').run(id,reference,req.user.id,category,description,relatedId);
   await db.prepare('INSERT INTO support_messages (id,ticket_id,sender_id,message,is_internal) VALUES (?,?,?,?,0)').run(crypto.randomUUID(),id,req.user.id,description);
+  await dispatchSupportTicketNotification({
+    ticketId:id,reference,requesterName:req.user.full_name||req.user.email,requesterEmail:req.user.email,
+    requesterRole:req.user.role,category,description,relatedSummary,isReply:false,requestId:req.requestId,
+  });
   res.status(201).json({id,reference,status:'open',relatedId});
 });
 router.get('/support',requireAuth,async (req, res) => {
@@ -166,6 +172,13 @@ router.post('/support/:id/messages',requireAuth,async (req, res) => {
   const message=String(req.body?.message||'').trim();if(message.length<2||message.length>3000)return res.status(400).json({error:'Enter a message.'});
   const mid=crypto.randomUUID();await db.prepare('INSERT INTO support_messages (id,ticket_id,sender_id,message,is_internal) VALUES (?,?,?,?,?)').run(mid,t.id,req.user.id,message,internal?1:0);
   if(staff&&!internal)await notify(t.requester_id,'Support reply',`There is a new reply on ${t.reference}.`,'support',t.id);
+  if(!staff&&!internal){
+    await dispatchSupportTicketNotification({
+      ticketId:t.id,reference:t.reference,requesterName:req.user.full_name||req.user.email,
+      requesterEmail:req.user.email,requesterRole:req.user.role,category:t.category,
+      description:message,isReply:true,requestId:req.requestId,
+    });
+  }
   await db.prepare("UPDATE support_tickets SET status=CASE WHEN status='open' THEN 'in_progress' ELSE status END,updated_at=now() WHERE id=?").run(t.id);
   res.status(201).json({id:mid,message,internal});
 });

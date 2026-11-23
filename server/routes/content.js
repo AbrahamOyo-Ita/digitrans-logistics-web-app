@@ -4,7 +4,7 @@ import db from '../db.js';
 import { requireAuth, requirePermission, audit } from '../auth.js';
 import {publicSiteImageUpload} from '../uploads.js';
 import {uploadPublicSiteImage,deletePublicSiteImage} from '../storage.js';
-import { isEmailConfigured, sendEmail } from '../email.js';
+import { dispatchContactEnquiryNotification } from '../support-notifications.js';
 import {logger} from '../logger.js';
 
 const router=asyncRouter();
@@ -14,12 +14,10 @@ const upload=(req,res,next)=>publicSiteImageUpload.single('image')(req,res,e=>{i
 router.post('/public/contact',async(req,res)=>{
   const name=String(req.body?.name||'').trim(),email=String(req.body?.email||'').trim().toLowerCase(),phone=String(req.body?.phone||'').trim(),category=String(req.body?.category||'general').trim().replace(/[\r\n]+/g,' ').slice(0,80),message=String(req.body?.message||'').trim();
   if(name.length<2||name.length>100||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||message.length<10||message.length>3000)return res.status(400).json({error:'Enter your name, a valid email and a message of at least 10 characters.'});
-  const id=crypto.randomUUID();await db.prepare('INSERT INTO contact_messages (id,name,email,phone,category,message) VALUES (?,?,?,?,?,?)').run(id,name,email,phone||null,category.slice(0,80),message);
-  if(process.env.CONTACT_RECIPIENT_EMAIL&&isEmailConfigured()){
-    try{await sendEmail({to:process.env.CONTACT_RECIPIENT_EMAIL,replyTo:email,subject:`DigiTrans website enquiry · ${category.slice(0,80)}`,text:`From: ${name} <${email}>\nPhone: ${phone||'Not supplied'}\nCategory: ${category}\n\n${message}`});}
-    catch(error){logger.error('contact.enquiry_email_failed',{requestId:req.requestId,error});}
-  }
-  res.status(201).json({message:'Your enquiry has been received. Our team will be in touch.'});
+  const id=crypto.randomUUID();
+  await db.prepare('INSERT INTO contact_messages (id,name,email,phone,category,message) VALUES (?,?,?,?,?,?)').run(id,name,email,phone||null,category.slice(0,80),message);
+  await dispatchContactEnquiryNotification({enquiryId:id,name,email,phone,category,message,requestId:req.requestId});
+  res.status(201).json({id,message:'Your enquiry has been received. Our team will be in touch.'});
 });
 router.get('/public/content',async (_req, res) => {
   const now=new Date().toISOString().slice(0,10);

@@ -87,5 +87,7 @@ ON CONFLICT (id) DO UPDATE SET question=EXCLUDED.question,answer=EXCLUDED.answer
 
 INSERT INTO public.system_settings(key,value) VALUES
  ('platform_name','DigiTrans Logistics'),
- ('support_phone','+234 800 000 0000')
+ ('support_phone','+234 800 000 0000'),
+ ('public_email','digitransdeliveryandlogistics@gmail.com'),
+ ('public_address','No 2, Ituebange Street, Nyahasang, Atimbo, Calabar Municipal, Cross River State, Nigeria')
 ON CONFLICT (key) DO NOTHING;

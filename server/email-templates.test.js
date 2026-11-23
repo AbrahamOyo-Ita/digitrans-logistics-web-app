@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createAdminInviteEmailTemplate,createAuthEmailTemplate,createTransactionalEmailTemplate} from './email-templates.js';
+import {
+  createAdminInviteEmailTemplate,
+  createAuthEmailTemplate,
+  createContactEnquiryEmailTemplate,
+  createSupportRequestEmailTemplate,
+  createTransactionalEmailTemplate,
+} from './email-templates.js';
 
 const appUrl='https://www.digitransdelivery.com';
 
@@ -99,4 +105,37 @@ test('transactional email templates require a known event and a valid public app
   assert.throws(()=>createTransactionalEmailTemplate({eventType:'unknown',baseUrl:appUrl}),/Unknown/);
   assert.throws(()=>createTransactionalEmailTemplate({eventType:'payment_confirmed',baseUrl:'javascript:alert(1)'}),/HTTP or HTTPS origin/);
   assert.throws(()=>createTransactionalEmailTemplate({eventType:'payment_confirmed',baseUrl:'https://user:pass@example.test'}),/origin/);
+});
+
+test('contact enquiry and support request templates escape input and link straight into the admin dashboard',()=>{
+  const enquiry=createContactEnquiryEmailTemplate({
+    enquiryId:'enq-1',
+    name:'<script>alert(1)</script>',
+    email:'ada@example.test',
+    phone:'+2348000000000',
+    category:'Business partnership',
+    message:'We need daily Calabar dispatch for 20 parcels.',
+    baseUrl:appUrl,
+  });
+  assert.match(enquiry.subject,/Website enquiry/i);
+  assert.match(enquiry.html,/&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+  assert.doesNotMatch(enquiry.html,/<script>alert\(1\)<\/script>/);
+  assert.match(enquiry.html,/href="https:\/\/www\.digitransdelivery\.com\/ops\/contact\?focus=enq-1"/);
+  assert.match(enquiry.text,/No 2, Ituebange Street, Nyahasang, Atimbo/);
+  assert.match(enquiry.html,/digitransdeliveryandlogistics@gmail\.com/);
+
+  const support=createSupportRequestEmailTemplate({
+    ticketId:'t-1',
+    reference:'SUP-20261116-XYZ',
+    requesterName:'Amina Example',
+    requesterEmail:'amina@example.test',
+    requesterRole:'customer',
+    category:'delivery',
+    description:'Please check arrival ETA.',
+    relatedSummary:'DEL-1 · Marian → UNICAL',
+    baseUrl:appUrl,
+  });
+  assert.match(support.subject,/SUP-20261116-XYZ/);
+  assert.match(support.html,/href="https:\/\/www\.digitransdelivery\.com\/ops\/support\?ticket=t-1"/);
+  assert.match(support.text,/DEL-1/);
 });

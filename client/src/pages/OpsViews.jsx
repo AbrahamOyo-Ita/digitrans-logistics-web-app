@@ -97,6 +97,8 @@ export function OpsOverview({navigate,user}){
   ['Student verification',stats.pendingStudents,'shield','purple','/ops/students','students.review'],
   ['Pending Market Runs',stats.pendingMarketRuns,'bag','gold','/ops/market','market_runs.manage'],
   ['Pending waybills',stats.pendingWaybills,'box','blue','/ops/waybills','waybills.manage'],
+  ['New enquiries',stats.newEnquiries,'mail','gold','/ops/contact','support.manage'],
+  ['Open support tickets',stats.openSupport,'support','blue','/ops/support','support.manage'],
  ];
  const cards=allCards.filter(card=>can(card[5])&&card[1]!==undefined);
  const fastActions=[
@@ -444,7 +446,28 @@ export function AuditView(){
  </>;
 }
 
-export function ContactMessages({showToast}){const {data,loading,error,reload}=useApiData('/ops/contact-messages');const change=async(m,status)=>{try{await api(`/ops/contact-messages/${m.id}/status`,{method:'POST',body:{status,reason:'Public enquiry reviewed'}});reload();showToast?.({title:'Enquiry status updated',message:status});}catch(e){showToast?.({type:'error',message:e.message});}};return <><PageTitle eyebrow="Public website" title="Contact enquiries" description="Messages submitted through the public contact form." action={<Button variant="outline" onClick={reload} icon="refresh">Refresh</Button>}/>{loading?<Loading/>:error?<p className="text-sm text-rose-600">{error}</p>:!data?.messages?.length?<Empty icon="mail" title="No public enquiries"/>:<div className="space-y-3">{data.messages.map(m=><Card key={m.id} padding="p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-sm font-bold text-ink">{m.name} <span className="ml-1 text-xs font-normal text-slate-400">{m.email} · {m.phone}</span></p><p className="mt-1 text-[10px] uppercase tracking-widest text-brand-700">{m.category}</p><p className="mt-2 whitespace-pre-wrap text-xs leading-6 text-slate-600">{m.message}</p><p className="mt-2 text-[9px] text-slate-400">{date(m.created_at)}</p></div><div className="flex items-center gap-2"><Badge status={m.status}/><Select className="w-auto py-2 text-xs" value={m.status} onChange={e=>change(m,e.target.value)}>{['new','contacted','resolved','spam'].map(s=><option key={s}>{s}</option>)}</Select></div></div></Card>)}</div>}</>}
+export function ContactMessages({showToast,locationSearch=''}){
+ const focusId=new URLSearchParams(locationSearch).get('focus')||'';
+ const {data,loading,error,reload}=useApiData('/ops/contact-messages');
+ const [statusFilter,setStatusFilter]=useState('all'),[search,setSearch]=useState('');
+ const messages=useMemo(()=>{
+  const raw=data?.messages||[];
+  const q=search.trim().toLowerCase();
+  return raw.filter(m=>{
+   if(statusFilter!=='all'&&m.status!==statusFilter)return false;
+   if(q&&!`${m.name||''} ${m.email||''} ${m.phone||''} ${m.category||''} ${m.message||''}`.toLowerCase().includes(q))return false;
+   return true;
+  });
+ },[data?.messages,statusFilter,search]);
+ useEffect(()=>{
+  if(!focusId||loading)return;
+  if((data?.messages||[]).some(m=>m.id===focusId))focusRecordElement(focusId);
+ },[focusId,loading,data?.messages]);
+ const change=async(m,status)=>{try{await api(`/ops/contact-messages/${m.id}/status`,{method:'POST',body:{status,reason:'Public enquiry reviewed'}});reload();showToast?.({title:'Enquiry status updated',message:status});}catch(e){showToast?.({type:'error',message:e.message});}};
+ return <><PageTitle eyebrow="Public website" title="Contact enquiries" description="Messages submitted through the public contact form are delivered both here and to digitransdeliveryandlogistics@gmail.com." action={<Button variant="outline" onClick={reload} icon="refresh">Refresh</Button>}/>
+  <Card padding="p-4" className="mb-4"><div className="grid gap-3 sm:grid-cols-[1fr_180px]"><Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search sender, email, category, or message…"/><Select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="all">All statuses</option><option value="new">New</option><option value="contacted">Contacted</option><option value="resolved">Resolved</option><option value="spam">Spam</option></Select></div></Card>
+  {loading?<Loading/>:error?<p className="text-sm text-rose-600">{error}</p>:!messages.length?<Empty icon="mail" title="No public enquiries" description="Enquiries from the public contact form will appear here."/>:<div className="space-y-3">{messages.map(m=><Card key={m.id} data-record-id={m.id} padding="p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-sm font-bold text-ink">{m.name} <span className="ml-1 text-xs font-normal text-slate-400">{m.email}{m.phone?` · ${m.phone}`:''}</span></p><p className="mt-1 text-[10px] uppercase tracking-widest text-brand-700">{m.category}</p><p className="mt-2 whitespace-pre-wrap text-xs leading-6 text-slate-600">{m.message}</p><p className="mt-2 text-[9px] text-slate-400">{date(m.created_at)}</p></div><div className="flex flex-wrap items-center gap-2"><Badge status={m.status}/><a href={`mailto:${encodeURIComponent(m.email)}?subject=${encodeURIComponent(`Re: DigiTrans enquiry (${m.category||'general'})`)}`} className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-2.5 py-2 text-xs font-semibold text-brand-700 hover:bg-brand-50">Reply</a><Select className="w-auto py-2 text-xs" value={m.status} onChange={e=>change(m,e.target.value)}>{['new','contacted','resolved','spam'].map(s=><option key={s}>{s}</option>)}</Select></div></div></Card>)}</div>}</>;
+}
 
 function normalizePermissionSet(keys=[]){
  return normalizePermissionKeys(keys.filter(key=>key!=='admin.manage'));

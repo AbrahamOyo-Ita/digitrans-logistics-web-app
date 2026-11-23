@@ -2,7 +2,7 @@
   "id": "/",
   "name": "DigiTrans Logistics",
   "short_name": "DigiTrans",
-  "description": "Local delivery, intercity waybills and business logistics in Calabar.",
+  "description": "Local delivery, Market Runs, student drops, and intercity waybills in Calabar, Port Harcourt, and Obudu.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -10,7 +10,7 @@
   "background_color": "#f7f8f8",
   "theme_color": "#0b1b2b",
   "icons": [
-    { "src": "/images/Digitrans_App_Icon.jpeg", "sizes": "192x192", "type": "image/jpeg", "purpose": "any" },
-    { "src": "/images/Digitrans_App_Icon.jpeg", "sizes": "512x512", "type": "image/jpeg", "purpose": "any maskable" }
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ]
 }

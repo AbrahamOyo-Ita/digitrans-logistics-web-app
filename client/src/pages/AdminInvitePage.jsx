@@ -41,7 +41,7 @@ export default function AdminInvitePage({navigate}){
      <div className="mt-8 flex items-center gap-3 rounded-2xl border border-white/80 bg-white/75 p-4 shadow-soft"><span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><Icon name="shield" size={19}/></span><div><p className="text-xs font-bold text-ink">One-time secure invitation</p><p className="mt-1 text-[10px] text-slate-500">The invite link is personal and expires automatically.</p></div></div>
     </section>
     <section className="mx-auto w-full max-w-xl">
-     <div className="mb-5 lg:hidden"><p className="text-[10px] font-bold uppercase tracking-[.17em] text-brand-700">Secure administrator onboarding</p><h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-ink">Set up your admin access</h1></div>
+     <div className="mb-5 lg:hidden"><p className="text-[10px] font-bold uppercase tracking-[.17em] text-brand-700">Secure administrator onboarding</p><p className="mt-2 font-display text-3xl font-bold tracking-tight text-ink">Set up your admin access</p></div>
      <div className="rounded-[26px] border border-white bg-white/95 p-6 shadow-[0_28px_90px_rgba(17,48,53,.14)] sm:p-9">
       <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-800"><Icon name={success?'check':'key'} size={22}/></div>
       <p className="mt-5 text-[10px] font-bold uppercase tracking-[.17em] text-brand-700">{success?'Invitation complete':'You’ve been invited'}</p>

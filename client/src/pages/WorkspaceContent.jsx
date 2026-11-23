@@ -85,6 +85,6 @@ export default function WorkspaceContent({user,page,navigate,showToast,locationS
  if(page==='website')return <ContentManagement showToast={showToast}/>;
  if(page==='audit')return <AuditView/>;
  if(page==='team')return <AdminTeam user={user} showToast={showToast}/>;
- if(page==='contact')return <ContactMessages showToast={showToast}/>;
+ if(page==='contact')return <ContactMessages showToast={showToast} locationSearch={locationSearch}/>;
  return <Empty icon="file" title="Workspace page not found" description="Choose a section from the navigation." action={<Button onClick={()=>navigate('/workspace')}>Back to overview</Button>}/>;
 }
