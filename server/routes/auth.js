@@ -237,7 +237,12 @@ router.post('/register',async(req,res)=>{
   const d=parsed.data,email=d.email.toLowerCase(),phone=normalizePhoneNumber(d.phone);
   if(process.env.NODE_ENV==='production'&&!isEmailConfigured())return res.status(503).json({error:'Account verification email is not configured yet. Please contact DigiTrans support.'});
   const phonePredicate=buildUserIdentifierPredicate(phone,{emailColumn:'email',phoneColumn:'phone'});
-  if(await db.prepare(`SELECT id FROM public.users WHERE lower(email)=? OR ${phonePredicate.sql}`).get(email,...phonePredicate.params))return res.status(409).json({error:'An account with this email or phone already exists.'});
+  const emailConflict=await db.prepare('SELECT id FROM public.users WHERE lower(email)=?').get(email);
+  const phoneConflict=await db.prepare(`SELECT id FROM public.users WHERE ${phonePredicate.sql}`).get(...phonePredicate.params);
+  if(emailConflict||phoneConflict){
+    const conflict=emailConflict&&phoneConflict?'email address and phone number':emailConflict?'email address':'phone number';
+    return res.status(409).json({error:`An account with this ${conflict} already exists. Sign in or use account recovery.`});
+  }
   const status=['customer','student'].includes(d.role)?'active':'pending_verification';
   let created;
   try{

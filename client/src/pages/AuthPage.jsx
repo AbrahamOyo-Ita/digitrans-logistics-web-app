@@ -167,6 +167,19 @@ export default function AuthPage({
         return;
       }
       if (kind === 'register') {
+        const password = String(form.password || '');
+        const passwordRequirements = [
+          [password.length >= 8 && password.length <= 128, '8 to 128 characters'],
+          [/[A-Z]/.test(password), 'an uppercase letter'],
+          [/[a-z]/.test(password), 'a lowercase letter'],
+          [/[0-9]/.test(password), 'a number'],
+          [/[^A-Za-z0-9]/.test(password), 'a special character'],
+        ];
+        const missingPasswordRequirements = passwordRequirements.filter(([valid]) => !valid).map(([, label]) => label);
+        if (missingPasswordRequirements.length) {
+          setError(`Password must include ${missingPasswordRequirements.join(', ')}.`);
+          return;
+        }
         const out = await api('/auth/register', {
           method: 'POST',
           body: {
@@ -609,6 +622,9 @@ export default function AuthPage({
                           <Icon name={showPassword ? 'eyeOff' : 'eye'} size={18} />
                         </button>
                       </div>
+                      <p className="mt-1.5 text-[11px] text-slate-500">
+                        Use 8 to 128 characters with uppercase, lowercase, a number, and a special character.
+                      </p>
                     </div>
 
                     <div>
