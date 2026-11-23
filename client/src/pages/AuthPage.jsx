@@ -42,7 +42,9 @@ export default function AuthPage({
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [googleEnabled, setGoogleEnabled] = useState(false);
-  const verificationRequestRef = useRef('');
+  // Prevent duplicate verification calls while still allowing a retry after
+  // a failed/aborted request. A token-key guard permanently blocked retries.
+  const verificationInFlightRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -113,9 +115,8 @@ export default function AuthPage({
       setError('This verification link is incomplete. Request a new link or sign in.');
       return;
     }
-    const requestKey = `${email}:${token}:${type}`;
-    if (verificationRequestRef.current === requestKey) return;
-    verificationRequestRef.current = requestKey;
+    if (verificationInFlightRef.current) return;
+    verificationInFlightRef.current = true;
     setBusy(true);
     setVerificationState('checking');
     setError('');
@@ -137,10 +138,12 @@ export default function AuthPage({
       })
       .finally(() => {
         window.clearTimeout(timeout);
+        verificationInFlightRef.current = false;
         if (active) setBusy(false);
       });
     return () => {
       active = false;
+      verificationInFlightRef.current = false;
       controller.abort();
       window.clearTimeout(timeout);
     };
