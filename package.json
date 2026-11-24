@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0 --port 5173",
+    "dev": "node node_modules/vite/bin/vite.js --host 0.0.0.0 --port 5173",
     "dev:vercel": "vercel dev",
-    "dev:client": "vite --host 0.0.0.0 --port 5173",
-    "build": "vite build && vite build --ssr src/entry-server.jsx --outDir ../dist-ssr && node scripts/prerender.mjs",
+    "dev:client": "node node_modules/vite/bin/vite.js --host 0.0.0.0 --port 5173",
+    "build": "node node_modules/vite/bin/vite.js build && node node_modules/vite/bin/vite.js build --ssr src/entry-server.jsx --outDir ../dist-ssr && node scripts/prerender.mjs",
     "build:images": "node scripts/optimize-images.mjs",
     "indexnow": "node scripts/ping-indexnow.mjs",
     "seed": "node --env-file=.env scripts/seed-supabase.js",

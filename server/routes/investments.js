@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import db from '../db.js';
 import { requireAuth, requireRole, requirePermission, notify, audit } from '../auth.js';
 import { parseDateRange, parsePagination, parseSearchQuery } from '../query-filters.js';
+import { notifyPermissionUsers } from '../support-notifications.js';
 
 const router=asyncRouter();
 const id=()=>crypto.randomUUID();
@@ -55,7 +56,9 @@ router.post('/investor/applications',requireAuth,requireRole('investor'),async (
     await db.prepare('INSERT INTO investment_applications (id,investor_id,opportunity_id,amount,reference) VALUES (?,?,?,?,?)').run(idd,req.user.id,opp.id,amount,reference);
     await db.prepare('INSERT INTO investment_agreements (id,application_id,version,doc_ref,accepted_at,method,session_ref) VALUES (?,?,?,?,now(),?,?)').run(id(),idd,agreementVersion,opp.agreement_doc||null,'click_accept',req.user.sessionId||req.requestId||'session');
   });
-  await create();await notify(req.user.id,'Investment application received',`Application ${reference} has been submitted.`,'investment',idd);
+  await create();
+  await notify(req.user.id,'Investment application received',`Application ${reference} has been submitted.`,'investment',idd);
+  await notifyPermissionUsers('investments.manage', 'New investment application', `Application for ${opp.title} (${reference} · ₦${amount.toLocaleString()}).`, 'investment_application', idd);
   await audit(req.user,'investment.application_created','investment_application',idd,null,{reference,opportunityId:opp.id,amount,agreementVersion},null,req.ip);
   res.status(201).json({id:idd,reference,status:'submitted',message:'Application received. Funding becomes available after approval.'});
 });
@@ -77,6 +80,7 @@ router.post('/investor/withdrawals',requireAuth,requireRole('investor'),async (r
   await db.prepare('INSERT INTO investment_withdrawals (id,investment_id,investor_id,amount,reference) VALUES (?,?,?,?,?)').run(withdrawalId,investment.id,req.user.id,amount,reference);
   await db.prepare("UPDATE investments SET status='under_withdrawal_review' WHERE id=?").run(investment.id);
   await audit(req.user,'investment.withdrawal_requested','investment_withdrawal',withdrawalId,null,{amount,reference},null,req.ip);
+  await notifyPermissionUsers('investments.manage', 'Investment withdrawal request', `Investor requested withdrawal of ₦${amount.toLocaleString()} (${reference}).`, 'investment_withdrawal', withdrawalId);
   res.status(201).json({id:withdrawalId,reference,status:'requested',amount});
 });
 

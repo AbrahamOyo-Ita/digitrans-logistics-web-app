@@ -458,7 +458,8 @@ router.post('/ops/deliveries/:id/assign',requireAuth,requirePermission('deliveri
   });
   try{await assign();}catch(error){logger.error('delivery.assignment_failed',{requestId:req.requestId,deliveryId:delivery.id,riderId,error});return res.status(409).json({error:'Unable to create rider assignment.'});}
   await notify(riderId,'New delivery assignment',`You have been assigned delivery ${delivery.reference}.`,'assignment',delivery.id);
-  if(delivery.customer_id)await notify(delivery.customer_id,'Rider assigned',`A rider has been assigned to ${delivery.reference}.`,'delivery',delivery.id);
+  const notifyRecipientId=delivery.customer_id||delivery.vendor_id;
+  if(notifyRecipientId)await notify(notifyRecipientId,'Rider assigned',`A rider has been assigned to ${delivery.reference}.`,'delivery',delivery.id);
   await audit(req.user,current?'delivery.reassigned':'delivery.assigned','delivery',delivery.id,{status:delivery.status,riderId:current?.rider_id||null},{status:'assigned',riderId,assignmentRef},reason,req.ip);
   await flushTransactionalEmailOutboxBestEffort();
   res.status(201).json({assignmentId,assignmentRef,status:'assigned'});
@@ -476,7 +477,9 @@ router.post('/ops/deliveries/:id/status',requireAuth,requirePermission('deliveri
     await db.prepare('INSERT INTO delivery_status_history (id,delivery_id,prev_status,new_status,actor_id,actor_role,notes) VALUES (?,?,?,?,?,?,?)').run(id(),d.id,d.status,next,req.user.id,req.user.role,reason);
     if(next==='awaiting_assignment')await db.prepare("UPDATE delivery_assignments SET status='reassigned',reason=? WHERE delivery_id=? AND status IN ('assigned','accepted')").run(reason,d.id);
   });
-  await run(); if(d.customer_id)await notify(d.customer_id,'Delivery updated',`Delivery ${d.reference}: ${next.replaceAll('_',' ')}.`,'delivery',d.id);
+  await run();
+  const notifyRecipientId=d.customer_id||d.vendor_id;
+  if(notifyRecipientId)await notify(notifyRecipientId,'Delivery updated',`Delivery ${d.reference}: ${next.replaceAll('_',' ')}.`,'delivery',d.id);
   await audit(req.user,'delivery.status_changed','delivery',d.id,{status:d.status},{status:next},reason,req.ip);
   await flushTransactionalEmailOutboxBestEffort();
   res.json({status:next});

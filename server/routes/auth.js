@@ -141,7 +141,9 @@ async function provisionGoogleUser(authUser,requestedRole){
     return existing;
   }
   const role=PUBLIC_SIGNUP_ROLES.includes(requestedRole)?requestedRole:'customer';
-  const status=['customer','student'].includes(role)?'active':'pending_verification';
+  // Google has already verified the email identity. Riders still need the
+  // compliance checklist, but that should not block workspace access.
+  const status=['customer','student','rider'].includes(role)?'active':'pending_verification';
   const fullName=String(authUser.user_metadata?.full_name||authUser.user_metadata?.name||email.split('@')[0]).trim().slice(0,100)||'Google user';
   await db.transaction(async()=>{
     await db.prepare('INSERT INTO public.users (id,email,phone,role,status,email_verified) VALUES (?,?,?,?,?,1)').run(id,email,null,role,status);
@@ -279,7 +281,9 @@ router.post('/register',async(req,res)=>{
       if(process.env.NODE_ENV==='production'){await discardNewAccount(created.user.id);return res.status(503).json({error:'Verification email could not be delivered. Please try again shortly.'});}
     }
   }
-  const message=delivered?'Check your email for a verification link. Your account will be ready after verification.':'Account created. Use the local verification link to confirm your email.';
+  const message=d.role==='rider'
+    ? (delivered?'Check your email to verify your account. After verification, sign in to complete your rider application.':'Account created. Verify your email, then sign in to complete your rider application.')
+    : (delivered?'Check your email for a verification link. Your account will be ready after verification.':'Account created. Use the local verification link to confirm your email.');
   res.status(201).json({message,...(status!=='active'?{applicationStatus:'pending_verification'}:{}),...(!delivered&&process.env.NODE_ENV!=='production'?{debugVerificationUrl:verifyUrl.href}:{})});
 });
 

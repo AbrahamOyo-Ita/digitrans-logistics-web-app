@@ -5,6 +5,7 @@ import { requireAuth, requireRole, ADMIN_ROLES, userHasPermission, notify, audit
 import { calculateDeliveryFee, calculateWaybillFee } from '../pricing.js';
 import { parseDateRange, parsePagination, parseSearchQuery } from '../query-filters.js';
 import { flushTransactionalEmailOutboxBestEffort } from '../email-outbox.js';
+import { notifyPermissionUsers } from '../support-notifications.js';
 
 const router=asyncRouter();
 const ref = prefix => `${prefix}-${new Date().toISOString().slice(0,10).replaceAll('-','')}-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
@@ -56,7 +57,9 @@ export async function createDelivery({ userId, role, body, actor, channel='app' 
       .run(crypto.randomUUID(),id,null,timing === 'scheduled' ? 'pending_confirmation' : 'awaiting_assignment',actor?.id || userId,actor?.role || role,'Booking created');
   });
   await create();
-  if (customerId) await notify(customerId,'Delivery request received',`Reference ${reference} is in the delivery queue.`,'delivery',id);
+  const notifyUserId = customerId || vendorId;
+  if (notifyUserId) await notify(notifyUserId,'Delivery request received',`Reference ${reference} is in the delivery queue.`,'delivery',id);
+  await notifyPermissionUsers('deliveries.assign', 'New delivery booked', `Delivery ${reference} is awaiting assignment.`, 'delivery', id);
   await audit(actor || {id:userId,role},'delivery.created','delivery',id,null,{reference,fee:price.fee,channel},null);
   await flushTransactionalEmailOutboxBestEffort();
   return { id, reference, fee:price.fee, breakdown:price.breakdown, status:timing === 'scheduled' ? 'pending_confirmation' : 'awaiting_assignment', scheduledAt, distanceKm:price.distanceKm };
@@ -198,8 +201,13 @@ router.post('/deliveries/:id/rating', requireAuth, requireRole('customer','stude
   if(d.status!=='delivered') return res.status(409).json({error:'Only completed deliveries can be rated.'});
   const rating=Number(req.body?.rating), comment=String(req.body?.comment||'').slice(0,500);
   if(!Number.isInteger(rating)||rating<1||rating>5) return res.status(400).json({error:'Choose a rating from 1 to 5.'});
-  try { await db.prepare('INSERT INTO ratings (id,delivery_id,customer_id,rating,comment) VALUES (?,?,?,?,?)').run(crypto.randomUUID(),d.id,req.user.id,rating,comment); }
-  catch { return res.status(409).json({error:'A rating has already been submitted.'}); }
+  try {
+    await db.prepare('INSERT INTO ratings (id,delivery_id,customer_id,rating,comment) VALUES (?,?,?,?,?)').run(crypto.randomUUID(),d.id,req.user.id,rating,comment);
+    const assignment = await db.prepare("SELECT rider_id FROM delivery_assignments WHERE delivery_id=? AND status IN ('accepted','completed') ORDER BY created_at DESC LIMIT 1").get(d.id);
+    if(assignment?.rider_id) await notify(assignment.rider_id, 'Delivery rated', `A customer gave you a ${rating}-star rating for delivery ${d.reference}.`, 'rating', d.id);
+  } catch {
+    return res.status(409).json({error:'A rating has already been submitted.'});
+  }
   res.status(201).json({message:'Thank you for your feedback.'});
 });
 
@@ -216,7 +224,9 @@ router.post('/market-runs', requireAuth, requireRole('customer','student'), asyn
     const add=db.prepare('INSERT INTO market_run_items (id,market_run_id,item_name,quantity,unit,brand,description) VALUES (?,?,?,?,?,?,?)');
     for(const item of items) await add.run(crypto.randomUUID(),id,String(item.name).trim().slice(0,120),Number(item.quantity),String(item.unit||'unit').slice(0,40),String(item.brand||'').slice(0,80),String(item.description||'').slice(0,200));
   });
-  await create(); await notify(req.user.id,'Market Run submitted',`Request ${reference} is under review.`,'market_run',id);
+  await create();
+  await notify(req.user.id,'Market Run submitted',`Request ${reference} is under review.`,'market_run',id);
+  await notifyPermissionUsers('market_runs.manage', 'New Market Run request', `Market Run ${reference} submitted for review.`, 'market_run', id);
   await audit(req.user,'market_run.created','market_run',id,null,{reference},null,req.ip);
   await flushTransactionalEmailOutboxBestEffort();
   res.status(201).json({id,reference,status:'submitted',serviceFee:pricing?.market_runs_fee||0});
@@ -246,7 +256,9 @@ router.post('/waybills', requireAuth, requireRole('customer','student'), async (
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(id,reference,req.user.id,String(d.senderName).trim(),String(d.senderPhone).trim(),d.senderEmail||null,String(d.recipientName).trim(),String(d.recipientPhone).trim(),destination,String(d.destinationAddress).trim(),origin,destination,String(d.itemCategory||'general').slice(0,80),String(d.itemDescription).slice(0,500),weight,String(d.dimensions||'').slice(0,100),Number(d.declaredValue||0),String(d.packaging||'').slice(0,120),String(d.handling||'').slice(0,300),d.dispatchDate||null,String(d.deliveryMethod||'standard'),d.officeDropoff||null,'submitted',calculated.fee);
     await db.prepare('INSERT INTO waybill_tracking_events (id,waybill_id,status,location,notes) VALUES (?,?,?,?,?)').run(crypto.randomUUID(),id,'submitted',origin,'Waybill request received');
   });
-  await create(); await notify(req.user.id,'Waybill request received',`Reference ${reference} is under review.`,'waybill',id);
+  await create();
+  await notify(req.user.id,'Waybill request received',`Reference ${reference} is under review.`,'waybill',id);
+  await notifyPermissionUsers('waybills.manage', 'New waybill request', `Waybill ${reference} submitted for route ${origin} → ${destination}.`, 'waybill', id);
   await audit(req.user,'waybill.created','waybill',id,null,{reference,fee:calculated.fee},null,req.ip);
   await flushTransactionalEmailOutboxBestEffort();
   res.status(201).json({id,reference,fee:calculated.fee,weightBand:calculated.band,status:'submitted'});
@@ -259,20 +271,27 @@ router.get('/waybills', requireAuth, async (req, res) => {
 });
 
 router.get('/track/:reference',async (req, res) => {
-  const d=await db.prepare('SELECT id,reference,status,updated_at,created_at,timing,scheduled_at FROM deliveries WHERE reference=?').get(req.params.reference);
+  const ref=String(req.params.reference||'').trim();
+  if(!ref)return res.status(400).json({error:'Tracking reference is required.'});
+  const d=await db.prepare('SELECT id,reference,status,pickup_address,dropoff_address,updated_at,created_at,timing,scheduled_at FROM deliveries WHERE UPPER(reference)=UPPER(?)').get(ref);
   if(d){
-    const timeline=await db.prepare('SELECT new_status,created_at FROM delivery_status_history WHERE delivery_id=? ORDER BY created_at').all(d.id);
-    return res.json({type:'delivery',tracking:{reference:d.reference,status:d.status,lastUpdated:d.updated_at,createdAt:d.created_at,scheduledAt:d.scheduled_at,timeline}});
+    const timeline=await db.prepare('SELECT new_status,notes,created_at FROM delivery_status_history WHERE delivery_id=? ORDER BY created_at').all(d.id);
+    return res.json({type:'delivery',tracking:{reference:d.reference,origin:d.pickup_address||'Calabar',destination:d.dropoff_address||'Destination pending',status:d.status,lastUpdated:d.updated_at,createdAt:d.created_at,scheduledAt:d.scheduled_at,timeline}});
   }
-  const w=await db.prepare('SELECT id,reference,waybill_number,origin,destination,destination_city,status,dispatch_date,updated_at,created_at FROM waybills WHERE reference=? OR waybill_number=?').get(req.params.reference,req.params.reference);
-  if(w){const timeline=await db.prepare('SELECT status,location,created_at FROM waybill_tracking_events WHERE waybill_id=? ORDER BY created_at').all(w.id);return res.json({type:'waybill',tracking:{reference:w.waybill_number||w.reference,origin:w.origin,destination:w.destination_city||w.destination,status:w.status,lastUpdated:w.updated_at,createdAt:w.created_at,timeline}});}
+  const w=await db.prepare("SELECT id,reference,waybill_number,origin,destination,destination_city,status,dispatch_date,updated_at,created_at FROM waybills WHERE UPPER(reference)=UPPER(?) OR UPPER(COALESCE(waybill_number,''))=UPPER(?)").get(ref,ref);
+  if(w){
+    const timeline=await db.prepare('SELECT status,location,notes,created_at FROM waybill_tracking_events WHERE waybill_id=? ORDER BY created_at').all(w.id);
+    return res.json({type:'waybill',tracking:{reference:w.waybill_number||w.reference,origin:w.origin||'Calabar',destination:w.destination_city||w.destination||'-',status:w.status,lastUpdated:w.updated_at,createdAt:w.created_at,timeline}});
+  }
   res.status(404).json({error:'We could not find that tracking reference.'});
 });
 
 router.get('/waybills/track/:reference', async (req, res) => {
-  const wb=await db.prepare('SELECT reference,waybill_number,origin,destination,destination_city,status,dispatch_date,updated_at,created_at FROM waybills WHERE reference=? OR waybill_number=?').get(req.params.reference,req.params.reference);
+  const ref=String(req.params.reference||'').trim();
+  if(!ref)return res.status(400).json({error:'Tracking reference is required.'});
+  const wb=await db.prepare("SELECT id,reference,waybill_number,origin,destination,destination_city,status,dispatch_date,updated_at,created_at FROM waybills WHERE UPPER(reference)=UPPER(?) OR UPPER(COALESCE(waybill_number,''))=UPPER(?)").get(ref,ref);
   if(!wb)return res.status(404).json({error:'Waybill not found.'});
-  const timeline=await db.prepare('SELECT status,location,created_at FROM waybill_tracking_events WHERE waybill_id=(SELECT id FROM waybills WHERE reference=? OR waybill_number=?) ORDER BY created_at').all(req.params.reference,req.params.reference);
+  const timeline=await db.prepare('SELECT status,location,notes,created_at FROM waybill_tracking_events WHERE waybill_id=? ORDER BY created_at').all(wb.id);
   res.json({waybill:wb,timeline});
 });
 
@@ -330,6 +349,7 @@ router.post('/market-runs/:id/approve',requireAuth,requireRole('customer','stude
   const approved=req.body?.approved===true,status=approved?'approved':'cancelled';
   await db.prepare("UPDATE market_runs SET status=?,updated_at=now() WHERE id=?").run(status,m.id);
   await notify(req.user.id,approved?'Estimate approved':'Market Run cancelled',approved?`Your estimate of ₦${Number(m.final_total||0).toLocaleString()} has been approved.`:'The Market Run was cancelled.','market_run',m.id);
+  await notifyPermissionUsers('market_runs.manage', approved ? 'Market Run estimate approved' : 'Market Run cancelled', approved ? `Customer approved estimate for ${m.reference} (₦${Number(m.final_total||0).toLocaleString()}).` : `Customer cancelled Market Run ${m.reference}.`, 'market_run', m.id);
   await audit(req.user,'market_run.customer_decision','market_run',m.id,{status:m.status},{status},null,req.ip);
   await flushTransactionalEmailOutboxBestEffort();
   res.json({status});

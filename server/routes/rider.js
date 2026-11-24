@@ -4,6 +4,7 @@ import db from '../db.js';
 import { requireAuth, requireRole, requirePermission, notify, audit, revokeAllSessions } from '../auth.js';
 import { calculateRiderEarnings } from '../pricing.js';
 import { flushTransactionalEmailOutboxBestEffort } from '../email-outbox.js';
+import { notifyPermissionUsers } from '../support-notifications.js';
 import {logger} from '../logger.js';
 
 const router=asyncRouter();
@@ -11,6 +12,40 @@ const riderOnly=requireRole('rider');
 const id=()=>crypto.randomUUID();
 const ref=p=>`${p}-${new Date().toISOString().slice(0,10).replaceAll('-','')}-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
 const currentAgreement=async () => (await db.prepare("SELECT value FROM system_settings WHERE key='current_rider_agreement_version'").get())?.value || '';
+const RIDER_IDENTITY_TYPES=new Set(['national_id','drivers_license','voter_id','passport']);
+async function riderVerification(riderId){
+  const [profile,rider,guarantor,documents,agreementVersion]=await Promise.all([
+    db.prepare('SELECT full_name,address FROM profiles WHERE user_id=?').get(riderId),
+    db.prepare('SELECT vehicle_type,bank_name,bank_account_name,bank_account_number,approval_status,rejection_reason FROM riders WHERE user_id=?').get(riderId),
+    db.prepare('SELECT id FROM rider_guarantors WHERE rider_id=? ORDER BY created_at DESC LIMIT 1').get(riderId),
+    db.prepare('SELECT doc_type,status FROM rider_documents WHERE rider_id=?').all(riderId),
+    currentAgreement(),
+  ]);
+  const agreementAccepted=Boolean(agreementVersion&&await db.prepare('SELECT id FROM rider_agreements WHERE rider_id=? AND version=?').get(riderId,agreementVersion));
+  const identityDocuments=documents.filter(document=>RIDER_IDENTITY_TYPES.has(document.doc_type));
+  const approvedIdentity=identityDocuments.some(document=>document.status==='approved');
+  const steps=[
+    {key:'profile',label:'Personal & vehicle details',description:'Legal name, address and vehicle type',complete:Boolean(profile?.full_name&&profile.address&&rider?.vehicle_type),href:'/rider/profile'},
+    {key:'guarantor',label:'Guarantor details',description:'A reachable guarantor with a phone number',complete:Boolean(guarantor?.id),href:'/rider/profile'},
+    {key:'payout',label:'Payout details',description:'Bank details for verified rider earnings',complete:Boolean(rider?.bank_name&&rider.bank_account_name&&rider.bank_account_number),href:'/rider/profile'},
+    {key:'identity',label:'Identity document',description:'Upload one government-issued identity document',complete:identityDocuments.length>0,href:'/rider/documents'},
+    {key:'agreement',label:'Rider agreement',description:agreementVersion?`Accept the current agreement · v${agreementVersion}`:'Waiting for operations to publish the agreement',complete:agreementAccepted,href:'/rider'},
+  ];
+  const missingRequirements=steps.filter(step=>!step.complete).map(step=>step.label);
+  const reviewerBlockers=[...missingRequirements];
+  if(!approvedIdentity&&!missingRequirements.includes('Identity document'))reviewerBlockers.push('Operations must approve one identity document');
+  return {
+    approvalStatus:rider?.approval_status||'pending',
+    rejectionReason:rider?.rejection_reason||'',
+    steps,
+    progress:Math.round(steps.filter(step=>step.complete).length/steps.length*100),
+    readyForReview:missingRequirements.length===0,
+    approvedIdentity,
+    readyForApproval:missingRequirements.length===0&&approvedIdentity,
+    missingRequirements,
+    reviewerBlockers,
+  };
+}
 async function riderBalances(riderId) {
   const rows=await db.prepare(`SELECT e.id,e.rider_earnings,
     COALESCE((SELECT SUM(si.amount) FROM rider_settlement_items si JOIN rider_settlements s ON s.id=si.settlement_id WHERE si.earnings_id=e.id AND s.status IN ('pending','approved','paid')),0) settled,
@@ -36,14 +71,14 @@ router.get('/rider/dashboard',requireAuth,riderOnly,async (req, res) => {
   const jobs=await db.prepare(`SELECT d.id,d.reference,d.pickup_address,d.dropoff_address,d.recipient_name,d.recipient_phone,d.package_category,d.package_desc,d.instructions,d.status,d.fee,d.timing,d.scheduled_at,da.status assignment_status,da.created_at assigned_at
     FROM deliveries d JOIN delivery_assignments da ON da.delivery_id=d.id WHERE da.rider_id=? AND da.status IN ('assigned','accepted') AND d.status NOT IN ('delivered','cancelled','delivery_failed','returned') ORDER BY da.created_at DESC`).all(req.user.id);
   const version=await currentAgreement(),agreementText=(await db.prepare("SELECT value FROM system_settings WHERE key='current_rider_agreement_text'").get())?.value||'';
-  res.json({profile:{...profile,...rider,bank_name:undefined,bank_account_name:undefined,bank_account_number:undefined},stats:{active,completed,earnings,pending,availableBalance:balances.available,unsettled:balances.outstanding},jobs,currentAgreement:version,agreementText,agreementAccepted:!!version&&!!(await db.prepare('SELECT 1 FROM rider_agreements WHERE rider_id=? AND version=?').get(req.user.id,version))});
+  res.json({profile:{...profile,...rider,bank_name:undefined,bank_account_name:undefined,bank_account_number:undefined},verification:await riderVerification(req.user.id),stats:{active,completed,earnings,pending,availableBalance:balances.available,unsettled:balances.outstanding},jobs,currentAgreement:version,agreementText,agreementAccepted:!!version&&!!(await db.prepare('SELECT 1 FROM rider_agreements WHERE rider_id=? AND version=?').get(req.user.id,version))});
 });
 
 router.get('/rider/profile',requireAuth,riderOnly,async (req, res) => {
   const profile=await db.prepare('SELECT full_name,address,dob,emergency_contact FROM profiles WHERE user_id=?').get(req.user.id);
-  const rider=await db.prepare('SELECT vehicle_type,vehicle_reg,vehicle_desc,availability,approval_status,rejection_reason FROM riders WHERE user_id=?').get(req.user.id);
+  const rider=await db.prepare('SELECT vehicle_type,vehicle_reg,vehicle_desc,bank_name,bank_account_name,bank_account_number,availability,approval_status,rejection_reason FROM riders WHERE user_id=?').get(req.user.id);
   const guarantor=await db.prepare('SELECT full_name,phone,address,relationship FROM rider_guarantors WHERE rider_id=? ORDER BY created_at DESC LIMIT 1').get(req.user.id);
-  res.json({profile,rider,guarantor});
+  res.json({profile,rider,guarantor,verification:await riderVerification(req.user.id)});
 });
 
 router.patch('/rider/profile',requireAuth,riderOnly,async (req, res) => {
@@ -111,6 +146,7 @@ router.post('/rider/withdrawals',requireAuth,riderOnly,async (req, res) => {
   });
   try{await request();}catch(e){return res.status(409).json({error:e.message||'Unable to reserve the requested balance.'});}
   await audit(req.user,'rider.withdrawal_requested','withdrawal',idd,null,{amount,reference},null,req.ip);
+  await notifyPermissionUsers('finance.manage', 'New withdrawal request', `Rider requested withdrawal of ₦${amount.toLocaleString()} (${reference}).`, 'withdrawal', idd);
   res.status(201).json({id:idd,reference,status:'requested',amount});
 });
 
@@ -126,13 +162,14 @@ router.post('/rider/jobs/:deliveryId/accept',requireAuth,riderOnly,async (req, r
     await db.prepare('INSERT INTO delivery_status_history (id,delivery_id,prev_status,new_status,actor_id,actor_role,notes) VALUES (?,?,?,?,?,?,?)').run(id(),req.params.deliveryId,a.delivery_status,'rider_accepted',req.user.id,'rider','Rider accepted assignment');
   });
   await update();
-  if(a.customer_id)await notify(a.customer_id,'Rider accepted your delivery',`A rider accepted delivery ${a.reference}.`,'delivery',req.params.deliveryId);
+  const notifyRecipientId=a.customer_id||a.vendor_id;
+  if(notifyRecipientId)await notify(notifyRecipientId,'Rider accepted your delivery',`A rider accepted delivery ${a.reference}.`,'delivery',req.params.deliveryId);
   await flushTransactionalEmailOutboxBestEffort();
   res.json({message:'Assignment accepted.',status:'rider_accepted'});
 });
 
 router.post('/rider/jobs/:deliveryId/reject',requireAuth,riderOnly,async (req, res) => {
-  const a=await db.prepare(`SELECT da.*,d.status delivery_status,d.customer_id,d.reference FROM delivery_assignments da JOIN deliveries d ON d.id=da.delivery_id WHERE da.delivery_id=? AND da.rider_id=? AND da.status='assigned'`).get(req.params.deliveryId,req.user.id);
+  const a=await db.prepare(`SELECT da.*,d.status delivery_status,d.customer_id,d.vendor_id,d.reference FROM delivery_assignments da JOIN deliveries d ON d.id=da.delivery_id WHERE da.delivery_id=? AND da.rider_id=? AND da.status='assigned'`).get(req.params.deliveryId,req.user.id);
   if(!a)return res.status(404).json({error:'This assignment is no longer available.'});
   const reason=String(req.body?.reason||'').trim();
   if(reason.length<3)return res.status(400).json({error:'Add a short reason for declining this assignment.'});
@@ -142,7 +179,9 @@ router.post('/rider/jobs/:deliveryId/reject',requireAuth,riderOnly,async (req, r
     await db.prepare('INSERT INTO delivery_status_history (id,delivery_id,prev_status,new_status,actor_id,actor_role,notes) VALUES (?,?,?,?,?,?,?)').run(id(),req.params.deliveryId,a.delivery_status,'awaiting_assignment',req.user.id,'rider',`Assignment declined: ${reason.slice(0,250)}`);
   });
   await reject(); await audit(req.user,'delivery.assignment_rejected','delivery',req.params.deliveryId,{rider:req.user.id},{status:'awaiting_assignment'},reason,req.ip);
-  if(a.customer_id)await notify(a.customer_id,'Delivery reassignment in progress',`We are finding a new rider for ${a.reference}.`,'delivery',req.params.deliveryId);
+  const notifyRecipientId=a.customer_id||a.vendor_id;
+  if(notifyRecipientId)await notify(notifyRecipientId,'Delivery reassignment in progress',`We are finding a new rider for ${a.reference}.`,'delivery',req.params.deliveryId);
+  await notifyPermissionUsers('deliveries.assign', 'Assignment declined', `Rider declined delivery ${a.reference}: ${reason.slice(0, 100)}.`, 'delivery', req.params.deliveryId);
   await flushTransactionalEmailOutboxBestEffort();
   res.json({message:'Assignment declined. Operations has been notified.'});
 });
@@ -196,7 +235,8 @@ router.post('/rider/jobs/:deliveryId/status',requireAuth,riderOnly,async (req, r
     }
   });
   try{await statusUpdate();}catch(error){logger.error('delivery.status_update_failed',{requestId:req.requestId,deliveryId:d.id,error});return res.status(409).json({error:'Unable to record the update. Refresh and try again.'});}
-  if(d.customer_id)await notify(d.customer_id,next==='delivered'?'Delivery completed':'Delivery update',`Delivery ${d.reference}: ${next.replaceAll('_',' ')}.`,'delivery',d.id);
+  const notifyRecipientId=d.customer_id||d.vendor_id;
+  if(notifyRecipientId)await notify(notifyRecipientId,next==='delivered'?'Delivery completed':'Delivery update',`Delivery ${d.reference}: ${next.replaceAll('_',' ')}.`,'delivery',d.id);
   await audit(req.user,'delivery.status_changed','delivery',d.id,{status:d.status},{status:next},notes,req.ip);
   await flushTransactionalEmailOutboxBestEffort();
   res.json({message:'Delivery progress updated.',status:next});
@@ -207,7 +247,7 @@ router.get('/rider/applications',requireAuth,requirePermission('riders.review'),
     (SELECT COUNT(*) FROM rider_documents rd WHERE rd.rider_id=u.id) document_count,
     (SELECT COUNT(*) FROM rider_agreements ra WHERE ra.rider_id=u.id AND ra.version=?) agreement_current
     FROM users u JOIN profiles p ON p.user_id=u.id JOIN riders r ON r.user_id=u.id WHERE r.approval_status IN ('pending','rejected','suspended') ORDER BY u.created_at`).all(await currentAgreement());
-  res.json({riders:rows});
+  res.json({riders:await Promise.all(rows.map(async row=>({...row,verification:await riderVerification(row.id)})))});
 });
 
 router.get('/rider/applications/:id/documents',requireAuth,requirePermission('riders.review'),async (req, res) => {
@@ -226,10 +266,8 @@ router.post('/rider/applications/:id/decision',requireAuth,requirePermission('ri
   const r=await db.prepare('SELECT * FROM riders WHERE user_id=?').get(req.params.id);
   if(!r)return res.status(404).json({error:'Rider application not found.'});
   if(status==='approved'){
-    const profile=await db.prepare('SELECT full_name,address FROM profiles WHERE user_id=?').get(req.params.id);
-    const g=await db.prepare('SELECT id FROM rider_guarantors WHERE rider_id=?').get(req.params.id);
-    const identity=await db.prepare("SELECT id FROM rider_documents WHERE rider_id=? AND status='approved' AND doc_type IN ('national_id','drivers_license','voter_id','passport') LIMIT 1").get(req.params.id);
-    if(!profile?.full_name||!profile.address||!r.vehicle_type||!r.bank_name||!r.bank_account_name||!r.bank_account_number||!g||!identity||!(await currentAgreement())||!(await db.prepare('SELECT id FROM rider_agreements WHERE rider_id=? AND version=?').get(req.params.id,await currentAgreement())))return res.status(409).json({error:'Complete personal details, bank information, guarantor, at least one approved identity document and current agreement before approving.'});
+    const readiness=await riderVerification(req.params.id);
+    if(!readiness.readyForApproval)return res.status(409).json({error:`This rider is not ready for approval. ${readiness.reviewerBlockers.join('; ')}.`});
   }
   const accountStatus=status==='approved'?'active':status==='suspended'?'suspended':status==='rejected'?'rejected':'pending_verification';
   const update=db.transaction(async () => {

@@ -90,7 +90,7 @@ export default function AuthPage({
   useEffect(() => {
     document.title = `${
       kind === 'register'
-        ? 'Join Us'
+        ? 'Create your account'
         : kind === 'forgot'
         ? 'Reset password'
         : kind === 'reset'
@@ -389,7 +389,7 @@ export default function AuthPage({
                 {kind === 'login'
                   ? 'Welcome Back'
                   : kind === 'register'
-                  ? 'Join Us'
+                  ? 'Create your account'
                   : kind === 'forgot'
                   ? 'Reset Password'
                   : kind === 'reset'
@@ -400,7 +400,9 @@ export default function AuthPage({
                 {kind === 'login'
                   ? 'Please enter your account details to access your workspace.'
                   : kind === 'register'
-                  ? 'Create an account to book and track deliveries across Calabar.'
+                  ? role === 'rider'
+                    ? 'Create your account first. After email verification, you’ll complete your rider application from the workspace.'
+                    : 'Create an account to book and track deliveries across Calabar.'
                   : kind === 'forgot'
                   ? 'Enter your email or phone to receive recovery instructions.'
                   : 'Update your password to continue.'}
@@ -818,7 +820,7 @@ export default function AuthPage({
                     kind === 'login'
                       ? 'Continue'
                       : kind === 'register'
-                      ? 'Continue'
+                      ? 'Create account'
                       : kind === 'forgot'
                       ? 'Send Recovery Link'
                       : 'Update Password'
@@ -835,7 +837,7 @@ export default function AuthPage({
                         onClick={() => switchKind('register')}
                         className="font-semibold text-[#1d4ed8] hover:underline"
                       >
-                        Join Us
+                        Create an account
                       </button>
                     </>
                   ) : kind === 'register' ? (
@@ -878,7 +880,7 @@ export default function AuthPage({
                       className="w-full py-3.5 rounded-2xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 bg-white font-medium text-slate-700 text-sm shadow-sm transition-all duration-200 flex items-center justify-center gap-3 cursor-pointer"
                     >
                       <GoogleIcon className="w-4 h-4" />
-                      <span>{kind === 'register' ? 'Sign up with Google' : 'Sign in with Google'}</span>
+                      <span>Continue with Google</span>
                     </button>
                   </>
                 )}

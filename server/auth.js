@@ -312,6 +312,13 @@ export async function verifySupabaseOtp({email,token,type='signup'}={}){
   const user=await loadAppUser(data.user.id);
   if(!user)throw Object.assign(new Error('Account setup could not be completed.'),{status:404});
   await db.prepare('UPDATE public.users SET email_verified=1,updated_at=now() WHERE id=?').run(user.id);
+  // Email verification completes the account-security step. Rider compliance
+  // review is a separate workflow, so verified riders must be allowed into the
+  // workspace to finish their application before operations approves them.
+  if(user.role==='rider'&&user.status==='pending_verification'){
+    await db.prepare("UPDATE public.users SET status='active',updated_at=now() WHERE id=? AND status='pending_verification'").run(user.id);
+    user.status='active';
+  }
   if(user.status!=='active'){
     try{await getSupabaseAdmin().auth.admin.signOut(data.session.access_token,'local');}catch{}
     return {user,session:null,pending:true};
@@ -342,8 +349,15 @@ export async function loginSupabaseUser(identifier,password){
   const client=createSupabaseUserClient();
   const {data,error}=await client.auth.signInWithPassword({email,password:String(password||'')});
   if(error)throw authError(error);
-  const user=await loadAppUser(data.user.id);
+  let user=await loadAppUser(data.user.id);
   if(!user){await client.auth.signOut({scope:'local'});throw Object.assign(new Error('The sign-in details are incorrect.'),{status:401});}
+  // Older verified rider accounts may still carry the legacy pending status.
+  // A successful Supabase password sign-in proves the email step is complete;
+  // move only riders into the separate compliance-onboarding state.
+  if(user.role==='rider'&&user.status==='pending_verification'){
+    await db.prepare("UPDATE public.users SET status='active',email_verified=1,updated_at=now() WHERE id=? AND status='pending_verification'").run(user.id);
+    user={...user,status:'active'};
+  }
   if(user.status!=='active'){
     await client.auth.signOut({scope:'local'});
     throw Object.assign(new Error('Your account is awaiting approval or is currently unavailable.'),{status:403});
