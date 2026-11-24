@@ -527,18 +527,43 @@ input[type='checkbox']:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba
 .site-nav-services-trigger svg.is-open { transform: rotate(180deg); }
 .site-header-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 12px; }
 .site-header-signin {
-  min-height: 42px;
-  border: 1px solid #d7e3df;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
   border-radius: 999px;
-  padding: 0 15px;
-  background: rgba(255,255,255,.58);
-  color: #40545f;
-  font-size: .8rem;
-  font-weight: 620;
+  color: #3b505c;
+  font-size: .84rem;
+  font-weight: 600;
   white-space: nowrap;
-  transition: color .18s ease, background .18s ease, border-color .18s ease;
+  transition: color .18s ease, background .18s ease;
 }
-.site-header-signin:hover { border-color: #b9d4cb; background: #edf5f2; color: #0d6b72; }
+.site-header-signin:hover {
+  background: #edf5f2;
+  color: #0b1b2b;
+}
+.site-header-signup {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #0b1b2b;
+  border-radius: 999px;
+  padding: 0 17px;
+  background: #0b1b2b;
+  color: #fff;
+  font-size: .82rem;
+  font-weight: 650;
+  white-space: nowrap;
+  transition: transform .18s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.site-header-signup:hover {
+  background: #17304a;
+  border-color: #17304a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(11,27,43,.18);
+  color: #fff;
+}
 .site-header-quote,
 .site-mobile-quote {
   display: inline-flex;
@@ -967,7 +992,7 @@ input[type='checkbox']:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba
   .site-header-home { width: calc(100% - 40px); }
   .home-hero-content { width: calc(100% - 40px); }
   .site-header-inner { height: 70px; }
-  .site-primary-nav,.site-header-signin { display: none; }
+  .site-primary-nav,.site-header-signin,.site-header-signup { display: none; }
   .site-header-actions { gap: 9px; }
   .site-header-menu-button { display: grid; width: 42px; height: 42px; place-items: center; border: 1px solid #e1e9e5; border-radius: 50%; background: rgba(255,255,255,.72); color: #183746; transition: background .2s ease,border-color .2s ease; }
   .site-header-menu-button:hover { border-color: #c6d9d2; background: #eef6f2; }
@@ -1075,7 +1100,7 @@ input[type='checkbox']:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba
 .public-site [class~="text-[.6875rem]"] { font-size: .75rem; }
 .public-site [class~="text-[.625rem]"] { font-size: .6875rem; }
 .site-nav-link { font-size: .87rem; }
-.site-header-signin,.site-header-quote,.site-mobile-quote { font-size: .87rem; }
+.site-header-signin,.site-header-signup,.site-header-quote,.site-mobile-quote { font-size: .87rem; }
 .site-mobile-link { font-size: 1.05rem; }
 .site-mobile-phone { font-size: .875rem; }
 .site-mobile-eyebrow { font-size: .75rem; }

@@ -96,6 +96,7 @@ export function SiteHeader({ page, navigate, onLogin, user, settings }) {
   };
 
   const signInHref = user ? '/workspace' : '/login?next=%2Fworkspace';
+  const signUpHref = user ? '/workspace' : '/register?next=%2Fworkspace';
   const isActive = (path) => page === path || (path !== '/' && page.startsWith(`${path}/`));
 
   return (
@@ -230,19 +231,38 @@ export function SiteHeader({ page, navigate, onLogin, user, settings }) {
             )}
           </nav>
           <div className="site-header-actions">
-            <AppLink
-              href={signInHref}
-              navigate={navigate}
-              onClick={(e) => {
-                if (onLogin && !user) {
-                  e.preventDefault();
-                  onLogin('/workspace');
-                }
-              }}
-              className="site-header-signin"
-            >
-              {user ? 'Workspace' : 'Sign in'}
-            </AppLink>
+            {user ? (
+              <AppLink
+                href="/workspace"
+                navigate={navigate}
+                className="site-header-signup"
+              >
+                Workspace
+              </AppLink>
+            ) : (
+              <>
+                <AppLink
+                  href={signInHref}
+                  navigate={navigate}
+                  onClick={(e) => {
+                    if (onLogin) {
+                      e.preventDefault();
+                      onLogin('/workspace');
+                    }
+                  }}
+                  className="site-header-signin"
+                >
+                  Sign in
+                </AppLink>
+                <AppLink
+                  href={signUpHref}
+                  navigate={navigate}
+                  className="site-header-signup"
+                >
+                  Sign up
+                </AppLink>
+              </>
+            )}
             <AppLink href="/quote" navigate={navigate} className="site-header-quote">
               Get a quote
               <Icon name="arrow" size={15} />
@@ -295,21 +315,44 @@ export function SiteHeader({ page, navigate, onLogin, user, settings }) {
                 <span>How it works</span>
                 <Icon name="arrow" size={16} />
               </AppLink>
-              <AppLink
-                href={signInHref}
-                navigate={navigate}
-                onClick={(e) => {
-                  closeMenus();
-                  if (onLogin && !user) {
-                    e.preventDefault();
-                    onLogin('/workspace');
-                  }
-                }}
-                className="site-mobile-link"
-              >
-                <span>{user ? 'Workspace' : 'Sign in'}</span>
-                <Icon name="arrow" size={16} />
-              </AppLink>
+              {user ? (
+                <AppLink
+                  href="/workspace"
+                  navigate={navigate}
+                  onClick={closeMenus}
+                  className="site-mobile-link"
+                >
+                  <span>Workspace</span>
+                  <Icon name="arrow" size={16} />
+                </AppLink>
+              ) : (
+                <>
+                  <AppLink
+                    href={signInHref}
+                    navigate={navigate}
+                    onClick={(e) => {
+                      closeMenus();
+                      if (onLogin) {
+                        e.preventDefault();
+                        onLogin('/workspace');
+                      }
+                    }}
+                    className="site-mobile-link"
+                  >
+                    <span>Sign in</span>
+                    <Icon name="arrow" size={16} />
+                  </AppLink>
+                  <AppLink
+                    href={signUpHref}
+                    navigate={navigate}
+                    onClick={closeMenus}
+                    className="site-mobile-link"
+                  >
+                    <span>Create account</span>
+                    <Icon name="arrow" size={16} />
+                  </AppLink>
+                </>
+              )}
             </nav>
           </div>
           <div className="site-mobile-footer">
