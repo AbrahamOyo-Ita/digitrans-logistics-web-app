@@ -187,6 +187,10 @@ export default function AuthPage({
           setError(`Password must include ${missingPasswordRequirements.join(', ')}.`);
           return;
         }
+        if (form.password !== form.confirmPassword) {
+          setError('Passwords do not match.');
+          return;
+        }
         const out = await api('/auth/register', {
           method: 'POST',
           body: {
@@ -214,6 +218,23 @@ export default function AuthPage({
         return;
       }
       if (kind === 'reset') {
+        const resetPw = String(form.password || '');
+        const resetPwRequirements = [
+          [resetPw.length >= 8 && resetPw.length <= 128, '8 to 128 characters'],
+          [/[A-Z]/.test(resetPw), 'an uppercase letter'],
+          [/[a-z]/.test(resetPw), 'a lowercase letter'],
+          [/[0-9]/.test(resetPw), 'a number'],
+          [/[^A-Za-z0-9]/.test(resetPw), 'a special character'],
+        ];
+        const missingResetPwReqs = resetPwRequirements.filter(([valid]) => !valid).map(([, label]) => label);
+        if (missingResetPwReqs.length) {
+          setError(`Password must include ${missingResetPwReqs.join(', ')}.`);
+          return;
+        }
+        if (form.password !== form.confirmPassword) {
+          setError('Passwords do not match.');
+          return;
+        }
         const token = resetToken || form.token;
         const email = resetEmail || form.email;
         const out = await api('/auth/reset-password', {
@@ -728,26 +749,53 @@ export default function AuthPage({
                       <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                         New password
                       </label>
-                      <input
-                        name="password"
-                        type="password"
-                        required
-                        minLength={8}
-                        autoComplete="new-password"
-                        className="w-full bg-[#f4f5f8] hover:bg-[#edeff2] focus:bg-white border border-transparent focus:border-[#1d4ed8] focus:ring-4 focus:ring-blue-500/10 rounded-2xl px-4 py-3.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200"
-                      />
+                      <div className="relative">
+                        <input
+                          name="password"
+                          type={showPassword ? 'text' : 'password'}
+                          required
+                          minLength={8}
+                          maxLength={128}
+                          autoComplete="new-password"
+                          placeholder="At least 8 characters"
+                          className="w-full bg-[#f4f5f8] hover:bg-[#edeff2] focus:bg-white border border-transparent focus:border-[#1d4ed8] focus:ring-4 focus:ring-blue-500/10 rounded-2xl px-4 py-3.5 pr-11 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          aria-label={showPassword ? 'Hide password' : 'Show password'}
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                        >
+                          <Icon name={showPassword ? 'eyeOff' : 'eye'} size={18} />
+                        </button>
+                      </div>
+                      <p className="mt-1.5 text-[11px] text-slate-500">
+                        Use 8 to 128 characters with uppercase, lowercase, a number, and a special character.
+                      </p>
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                         Confirm password
                       </label>
-                      <input
-                        name="confirmPassword"
-                        type="password"
-                        required
-                        autoComplete="new-password"
-                        className="w-full bg-[#f4f5f8] hover:bg-[#edeff2] focus:bg-white border border-transparent focus:border-[#1d4ed8] focus:ring-4 focus:ring-blue-500/10 rounded-2xl px-4 py-3.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200"
-                      />
+                      <div className="relative">
+                        <input
+                          name="confirmPassword"
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          required
+                          minLength={8}
+                          autoComplete="new-password"
+                          placeholder="Repeat password"
+                          className="w-full bg-[#f4f5f8] hover:bg-[#edeff2] focus:bg-white border border-transparent focus:border-[#1d4ed8] focus:ring-4 focus:ring-blue-500/10 rounded-2xl px-4 py-3.5 pr-11 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                        >
+                          <Icon name={showConfirmPassword ? 'eyeOff' : 'eye'} size={18} />
+                        </button>
+                      </div>
                     </div>
                   </>
                 )}
@@ -813,7 +861,7 @@ export default function AuthPage({
                   )}
                 </div>
 
-                {googleEnabled && (
+                {googleEnabled && (kind === 'login' || kind === 'register') && (
                   <>
                     {/* 'Or' Divider */}
                     <div className="relative flex items-center justify-center my-6">

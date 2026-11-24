@@ -364,7 +364,7 @@ router.post('/forgot-password',async(req,res)=>{
 
 router.post('/reset-password',async(req,res)=>{
   const email=String(req.body?.email||'').trim().toLowerCase(),token=String(req.body?.token||''),password=String(req.body?.password||''),confirm=String(req.body?.confirmPassword||'');
-  if(password.length<8||password.length>128||!/[A-Za-z]/.test(password)||!/[0-9]/.test(password))return res.status(400).json({error:'Use at least 8 characters with letters and numbers.'});
+  if(password.length<8||password.length>128||!/[A-Z]/.test(password)||!/[a-z]/.test(password)||!/[0-9]/.test(password)||!/[^A-Za-z0-9]/.test(password))return res.status(400).json({error:'Password must be 8–128 characters and include uppercase, lowercase, a number, and a special character.'});
   if(password!==confirm)return res.status(400).json({error:'Passwords do not match.'});
   try{await resetSupabasePassword({email,token,password});}
   catch(error){return res.status(error?.status||400).json({error:error?.status?error.message:'This recovery link is invalid or has expired.'});}
@@ -385,7 +385,7 @@ router.patch('/profile',async(req,res)=>{
 router.post('/change-password',async(req,res)=>{
   const user=await currentUser(req);if(!user)return res.status(401).json({error:'Unauthenticated'});
   const current=String(req.body?.currentPassword||''),next=String(req.body?.newPassword||'');
-  if(next.length<8||next.length>128||!/[A-Za-z]/.test(next)||!/[0-9]/.test(next))return res.status(400).json({error:'Use at least 8 characters with letters and numbers.'});
+  if(next.length<8||next.length>128||!/[A-Z]/.test(next)||!/[a-z]/.test(next)||!/[0-9]/.test(next)||!/[^A-Za-z0-9]/.test(next))return res.status(400).json({error:'Password must be 8–128 characters and include uppercase, lowercase, a number, and a special character.'});
   await changeSupabasePassword({userId:user.id,currentPassword:current,newPassword:next});
   clearSession(res);res.json({message:'Password updated. Sign in again on your devices.'});
 });
